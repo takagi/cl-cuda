@@ -198,13 +198,12 @@
             collect `(setf (mem-aref ,var :pointer ,i) ,ptr))
        ,@body)))
 
-(defun kernel-defun (name)
-  (let ((arg-types (kernel-manager-function-arg-types *kernel-manager* name)))
+(defun kernel-defun (mgr name)
+  (let ((arg-types (kernel-manager-function-arg-types mgr name)))
     (with-gensyms (hfunc args)
       (let ((kargs (make-kernel-args arg-types)))
         `(defun ,name (,@(kernel-arg-names kargs) &key grid-dim block-dim)
-           (let ((,hfunc (ensure-kernel-function-loaded *kernel-manager*
-                                                        ',name)))
+           (let ((,hfunc (ensure-kernel-function-loaded mgr ',name)))
              (with-non-pointer-arguments
                  ,(kernel-arg-foreign-pointer-bindings kargs)
                (with-kernel-arguments
@@ -222,7 +221,7 @@
 
 (defmacro defkernel (name arg-types function)
   (kernel-manager-define-function *kernel-manager* name arg-types function)
-  (kernel-defun name))
+  (kernel-defun *kernel-manager* name))
 
 
 ;;; kernel-arg  := (name name-as-pointer type)
