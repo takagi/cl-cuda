@@ -300,6 +300,11 @@
 (defmacro kernel-manager-module-compilation-needed (mgr)
   `(module-compilation-needed (module-info ,mgr)))
 
+(defun kernel-manager-function-exists-p (mgr name)
+  (multiple-value-bind (_ p) (gethash name (function-table mgr))
+    (declare (ignorable _))
+    p))
+
 (defmacro kernel-manager-function-handle (mgr name)
   `(function-handle (function-info ,mgr ,name)))
 
@@ -313,7 +318,20 @@
   `(function-code (function-info ,mgr ,name)))
 
 (defun kernel-manager-define-function (mgr name arg-types fname)
-  (setf (function-info mgr name) (make-function-info arg-types fname)))
+  (if (kernel-manager-function-exists-p mgr name)
+      (when (function-modified-p (function-info mgr name) arg-types 'code)
+        (setf (kernel-manager-function-arg-types mgr name) arg-types)
+        (setf (kernel-manager-function-code mgr name) 'code)
+        (setf (kernel-manager-module-compilation-needed mgr) t))
+      (setf (function-info mgr name)
+            (make-function-info arg-types fname 'code))))
+
+(defun function-modified-p (info arg-types code)
+  (or (neq arg-types (function-arg-types info))
+      (neq code (function-code info))))
+
+(defun neq (&rest args)
+  (not (apply #'eq args)))
 
 (defun %kernel-manager-as-list (mgr)
   (let ((ret))
@@ -427,8 +445,8 @@
 
 ;;; function-info
 
-(defun make-function-info (arg-types fname)
-  (list nil arg-types fname nil))
+(defun make-function-info (arg-types fname code)
+  (list nil arg-types fname code))
 
 (defmacro function-handle (info)
   `(car ,info))
