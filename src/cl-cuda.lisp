@@ -455,10 +455,10 @@
   `(caddr ,info))
 
 
-;;; function-info
+;;; function-info ::= (name hfunc arg-bindings c-name code)
 
-(defun make-function-info (name arg-bindings fname code)
-  (list name nil arg-bindings fname code))
+(defun make-function-info (name arg-bindings c-name code)
+  (list name nil arg-bindings c-name code))
 
 (defmacro function-name (info)
   `(car ,info))
