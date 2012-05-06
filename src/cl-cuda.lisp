@@ -198,78 +198,87 @@
             collect `(setf (mem-aref ,var :pointer ,i) ,ptr))
        ,@body)))
 
-(defun kernel-defun (mgr name)
-  (let ((arg-types (kernel-manager-function-arg-types mgr name)))
+(defun kernel-defun (mgr mgr-symbol name)
+  (let ((kargs (kernel-manager-function-arg-bindings mgr name)))
     (with-gensyms (hfunc args)
-      (let ((kargs (make-kernel-args arg-types)))
-        `(defun ,name (,@(kernel-arg-names kargs) &key grid-dim block-dim)
-           (let ((,hfunc (ensure-kernel-function-loaded mgr ',name)))
-             (with-non-pointer-arguments
-                 ,(kernel-arg-foreign-pointer-bindings kargs)
-               (with-kernel-arguments
-                   (,args ,@(kernel-arg-names-as-pointer kargs))
-                 (destructuring-bind
-                       (grid-dim-x grid-dim-y grid-dim-z) grid-dim
-                 (destructuring-bind
-                       (block-dim-x block-dim-y block-dim-z) block-dim
-                   (check-cuda-errors
-                    (cu-launch-kernel (mem-ref ,hfunc 'cu-function)
-                                      grid-dim-x grid-dim-y grid-dim-z
-                                      block-dim-x block-dim-y block-dim-z
-                                      0 (null-pointer)
-                                      ,args (null-pointer)))))))))))))
+      `(defun ,name (,@(kernel-arg-names kargs) &key grid-dim block-dim)
+         (let ((,hfunc (ensure-kernel-function-loaded ,mgr-symbol ',name)))
+           (with-non-pointer-arguments
+               ,(kernel-arg-foreign-pointer-bindings kargs)
+             (with-kernel-arguments
+                 (,args ,@(kernel-arg-names-as-pointer kargs))
+               (destructuring-bind
+                     (grid-dim-x grid-dim-y grid-dim-z) grid-dim
+               (destructuring-bind
+                     (block-dim-x block-dim-y block-dim-z) block-dim
+                 (check-cuda-errors
+                  (cu-launch-kernel (mem-ref ,hfunc 'cu-function)
+                                    grid-dim-x grid-dim-y grid-dim-z
+                                    block-dim-x block-dim-y block-dim-z
+                                    0 (null-pointer)
+                                    ,args (null-pointer))))))))))))
 
-(defmacro defkernel (name arg-types function)
-;  (check-kernel-function arg-types function)
-  (kernel-manager-define-function *kernel-manager* name arg-types function)
-  (kernel-defun *kernel-manager* name))
+(defmacro defkernel (name arg-bindings fname &rest body)
+;  (check-kernel-function arg-bindings body)
+  (kernel-manager-define-function *kernel-manager* name arg-bindings fname body)
+  (kernel-defun *kernel-manager* '*kernel-manager* name))
 
 
-;;; kernel-arg  := (name name-as-pointer type)
+;;; kernel-arg
 
 (defun non-pointer-type-p (type)
-  (or (eq type :int)
-      (eq type :float)))
+  (assert (valid-type-p type))
+  (find type '(int float)))
 
 (defun pointer-type-p (type)
-  (eq type 'cu-device-ptr))
+  (assert (valid-type-p type))
+  (find type '(int* float*)))
 
-(defun valid-kernel-arg-type-p (type)
-  (or (non-pointer-type-p type)
-      (pointer-type-p type)))
+(defun valid-type-p (type)
+  (find type '(int int* float float*)))
 
-(defun make-kernel-arg (type)
-  (assert (valid-kernel-arg-type-p type))
-  (let ((name (gensym "ARG")))
+(defvar +cffi-type-table+ '(int :int
+                            float :float))
+
+(defun cffi-type (type)
+  (if (pointer-type-p type)
+      'cu-device-ptr
+      (getf +cffi-type-table+ type)))
+
+(defun kernel-arg-names (arg-bindings)
+  ;; ((a float*) (b float*) (c float*) (n int)) → (a b c n)
+  (mapcar #'car arg-bindings))
+
+(defun kernel-arg-names-as-pointer (arg-bindings)
+  ;; ((a float*) (b float*) (c float*) (n int)) → (a b c n-ptr)
+  (mapcar #'arg-name-as-pointer arg-bindings))
+
+(defun arg-name-as-pointer (arg-binding)
+  ; (a float*) -> a, (n int) -> n-ptr
+  (destructuring-bind (var type) arg-binding
     (if (non-pointer-type-p type)
-        (list name (gensym "ARG-PTR") type)
-        (list name name type))))
+        (var-ptr var)
+        var)))
 
-(defun kernel-arg-name (karg)
-  (car karg))
+(defun kernel-arg-foreign-pointer-bindings (arg-bindings)
+  ; ((a float*) (b float*) (c float*) (n int)) → ((n n-ptr :int))
+  (mapcar #'foreign-pointer-binding
+    (filter #'arg-binding-with-non-pointer-type-p arg-bindings)))
 
-(defun kernel-arg-name-as-pointer (karg)
-  (cadr karg))
+(defun foreign-pointer-binding (arg-binding)
+  (destructuring-bind (var type) arg-binding
+    (list var (var-ptr var) (cffi-type type))))
 
-(defun kernel-arg-type (karg)
-  (caddr karg))
+(defun arg-binding-with-non-pointer-type-p (arg-binding)
+  (non-pointer-type-p (cadr arg-binding)))
 
+(defun var-ptr (var)
+  (symbolicate var "-PTR"))
 
-;;; kernel-args := kernel-arg*
-
-(defun make-kernel-args (types)
-  (mapcar #'make-kernel-arg types))
-
-(defun kernel-arg-names (kargs)
-  (mapcar #'kernel-arg-name kargs))
-
-(defun kernel-arg-names-as-pointer (kargs)
-  (mapcar #'kernel-arg-name-as-pointer kargs))
-
-(defun kernel-arg-foreign-pointer-bindings (kargs)
-  (loop for karg in kargs
-     when (non-pointer-type-p (kernel-arg-type karg))
-     collect karg))
+(defun filter (predicate xs)
+  (loop for x in xs
+     when (funcall predicate x)
+     collect x))
 
 
 ;;; kernel-manager
@@ -311,8 +320,8 @@
 (defmacro kernel-manager-function-handle (mgr name)
   `(function-handle (function-info ,mgr ,name)))
 
-(defmacro kernel-manager-function-arg-types (mgr name)
-  `(function-arg-types (function-info ,mgr ,name)))
+(defmacro kernel-manager-function-arg-bindings (mgr name)
+  `(function-arg-bindings (function-info ,mgr ,name)))
 
 (defmacro kernel-manager-function-c-name (mgr name)
   `(function-c-name (function-info ,mgr ,name)))
@@ -320,21 +329,21 @@
 (defmacro kernel-manager-function-code (mgr name)
   `(function-code (function-info ,mgr ,name)))
 
-(defun kernel-manager-define-function (mgr name arg-types fname)
+(defun kernel-manager-define-function (mgr name arg-bindings fname body)
   (if (kernel-manager-function-exists-p mgr name)
-      (when (function-modified-p (function-info mgr name) arg-types 'code)
-        (setf (kernel-manager-function-arg-types mgr name) arg-types)
-        (setf (kernel-manager-function-code mgr name) 'code)
+      (when (function-modified-p (function-info mgr name) arg-bindings body)
+        (setf (kernel-manager-function-arg-bindings mgr name) arg-bindings)
+        (setf (kernel-manager-function-code mgr name) body)
         (setf (kernel-manager-module-compilation-needed mgr) t))
       (setf (function-info mgr name)
-            (make-function-info name arg-types fname 'code))))
+            (make-function-info name arg-bindings fname body))))
 
-(defun function-modified-p (info arg-types code)
-  (or (neq arg-types (function-arg-types info))
-      (neq code (function-code info))))
+(defun function-modified-p (info arg-bindings code)
+  (or (nequal arg-bindings (function-arg-bindings info))
+      (nequal code (function-code info))))
 
-(defun neq (&rest args)
-  (not (apply #'eq args)))
+(defun nequal (&rest args)
+  (not (apply #'equal args)))
 
 (defun %kernel-manager-as-list (mgr)
   (let ((ret))
@@ -448,8 +457,8 @@
 
 ;;; function-info
 
-(defun make-function-info (name arg-types fname code)
-  (list name nil arg-types fname code))
+(defun make-function-info (name arg-bindings fname code)
+  (list name nil arg-bindings fname code))
 
 (defmacro function-name (info)
   `(car ,info))
@@ -457,14 +466,14 @@
 (defmacro function-handle (info)
   `(cadr ,info))
 
-(defmacro function-arg-types (info)
+(defmacro function-arg-bindings (info)
   `(caddr ,info))
 
 (defmacro function-c-name (info)
   `(cadddr ,info))  ; fix later to give c style name using lisp style name
 
 (defmacro function-code (info)
-  `(caddddr ,info))
+  `(car (cddddr ,info)))
 
 
 ;;; ensuring kernel manager

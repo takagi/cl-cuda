@@ -160,8 +160,12 @@
                          i a b c))))))
   (format t "verification succeed.~%"))
 
-(defkernel vec-add-kernel (cu-device-ptr cu-device-ptr cu-device-ptr :int)
-  "VecAdd_kernel")
+(defkernel vec-add-kernel ((a float*) (b float*) (c float*) (n int))
+  "VecAdd_kernel"
+  (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x)))
+    (if (< i n)
+        (set (aref c i)
+             (+ (aref a i) (aref b i))))))
 
 (let* ((dev-id 0)
        (n 1024)

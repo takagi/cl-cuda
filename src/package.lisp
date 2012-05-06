@@ -33,4 +33,5 @@
            :with-cuda-memory-block
            :with-cuda-memory-blocks
            :defkernel                   ; defkernel
+           :int :int* :float :float*
            ))
