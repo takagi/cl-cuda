@@ -412,7 +412,7 @@
          (ptx-path (concatenate 'string temp-path ".ptx")))
 ;    (kernel-manager-output-kernel-code mgr cu-path)
 ;    (compile-kernel-module cu-path ptx-path)
-    (compile-kernel-code "/Developer/GPU Computing/C/src/vectorAddDrv/vectorAdd_kernel.cu" ptx-path)
+    (compile-kernel-module "/Developer/GPU Computing/C/src/vectorAddDrv/vectorAdd_kernel.cu" ptx-path)
     (setf (kernel-manager-module-path mgr) ptx-path)
     (setf (kernel-manager-module-compilation-needed mgr) nil)
     (values)))
