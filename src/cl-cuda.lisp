@@ -220,6 +220,7 @@
                                       ,args (null-pointer)))))))))))))
 
 (defmacro defkernel (name arg-types function)
+;  (check-kernel-function arg-types function)
   (kernel-manager-define-function *kernel-manager* name arg-types function)
   (kernel-defun *kernel-manager* name))
 
@@ -304,14 +305,17 @@
     (declare (ignorable _))
     p))
 
+(defmacro kernel-manager-function-name (mgr name)
+  `(function-name (function-info ,mgr ,name)))
+
 (defmacro kernel-manager-function-handle (mgr name)
   `(function-handle (function-info ,mgr ,name)))
 
 (defmacro kernel-manager-function-arg-types (mgr name)
   `(function-arg-types (function-info ,mgr ,name)))
 
-(defmacro kernel-manager-function-name (mgr name)
-  `(function-name (function-info ,mgr ,name)))
+(defmacro kernel-manager-function-c-name (mgr name)
+  `(function-c-name (function-info ,mgr ,name)))
 
 (defmacro kernel-manager-function-code (mgr name)
   `(function-code (function-info ,mgr ,name)))
@@ -323,7 +327,7 @@
         (setf (kernel-manager-function-code mgr name) 'code)
         (setf (kernel-manager-module-compilation-needed mgr) t))
       (setf (function-info mgr name)
-            (make-function-info arg-types fname 'code))))
+            (make-function-info name arg-types fname 'code))))
 
 (defun function-modified-p (info arg-types code)
   (or (neq arg-types (function-arg-types info))
@@ -346,7 +350,7 @@
     (error "kernel function \"~A\" is already loaded." name))
   (let ((hmodule (kernel-manager-module-handle mgr))
         (hfunc (foreign-alloc 'cu-function))
-        (fname (kernel-manager-function-name mgr name)))
+        (fname (kernel-manager-function-c-name mgr name)))
     (check-cuda-errors
      (cu-module-get-function hfunc (mem-ref hmodule 'cu-module) fname))
     (setf (kernel-manager-function-handle mgr name) hfunc)))
@@ -444,20 +448,23 @@
 
 ;;; function-info
 
-(defun make-function-info (arg-types fname code)
-  (list nil arg-types fname code))
-
-(defmacro function-handle (info)
-  `(car ,info))
-
-(defmacro function-arg-types (info)
-  `(cadr ,info))
+(defun make-function-info (name arg-types fname code)
+  (list name nil arg-types fname code))
 
 (defmacro function-name (info)
+  `(car ,info))
+
+(defmacro function-handle (info)
+  `(cadr ,info))
+
+(defmacro function-arg-types (info)
   `(caddr ,info))
 
+(defmacro function-c-name (info)
+  `(cadddr ,info))  ; fix later to give c style name using lisp style name
+
 (defmacro function-code (info)
-  `(cadddr ,info))
+  `(caddddr ,info))
 
 
 ;;; ensuring kernel manager
