@@ -263,7 +263,7 @@
 (defun kernel-arg-foreign-pointer-bindings (arg-bindings)
   ; ((a float*) (b float*) (c float*) (n int)) → ((n n-ptr :int))
   (mapcar #'foreign-pointer-binding
-    (filter #'arg-binding-with-non-pointer-type-p arg-bindings)))
+    (remove-if-not #'arg-binding-with-non-pointer-type-p arg-bindings)))
 
 (defun foreign-pointer-binding (arg-binding)
   (destructuring-bind (var type) arg-binding
@@ -274,11 +274,6 @@
 
 (defun var-ptr (var)
   (symbolicate var "-PTR"))
-
-(defun filter (predicate xs)
-  (loop for x in xs
-     when (funcall predicate x)
-     collect x))
 
 
 ;;; kernel-manager
