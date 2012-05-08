@@ -219,7 +219,6 @@
                                     ,args (null-pointer))))))))))))
 
 (defmacro defkernel (name arg-bindings fname &rest body)
-;  (check-kernel-function arg-bindings body)
   (kernel-manager-define-function *kernel-manager* name arg-bindings fname body)
   (kernel-defun *kernel-manager* '*kernel-manager* name))
 
