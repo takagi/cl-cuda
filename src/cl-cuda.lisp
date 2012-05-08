@@ -288,9 +288,8 @@
   `(cadr ,mgr))
 
 (defun function-info (mgr name)
-  (aif (gethash name (function-table mgr))
-       it
-       (error (format nil "undefined kernel function: ~A" name))))
+  (or (gethash name (function-table mgr))
+      (error (format nil "undefined kernel function: ~A" name))))
 
 (defun (setf function-info) (info mgr name)
   (setf (gethash name (function-table mgr)) info))
@@ -475,15 +474,13 @@
 
 (defun ensure-kernel-function-loaded (mgr name)
   (ensure-kernel-module-loaded mgr)
-  (aif (kernel-manager-function-handle mgr name)
-       it
-       (kernel-manager-load-function mgr name)))
+  (or (kernel-manager-function-handle mgr name)
+      (kernel-manager-load-function mgr name)))
 
 (defun ensure-kernel-module-loaded (mgr)
   (ensure-kernel-module-compiled mgr)
-  (aif (kernel-manager-module-handle mgr)
-       it
-       (kernel-manager-load-module mgr)))
+  (or (kernel-manager-module-handle mgr)
+      (kernel-manager-load-module mgr)))
 
 (defun ensure-kernel-module-compiled (mgr)
   (when (kernel-manager-module-compilation-needed mgr)
