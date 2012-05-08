@@ -339,13 +339,6 @@
 (defun nequal (&rest args)
   (not (apply #'equal args)))
 
-(defun %kernel-manager-as-list (mgr)
-  (let ((ret))
-    (maphash #'(lambda (key val)
-                 (push (cons key val) ret))
-             (function-table mgr))
-    (list (module-info mgr) ret)))
-
 (defun kernel-manager-load-function (mgr name)
   (unless (kernel-manager-module-handle mgr)
     (error "kernel module is not loaded yet."))
@@ -492,3 +485,13 @@
 
 (defvar *kernel-manager*
   (make-kernel-manager))
+
+(defun print-kernel-manager ()
+  (%kernel-manager-as-list *kernel-manager*))
+
+(defun %kernel-manager-as-list (mgr)
+  (let ((ret))
+    (maphash #'(lambda (key val)
+                 (push (cons key val) ret))
+             (function-table mgr))
+    (list (module-info mgr) ret)))
