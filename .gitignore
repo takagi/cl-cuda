@@ -5,3 +5,4 @@
 *.lx64fsl
 *.x86f
 work
+src/drvapi_error_string.h
