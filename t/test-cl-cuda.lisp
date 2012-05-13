@@ -5,6 +5,8 @@
 
 (in-package :cl-cuda-test)
 
+(setf *test-result-output* *standard-output*)
+
 (plan nil)
 
 
@@ -160,8 +162,7 @@
                          i a b c))))))
   (format t "verification succeed.~%"))
 
-(defkernel vec-add-kernel ((a float*) (b float*) (c float*) (n int))
-  "VecAdd_kernel"
+(defkernel vec-add-kernel (void ((a float*) (b float*) (c float*) (n int)))
   (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x)))
     (if (< i n)
         (set (aref c i)
@@ -190,12 +191,209 @@
       (vec-add-kernel d-a d-b d-c n
                       :grid-dim (list blocks-per-grid 1 1)
                       :block-dim (list threads-per-block 1 1))
-      (format t "CUDA function \"VecAdd_kernel\" is launched.~%")
+      (format t "CUDA function \"vec_add_kernel\" is launched.~%")
       (check-cuda-errors
        (cu-memcpy-device-to-host h-c
                                  (cffi:mem-ref d-c 'cu-device-ptr)
                                  size))
       (verify-result h-a h-b h-c n)))))
+
+(defkernel test-let1 (void ())
+  (let ((i 0)))
+  (let ((i 0))))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (test-let1 :grid-dim (list 1 1 1)
+               :block-dim (list 1 1 1))))
+    
+
+;;; test compile-kernel-function
+
+(diag "test compile-kernel-function")
+
+(let ((lisp-code '((return)))
+      (c-code (cl-cuda::unlines "extern \"C\" __global__ void foo () {"
+                                "  return;"
+                                "}")))
+  (is (cl-cuda::compile-kernel-function "foo" 'void '() lisp-code nil) c-code))
+
+
+;;; test compile-if
+
+(diag "test compile-if")
+
+(let ((lisp-code '(if 1
+                      (return)
+                      (return)))
+      (c-code (cl-cuda::unlines "if (1) {"
+                                "  return;"
+                                "} else {"
+                                "  return;"
+                                "}")))
+  (is (cl-cuda::compile-if lisp-code nil nil) c-code))
+
+(let ((lisp-code '(if 1
+                      (progn
+                        (return 0)
+                        (return 0))))
+      (c-code (cl-cuda::unlines "if (1) {"
+                                "  return 0;"
+                                "  return 0;"
+                                "}")))
+  (is (cl-cuda::compile-if lisp-code nil nil) c-code))
+
+
+;;; test compile-let  
+
+(diag "test compile-let")
+
+(let ((lisp-code '(let ((i 0))
+                    (return)
+                    (return)))
+      (c-code (cl-cuda::unlines "{"
+                                "  int i = 0;"
+                                "  return;"
+                                "  return;"
+                                "}")))
+  (is (cl-cuda::compile-let lisp-code nil nil) c-code))
+
+
+;;; test compile-set
+
+(diag "test compile-set")
+
+(is (cl-cuda::set-p '(set x 1)) t)
+(is (cl-cuda::set-p '(set (aref x i) 1)) t)
+
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::compile-set '(set x 1) type-env nil) "x = 1;"))
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int* (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::compile-set '(set (aref x 0) 1) type-env nil) "x[0] = 1;"))
+
+
+;;; test compile-function
+
+(diag "test compile-function")
+
+(is (cl-cuda::built-in-function-p '(+ 1 1)) t "built-in-function-p 1")
+(is (cl-cuda::built-in-function-p '(- 1 1)) t "built-in-function-p 2")
+(is (cl-cuda::built-in-function-p '(foo 1 1)) nil "built-in-function-p 3")
+
+(is (cl-cuda::function-candidates '+)
+    '(((int int) int "+")
+      ((float float) float "+"))
+    "built-in-function-candidates 1")
+(is-error (cl-cuda::function-candidates 'foo)
+          simple-error "built-in-function-candidates 2")
+
+(is (cl-cuda::built-in-function-infix-p '+)
+    t "built-in-function-infix-p 1")
+(is-error (cl-cuda::built-in-function-infix-p 'foo)
+          simple-error "built-in-function-infix-p 2")
+
+(is (cl-cuda::function-p 'a) nil)
+(is (cl-cuda::function-p '()) nil)
+(is (cl-cuda::function-p '1) nil)
+(is (cl-cuda::function-p '(foo)) t)
+(is (cl-cuda::function-p '(+ 1 1)) t)
+(is (cl-cuda::function-p '(foo 1 1)) t)
+
+(is-error (cl-cuda::function-operator 'a) simple-error)
+(is (cl-cuda::function-operator '(foo)) 'foo)
+(is (cl-cuda::function-operator '(+ 1 1)) '+)
+(is (cl-cuda::function-operator '(foo 1 1)) 'foo)
+
+(is-error (cl-cuda::function-operands 'a) simple-error)
+(is (cl-cuda::function-operands '(foo)) '())
+(is (cl-cuda::function-operands '(+ 1 1)) '(1 1))
+(is (cl-cuda::function-operands '(foo 1 1)) '(1 1))
+
+(is-error (cl-cuda::compile-function 'a nil nil) simple-error)
+(let ((funcs '(foo (() void))))
+  (is (cl-cuda::compile-function '(foo) nil funcs :statement-p t) "foo ();"))
+(is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
+(is-error (cl-cuda::compile-function '(+ 1 1 1) nil nil) simple-error)
+(is-error (cl-cuda::compile-function '(foo 1 1) nil nil) simple-error)
+(let ((funcs '(foo ((int int) int))))
+  (is (cl-cuda::compile-function '(foo 1 1) nil funcs :statement-p t)
+      "foo (1, 1);"))
+(let ((funcs '(foo ((int int) int))))
+  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil funcs :statement-p t)
+            simple-error))
+
+
+;;; test type-of-expression
+
+(diag "test type-of-expression")
+
+(is (cl-cuda::type-of-expression '1 nil nil) 'int)
+(is (cl-cuda::type-of-expression '1.0 nil nil) 'float)
+
+(is (cl-cuda::type-of-literal '1) 'int)
+(is (cl-cuda::type-of-literal '1.0) 'float)
+(is-error (cl-cuda::type-of-literal '1.0d0) simple-error)
+
+(is-error (cl-cuda::type-of-variable-reference 'x nil) simple-error)
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int))
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'float* (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'float))
+
+(is (cl-cuda::type-of-function '(+ 1 1) nil nil) 'int)
+(let ((funcs '(foo ((int int) int))))
+  (is (cl-cuda::type-of-function '(foo 1 1) nil funcs) 'int))
+
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-y nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-z nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-x nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-y nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-z nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-x nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-y nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-z nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-x nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-y nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-z nil nil) 'int)
+
+
+;;; test compile-identifier
+
+(diag "test compile-identifier")
+
+(is (cl-cuda::compile-identifier 'x) "x")
+(is (cl-cuda::compile-identifier 'vec-add-kernel) "vec_add_kernel")
+(is (cl-cuda::compile-identifier 'VecAdd_kernel) "vecadd_kernel")
+
+
+;;; test compile-variable-reference
+
+(diag "test compile-variable-reference")
+
+(is (cl-cuda::variable-reference-p 'x) t)
+(is (cl-cuda::variable-reference-p 1) nil)
+(is (cl-cuda::variable-reference-p '(aref x i)) t)
+(is (cl-cuda::variable-reference-p '(aref x i i)) nil)
+
+(is-error (cl-cuda::compile-variable-reference 'x nil nil) simple-error)
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::compile-variable-reference 'x type-env nil) "x"))
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int* (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::compile-variable-reference '(aref x 0) type-env nil) "x[0]"))
+
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int))
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int* (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'int))
 
 
 (finalize)

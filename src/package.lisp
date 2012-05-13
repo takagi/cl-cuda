@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda
-  (:use :cl :cffi :alexandria :anaphora)
+  (:use :cl :cffi :alexandria :anaphora :cl-pattern)
   (:export :cu-result                   ; Types
            :cu-device
            :cu-context
@@ -33,5 +33,9 @@
            :with-cuda-memory-block
            :with-cuda-memory-blocks
            :defkernel                   ; defkernel
-           :int :int* :float :float*
+           :void :int :int* :float :float*
+           :grid-dim-x :grid-dim-y :grid-dim-z
+           :block-dim-x :block-dim-y :block-dim-z
+           :block-idx-x :block-idx-y :block-idx-z
+           :thread-idx-x :thread-idx-y :thread-idx-z
            ))
