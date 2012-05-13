@@ -125,7 +125,8 @@
 ;;; Helpers
 (defun check-cuda-errors (err)
   (when (/= +cuda-success+ err)
-    (error (format nil "check-cuda-errors: Driver API error = ~A ~%" err))))
+    (error (format nil "check-cuda-errors: Driver API error = ~A ~%" err)))
+  (values))
 
 (defmacro with-cuda-context (args &body body)
   (destructuring-bind (dev-id) args
