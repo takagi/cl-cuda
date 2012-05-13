@@ -227,14 +227,14 @@
 
 (defun non-pointer-type-p (type)
   (assert (valid-type-p type))
-  (find type '(void int float)))
+  (find type '(void bool int float)))
 
 (defun pointer-type-p (type)
   (assert (valid-type-p type))
   (find type '(int* float*)))
 
 (defun valid-type-p (type)
-  (find type '(void int int* float float*)))
+  (find type '(void bool int int* float float*)))
 
 (defvar +cffi-type-table+ '(int :int
                             float :float))
@@ -245,11 +245,11 @@
       (getf +cffi-type-table+ type)))
 
 (defun kernel-arg-names (arg-bindings)
-  ;; ((a float*) (b float*) (c float*) (n int)) → (a b c n)
+  ;; ((a float*) (b float*) (c float*) (n int)) -> (a b c n)
   (mapcar #'car arg-bindings))
 
 (defun kernel-arg-names-as-pointer (arg-bindings)
-  ;; ((a float*) (b float*) (c float*) (n int)) → (a b c n-ptr)
+  ;; ((a float*) (b float*) (c float*) (n int)) -> (a b c n-ptr)
   (mapcar #'arg-name-as-pointer arg-bindings))
 
 (defun arg-name-as-pointer (arg-binding)
@@ -260,7 +260,7 @@
         var)))
 
 (defun kernel-arg-foreign-pointer-bindings (arg-bindings)
-  ; ((a float*) (b float*) (c float*) (n int)) → ((n n-ptr :int))
+  ; ((a float*) (b float*) (c float*) (n int)) -> ((n n-ptr :int))
   (mapcar #'foreign-pointer-binding
     (remove-if-not #'arg-binding-with-non-pointer-type-p arg-bindings)))
 
@@ -837,7 +837,16 @@
     - (t (((int int) int "-")
           ((float float) float "-")))
     * (t (((int int) int "*")
-          ((float float) float "*")))))
+          ((float float) float "*")))
+    / (t (((int int) int "/")
+          ((float float) float "/")))
+    = (t (((int int) bool "=")
+          ((float float) bool "=")))
+    < (t (((int int) bool "<")
+          ((float float) bool "<")))
+    <= (t (((int int) bool "<=")
+           ((float float) bool "<=")))
+    ))
 
 (defun built-in-function-infix-p (op)
   (or (car (getf +built-in-functions+ op))
