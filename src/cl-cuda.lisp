@@ -568,9 +568,6 @@
   (destructuring-bind (var type) arg-binding
     (format nil "~A ~A" (compile-type type) (compile-identifier var))))
 
-(defun compile-variable (var)
-  (compile-identifier (princ-to-string var)))
-
 (defun compile-identifier (idt)
   (substitute #\_ #\- (string-downcase idt)))
   
