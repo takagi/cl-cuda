@@ -815,9 +815,8 @@
 (defun compile-user-function (form type-env funcs)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
-    (user-function operator operands type-env funcs) ; check type of arguments
-    (format nil "~A (~A)" (compile-identifier operator)
-            (compile-arguments operands type-env funcs))))
+    (let ((func (user-function-c-name operator operands type-env funcs)))
+      (format nil "~A (~A)" func (compile-arguments operands type-env funcs)))))
 
 (defun compile-arguments (operands type-env funcs)
   (join ", " (mapcar #'(lambda (exp)
@@ -892,9 +891,12 @@
   (let ((function-type (list (mapcar #'cadr arg-bindings) return-type)))
     (list name function-type)))
 
-(defun user-function-type (return-type arg-bindings)
-  (let ((arg-types (mapcar #'cadr arg-bindings)))
-    (list arg-types return-type)))
+(defun user-function-c-name (operator operands type-env funcs)
+  (when (user-function operator operands type-env funcs)
+    (compile-identifier operator)))
+
+(defun user-function-type (operator operands type-env funcs)
+  (car (user-function operator operands type-env funcs)))
 
 (defun user-function-return-type (operator operands type-env funcs)
   (cadr (user-function operator operands type-env funcs)))
@@ -907,7 +909,7 @@
     (unless func
       (error (format nil "undefined kernel function: ~A" operator)))
     (unless (user-function-valid-type-p func operands type-env funcs)
-      (error (format nil "invalid type of arguments: ~A"
+      (error (format nil "invalid arguments: ~A"
                      (cons operator operands))))
     func))
 
