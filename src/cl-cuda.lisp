@@ -533,7 +533,8 @@
                ,@(mapcar #'(lambda (stmt)
                              (indent 2 (compile-statement stmt type-env funcs)))
                          body)
-               "}"))))
+               "}"
+               ""))))
 
 (defun make-type-environment-with-arg-bindings (arg-bindings)
   (reduce #'(lambda (type-env2 arg-binding)

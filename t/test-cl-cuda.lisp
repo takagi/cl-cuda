@@ -199,9 +199,12 @@
       (verify-result h-a h-b h-c n)))))
 
 (defkernel test-let1 (void ())
-  (let ((i 0))
+  (let ((i (one)))
     (return))
   (let ((i 0))))
+
+(defkernel one (int ())
+  (return 1))
 
 (defun test-test-let1 ()
   (let ((dev-id 0))
