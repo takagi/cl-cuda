@@ -199,13 +199,15 @@
       (verify-result h-a h-b h-c n)))))
 
 (defkernel test-let1 (void ())
-  (let ((i 0)))
+  (let ((i 0))
+    (return))
   (let ((i 0))))
 
-(let ((dev-id 0))
-  (with-cuda-context (dev-id)
-    (test-let1 :grid-dim (list 1 1 1)
-               :block-dim (list 1 1 1))))
+(defun test-test-let1 ()
+  (let ((dev-id 0))
+    (with-cuda-context (dev-id)
+      (test-let1 :grid-dim (list 1 1 1)
+                 :block-dim (list 1 1 1)))))
     
 
 ;;; test compile-kernel-function
@@ -394,6 +396,27 @@
 (let ((type-env (cl-cuda::add-type-environment
                   'x 'int* (cl-cuda::empty-type-environment))))
   (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'int))
+
+
+;;; test user-functions
+
+(diag "test user-functions")
+
+(is-error (cl-cuda::user-function-c-name 'foo '() nil nil) simple-error)
+(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
+  (is (cl-cuda::user-function-c-name 'foo '() nil funcs) "foo"))
+(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
+  (is-error (cl-cuda::user-function-c-name 'foo '(1) nil funcs) simple-error))
+
+(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
+  (is (cl-cuda::user-function-type 'foo '() nil funcs) '()))
+
+(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
+  (is (cl-cuda::user-function-return-type 'foo '() nil funcs) 'void))
+
+(is (cl-cuda::user-function-exists-p 'foo nil) nil)
+(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
+  (is (cl-cuda::user-function-exists-p 'foo funcs) t))
 
 
 (finalize)
