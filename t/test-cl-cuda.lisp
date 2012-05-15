@@ -199,19 +199,29 @@
       (verify-result h-a h-b h-c n)))))
 
 (defkernel test-let1 (void ())
-  (let ((i (one)))
+  (let ((i 0))
     (return))
   (let ((i 0))))
-
-(defkernel one (int ())
-  (return 1))
 
 (defun test-test-let1 ()
   (let ((dev-id 0))
     (with-cuda-context (dev-id)
       (test-let1 :grid-dim (list 1 1 1)
                  :block-dim (list 1 1 1)))))
-    
+
+(defkernel test-one (void ())
+  (let ((i (one)))
+    (return)))
+
+(defkernel one (int ())
+  (return 1))
+
+(defun test-test-one ()
+  (let ((dev-id 0))
+    (with-cuda-context (dev-id)
+      (test-one :grid-dim (list 1 1 1)
+                :block-dim (list 1 1 1)))))
+
 
 ;;; test compile-kernel-function
 
