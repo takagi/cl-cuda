@@ -209,29 +209,121 @@
       (test-let1 :grid-dim (list 1 1 1)
                  :block-dim (list 1 1 1)))))
 
-(defkernel test-one (void ())
+(defkernel use-one (void ())
   (let ((i (one)))
     (return)))
 
 (defkernel one (int ())
   (return 1))
 
-(defun test-test-one ()
+(defun test-one ()
   (let ((dev-id 0))
     (with-cuda-context (dev-id)
-      (test-one :grid-dim (list 1 1 1)
-                :block-dim (list 1 1 1)))))
+      (use-one :grid-dim (list 1 1 1)
+               :block-dim (list 1 1 1)))))
+
+(defkernel argument (void ((i int)))
+  (let ((j i))
+    (return)))
+
+(defun test-argument ()
+  (let ((dev-id 0))
+    (with-cuda-context (dev-id)
+      (argument 1 :grid-dim (list 1 1 1)
+                  :block-dim (list 1 1 1)))))
+
+
+;;; test kernel definition
+
+(is (cl-cuda::empty-kernel-definition) '(nil nil))
+
+(is (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+      (cl-cuda::empty-kernel-definition))
+    '(((foo void () ((return)))) ()))
+
+(is-error (cl-cuda::define-kernel-constant 'foo 1
+            (cl-cuda::empty-kernel-definition))
+          simple-error)
+
+(is (cl-cuda::undefine-kernel-function 'foo
+      (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+        (cl-cuda::empty-kernel-definition)))
+    (cl-cuda::empty-kernel-definition))
+
+(is-error (cl-cuda::undefine-kernel-function 'foo
+            (cl-cuda::empty-kernel-definition))
+          simple-error)
+
+(is-error (cl-cuda::undefine-kernel-constant 'foo
+            (cl-cuda::define-kernel-constant 'foo 1
+              (cl-cuda::empty-kernel-definition)))
+          simple-error)
+
+(is-error (cl-cuda::undefine-kernel-constant 'foo
+            (cl-cuda::empty-kernel-definition))
+          simple-error)
+
+(let ((def (cl-cuda::empty-kernel-definition)))
+  (is (cl-cuda::kernel-function-exists-p 'foo def) nil))
+
+(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::kernel-function-exists-p 'foo def) t))
+
+(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::kernel-function-name 'foo def) 'foo)
+  (is (cl-cuda::kernel-function-c-name 'foo def) "foo")
+  (is (cl-cuda::kernel-function-return-type 'foo def) 'void)
+  (is (cl-cuda::kernel-function-arg-bindings 'foo def) '())
+  (is (cl-cuda::kernel-function-body 'foo def) '((return))))
+
+(let ((def (cl-cuda::empty-kernel-definition)))
+  (is-error (cl-cuda::kernel-function-name 'foo def) simple-error))
+
+(let ((def (cl-cuda::empty-kernel-definition)))
+  (is (cl-cuda::kernel-function-names def) nil))
+
+(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+             (cl-cuda::define-kernel-function 'bar 'int '() '((return 1))
+               (cl-cuda::empty-kernel-definition)))))
+  (is (cl-cuda::kernel-function-names def) '(foo bar)))
+
+
+;;; test compile-kernel-definition
+
+(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+             (cl-cuda::empty-kernel-definition)))
+      (c-code (cl-cuda::unlines "extern \"C\" __global__ void foo ();"
+                                ""
+                                "__global__ void foo ()"
+                                "{"
+                                "  return;"
+                                "}"
+                                "")))
+  (is (cl-cuda::compile-kernel-definition def) c-code))
+
+
+;;; test compile-kernel-function-prototype
+
+(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+             (cl-cuda::empty-kernel-definition)))
+      (c-code (cl-cuda::unlines "extern \"C\" __global__ void foo ();")))
+  (is (cl-cuda::compile-kernel-function-prototype 'foo def) c-code))
 
 
 ;;; test compile-kernel-function
 
 (diag "test compile-kernel-function")
 
-(let ((lisp-code '((return)))
-      (c-code (cl-cuda::unlines "extern \"C\" __global__ void foo () {"
+(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+             (cl-cuda::empty-kernel-definition)))
+      (c-code (cl-cuda::unlines "__global__ void foo ()"
+                                "{"
                                 "  return;"
-                                "}")))
-  (is (cl-cuda::compile-kernel-function "foo" 'void '() lisp-code nil) c-code))
+                                "}"
+                                "")))
+  (is (cl-cuda::compile-kernel-function 'foo def) c-code))
 
 
 ;;; test compile-if
@@ -293,21 +385,18 @@
 
 (diag "test compile-function")
 
-(is (cl-cuda::built-in-function-p '(+ 1 1)) t "built-in-function-p 1")
-(is (cl-cuda::built-in-function-p '(- 1 1)) t "built-in-function-p 2")
-(is (cl-cuda::built-in-function-p '(foo 1 1)) nil "built-in-function-p 3")
+(is (cl-cuda::built-in-function-p '(+ 1 1)) t)
+(is (cl-cuda::built-in-function-p '(- 1 1)) t)
+(is (cl-cuda::built-in-function-p '(foo 1 1)) nil)
 
 (is (cl-cuda::function-candidates '+)
     '(((int int) int "+")
-      ((float float) float "+"))
-    "built-in-function-candidates 1")
+      ((float float) float "+")))
 (is-error (cl-cuda::function-candidates 'foo)
-          simple-error "built-in-function-candidates 2")
+          simple-error)
 
-(is (cl-cuda::built-in-function-infix-p '+)
-    t "built-in-function-infix-p 1")
-(is-error (cl-cuda::built-in-function-infix-p 'foo)
-          simple-error "built-in-function-infix-p 2")
+(is (cl-cuda::built-in-function-infix-p '+) t)
+(is-error (cl-cuda::built-in-function-infix-p 'foo) simple-error)
 
 (is (cl-cuda::function-p 'a) nil)
 (is (cl-cuda::function-p '()) nil)
@@ -327,16 +416,17 @@
 (is (cl-cuda::function-operands '(foo 1 1)) '(1 1))
 
 (is-error (cl-cuda::compile-function 'a nil nil) simple-error)
-(let ((funcs '(foo (() void))))
-  (is (cl-cuda::compile-function '(foo) nil funcs :statement-p t) "foo ();"))
+(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::compile-function '(foo) nil def :statement-p t) "foo ();"))
 (is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
 (is-error (cl-cuda::compile-function '(+ 1 1 1) nil nil) simple-error)
 (is-error (cl-cuda::compile-function '(foo 1 1) nil nil) simple-error)
-(let ((funcs '(foo ((int int) int))))
-  (is (cl-cuda::compile-function '(foo 1 1) nil funcs :statement-p t)
-      "foo (1, 1);"))
-(let ((funcs '(foo ((int int) int))))
-  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil funcs :statement-p t)
+(let ((def (cl-cuda::define-kernel-function 'foo 'void '((x int) (y int)) '()
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::compile-function '(foo 1 1) nil def :statement-p t)
+      "foo (1, 1);")
+  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil def :statement-p t)
             simple-error))
 
 
@@ -360,8 +450,9 @@
   (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'float))
 
 (is (cl-cuda::type-of-function '(+ 1 1) nil nil) 'int)
-(let ((funcs '(foo ((int int) int))))
-  (is (cl-cuda::type-of-function '(foo 1 1) nil funcs) 'int))
+(let ((def (cl-cuda::define-kernel-function 'foo 'int '((x int) (y int)) '()
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::type-of-function '(foo 1 1) nil def) 'int))
 
 (is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x nil nil) 'int)
 (is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-y nil nil) 'int)
@@ -409,27 +500,6 @@
 (let ((type-env (cl-cuda::add-type-environment
                   'x 'int* (cl-cuda::empty-type-environment))))
   (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'int))
-
-
-;;; test user-functions
-
-(diag "test user-functions")
-
-(is-error (cl-cuda::user-function-c-name 'foo '() nil nil) simple-error)
-(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
-  (is (cl-cuda::user-function-c-name 'foo '() nil funcs) "foo"))
-(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
-  (is-error (cl-cuda::user-function-c-name 'foo '(1) nil funcs) simple-error))
-
-(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
-  (is (cl-cuda::user-function-type 'foo '() nil funcs) '()))
-
-(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
-  (is (cl-cuda::user-function-return-type 'foo '() nil funcs) 'void))
-
-(is (cl-cuda::user-function-exists-p 'foo nil) nil)
-(let ((funcs (cl-cuda::make-user-functions '((foo void ())))))
-  (is (cl-cuda::user-function-exists-p 'foo funcs) t))
 
 
 (finalize)

@@ -276,23 +276,126 @@
   (symbolicate var "-PTR"))
 
 
+;;; module-info
+
+(defun make-module-info ()
+  (list nil nil t))
+
+(defmacro module-handle (info)
+  `(car ,info))
+
+(defmacro module-path (info)
+  `(cadr ,info))
+
+(defmacro module-compilation-needed (info)
+  `(caddr ,info))
+
+
+;;; kernel definition
+;;; <kernel-definition> ::= (<kernel-function-table> <kernel-constant-table>)
+;;; <kernel-function-table> ::= alist { <function-name> => <function-info> }
+;;; <kernel-constant-table> ::= alist { <constant-name> => <constant-info> }
+
+(defun empty-kernel-definition ()
+  '(nil nil))
+
+(defun function-table (def)
+  (car def))
+
+(defun constant-table (def)
+  (cadr def))
+
+(defun function-info (name def)
+  (or (assoc name (function-table def))
+      (error (format nil "undefined kernel function: ~A" name))))
+
+(defun constant-info (name def)
+  (or (assoc name (constant-table def))
+      (error (format nil "undefined kernel constant: ~A" name))))
+
+(defun define-kernel-function (name return-type arg-bindings body def)
+  (let ((func-table (function-table def))
+        (const-table (constant-table def)))
+    (let ((func (make-function-info name return-type arg-bindings body)))
+      (list (cons func (remove name func-table :key #'car))
+            const-table))))
+
+(defun define-kernel-constant (name value def)
+  (declare (ignorable name value def))
+  (undefined))
+
+(defun undefine-kernel-function (name def)
+  (unless (kernel-function-exists-p name def)
+    (error (format nil "undefined kernel function: ~A" name)))
+  (let ((func-table (function-table def))
+        (const-table (constant-table def)))
+    (list (remove name func-table :key #'car)
+          const-table)))
+
+(defun undefine-kernel-constant (name def)
+  (declare (ignorable name def))
+  (undefined))
+
+(defun kernel-function-exists-p (name def)
+  (and (assoc name (function-table def))
+       t))
+
+(defun kernel-function-names (def)
+  (mapcar #'car (function-table def)))
+
+(defun kernel-function-name (name def)
+  (function-name (function-info name def)))
+
+(defun kernel-function-c-name (name def)
+  (compile-identifier (kernel-function-name name def)))
+
+(defun kernel-function-return-type (name def)
+  (function-return-type (function-info name def)))
+
+(defun kernel-function-arg-bindings (name def)
+  (function-arg-bindings (function-info name def)))
+
+(defun kernel-function-arg-types (name def)
+  (mapcar #'cadr (kernel-function-arg-bindings name def)))
+
+(defun kernel-function-body (name def)
+  (function-body (function-info name def)))
+
+
+;;; <function-info> ::= (<name> <return-type> <arg-bindings> <body>)
+
+(defun make-function-info (name return-type arg-bindings body)
+  (list name return-type arg-bindings body))
+
+(defun function-name (info)
+  (car info))
+
+(defun function-return-type (info)
+  (cadr info))
+
+(defun function-arg-bindings (info)
+  (caddr info))
+
+(defun function-body (info)
+  (cadddr info))
+
+
 ;;; kernel-manager
 
 (defun make-kernel-manager ()
-  (list (make-module-info) (make-hash-table)))
+  (list (make-module-info) (make-function-handles) (empty-kernel-definition)))
+
+(defun make-function-handles ()
+  (make-hash-table))
 
 (defmacro module-info (mgr)
   `(car ,mgr))
 
-(defmacro function-table (mgr)
+(defmacro function-handles (mgr)
   `(cadr ,mgr))
 
-(defun function-info (mgr name)
-  (or (gethash name (function-table mgr))
-      (error (format nil "undefined kernel function: ~A" name))))
-
-(defun (setf function-info) (info mgr name)
-  (setf (gethash name (function-table mgr)) info))
+(defmacro kernel-definition (mgr)
+  `(caddr ,mgr))
 
 (defmacro kernel-manager-module-handle (mgr)
   `(module-handle (module-info ,mgr)))
@@ -303,47 +406,37 @@
 (defmacro kernel-manager-module-compilation-needed (mgr)
   `(module-compilation-needed (module-info ,mgr)))
 
-(defun kernel-manager-function-exists-p (mgr name)
-  (multiple-value-bind (_ p) (gethash name (function-table mgr))
-    (declare (ignorable _))
-    p))
-
-(defmacro kernel-manager-function-name (mgr name)
-  `(function-name (function-info ,mgr ,name)))
-
 (defmacro kernel-manager-function-handle (mgr name)
-  `(function-handle (function-info ,mgr ,name)))
+  `(gethash ,name (function-handles ,mgr)))
 
-(defmacro kernel-manager-function-return-type (mgr name)
-  `(function-return-type (function-info ,mgr ,name)))
+(defun kernel-manager-function-exists-p (mgr name)
+  (kernel-function-exists-p name (kernel-definition mgr)))
 
-(defmacro kernel-manager-function-arg-bindings (mgr name)
-  `(function-arg-bindings (function-info ,mgr ,name)))
+(defun kernel-manager-function-names (mgr)
+  (kernel-function-names (kernel-definition mgr)))
 
 (defun kernel-manager-function-c-name (mgr name)
-  (function-c-name (function-info mgr name)))
+  (kernel-function-c-name name (kernel-definition mgr)))
 
-(defmacro kernel-manager-function-code (mgr name)
-  `(function-code (function-info ,mgr ,name)))
+(defun kernel-manager-function-arg-bindings (mgr name)
+  (kernel-function-arg-bindings name (kernel-definition mgr)))
+
+(defun kernel-manager-kernel-code (mgr)
+  (compile-kernel-definition (kernel-definition mgr)))
 
 (defun kernel-manager-define-function (mgr name args body)
   (destructuring-bind (return-type arg-bindings) args
-    (if (kernel-manager-function-exists-p mgr name)
-        (when (function-modified-p (function-info mgr name)
-                                   return-type arg-bindings body)
-          (setf (kernel-manager-function-return-type mgr name) return-type)
-          (setf (kernel-manager-function-arg-bindings mgr name) arg-bindings)
-          (setf (kernel-manager-function-code mgr name) body)
-          (setf (kernel-manager-module-compilation-needed mgr) t))
-        (progn
-          (setf (function-info mgr name)
-                (make-function-info name return-type arg-bindings body))
-          (setf (kernel-manager-module-compilation-needed mgr) t)))))
+    (let ((def (kernel-definition mgr)))
+      (when (or (not (kernel-manager-function-exists-p mgr name))
+                (function-modified-p name def return-type arg-bindings body))
+        (setf (kernel-definition mgr)
+              (define-kernel-function name return-type arg-bindings body def))
+        (setf (kernel-manager-module-compilation-needed mgr) t)))))
 
-(defun function-modified-p (info return-type arg-bindings code)
-  (or (nequal return-type (function-return-type info))
-      (nequal arg-bindings (function-arg-bindings info))
-      (nequal code (function-code info))))
+(defun function-modified-p (name def return-type arg-bindings body)
+  (or (nequal return-type (kernel-function-return-type name def))
+      (nequal arg-bindings (kernel-function-arg-bindings name def))
+      (nequal body (kernel-function-body name def))))
 
 (defun kernel-manager-load-function (mgr name)
   (unless (kernel-manager-module-handle mgr)
@@ -371,7 +464,7 @@
   "return t if no kernel functions are loaded."
   (notany #'(lambda (key)
               (kernel-manager-function-handle mgr key))
-          (hash-table-keys (function-table mgr))))
+          (kernel-manager-function-names mgr)))
 
 (defun kernel-manager-unload (mgr)
   (swhen (kernel-manager-module-handle mgr)
@@ -385,12 +478,11 @@
     (setf it nil)))
 
 (defun free-function-handles (mgr)
-  (maphash-values #'free-function-handle (function-table mgr)))
-
-(defun free-function-handle (info)
-  (swhen (function-handle info)
-    (foreign-free it)
-    (setf it nil)))
+  (let ((handles (function-handles mgr)))
+    (maphash-keys #'(lambda (key)
+                      (swhen (gethash key handles)
+                        (foreign-free it)
+                        (setf it nil))) handles)))
 
 (defvar +temporary-path-template+ "/tmp/cl-cuda")
 (defvar +nvcc-path+ "/usr/local/cuda/bin/nvcc")
@@ -428,68 +520,6 @@
     (princ (kernel-manager-kernel-code mgr) out))
   (values))
 
-(defun kernel-manager-kernel-code (mgr)
-  (let ((funcs (user-functions mgr)))
-    (join (string #\LineFeed)
-          (mapcar #'(lambda (info)
-                      (function-kernel-code info funcs))
-                  (hash-table-values (function-table mgr))))))
-
-(defun user-functions (mgr)
-  (make-user-functions
-   (mapcar #'(lambda (x)
-               (destructuring-bind (name . info) x
-                 (list name
-                       (function-return-type info)
-                       (function-arg-bindings info))))
-           (hash-table-alist (function-table mgr)))))
-
-
-;;; module-info
-
-(defun make-module-info ()
-  (list nil nil t))
-
-(defmacro module-handle (info)
-  `(car ,info))
-
-(defmacro module-path (info)
-  `(cadr ,info))
-
-(defmacro module-compilation-needed (info)
-  `(caddr ,info))
-
-
-;;; function-info ::= (name hfunc arg-bindings c-name code)
-
-(defun make-function-info (name return-type arg-bindings code)
-  (list name nil return-type arg-bindings code))
-
-(defmacro function-name (info)
-  `(car ,info))
-
-(defmacro function-handle (info)
-  `(cadr ,info))
-
-(defmacro function-return-type (info)
-  `(caddr ,info))
-
-(defmacro function-arg-bindings (info)
-  `(cadddr ,info))
-
-(defun function-c-name (info)
-  (compile-identifier (function-name info)))
-
-(defmacro function-code (info)
-  `(car (cddddr ,info)))
-
-(defun function-kernel-code (info funcs)
-  (let ((c-name (function-c-name info))
-        (return-type (function-return-type info))
-        (arg-bindings (function-arg-bindings info))
-        (code (function-code info)))
-    (compile-kernel-function c-name return-type arg-bindings code funcs)))
-
 
 ;;; ensuring kernel manager
 
@@ -515,40 +545,62 @@
   (make-kernel-manager))
 
 (defun print-kernel-manager ()
-  (%kernel-manager-as-list *kernel-manager*))
+  (list (module-info *kernel-manager*)
+        (hash-table-alist (function-handles *kernel-manager*))
+        (kernel-definition *kernel-manager*)))
 
-(defun %kernel-manager-as-list (mgr)
-  (let ((ret))
-    (maphash #'(lambda (key val)
-                 (push (cons key val) ret))
-             (function-table mgr))
-    (list (module-info mgr) ret)))
+
+;;; compile kernel definition
+
+(defun compile-kernel-definition (def)
+  (unlines `(,@(mapcar #'(lambda (name)
+                           (compile-kernel-function-prototype name def))
+                       (kernel-function-names def))
+             ""
+             ,@(mapcar #'(lambda (name)
+                           (compile-kernel-function name def))
+                       (kernel-function-names def)))))
+
+
+;;; compile kernel function prototype
+
+(defun compile-kernel-function-prototype (name def)
+  (let ((name (kernel-function-c-name name def))
+        (return-type (kernel-function-return-type name def))
+        (arg-bindings (kernel-function-arg-bindings name def)))
+    (format nil "extern \"C\" ~A;"
+            (compile-function-declaration name return-type arg-bindings))))
 
 
 ;;; compile kernel function
 
-(defun compile-kernel-function (name return-type arg-bindings body funcs)
-  (let ((type-env (make-type-environment-with-arg-bindings arg-bindings)))
-    (unlines `(,(compile-function-declaration name return-type arg-bindings)
-               ,@(mapcar #'(lambda (stmt)
-                             (indent 2 (compile-statement stmt type-env funcs)))
-                         body)
-               "}"
-               ""))))
+(defun compile-kernel-function (name def)
+  (let ((c-name (kernel-function-c-name name def))
+        (return-type (kernel-function-return-type name def))
+        (arg-bindings (kernel-function-arg-bindings name def))
+        (stmts (kernel-function-body name def)))
+    (let ((type-env (make-type-environment-with-kernel-definition name def)))
+      (unlines `(,(compile-function-declaration c-name return-type arg-bindings)
+                 "{"
+                 ,@(mapcar #'(lambda (stmt)
+                              (indent 2 (compile-statement stmt type-env def)))
+                           stmts)
+                 "}"
+                  "")))))
 
-(defun make-type-environment-with-arg-bindings (arg-bindings)
-  (reduce #'(lambda (type-env2 arg-binding)
-              (destructuring-bind (var type) arg-binding
-                (add-type-environment var type type-env2)))
-          arg-bindings
-          :initial-value (empty-type-environment)))
+(defun make-type-environment-with-kernel-definition (name def)
+  (let ((arg-bindings (kernel-function-arg-bindings name def)))
+    (reduce #'(lambda (type-env arg-binding)
+                (destructuring-bind (var type) arg-binding
+                  (add-type-environment var type type-env)))
+            arg-bindings
+            :initial-value (empty-type-environment))))
 
 (defun compile-function-declaration (name return-type arg-bindings)
-  (format nil "extern \"C\" ~A ~A ~A (~A) {"
-          (compile-function-specifier return-type)
-          (compile-type return-type)
-          name
-          (compile-arg-bindings arg-bindings)))
+  (format nil "~A ~A ~A (~A)" (compile-function-specifier return-type)
+                              (compile-type return-type)
+                              name
+                              (compile-arg-bindings arg-bindings)))
 
 (defun compile-function-specifier (return-type)
   (unless (valid-type-p return-type)
@@ -575,14 +627,14 @@
 
 ;;; compile statement
 
-(defun compile-statement (stmt type-env funcs)
+(defun compile-statement (stmt type-env def)
   (cond
-    ((if-p stmt) (compile-if stmt type-env funcs))
-    ((let-p stmt) (compile-let stmt type-env funcs))
-    ((set-p stmt) (compile-set stmt type-env funcs))
-    ((progn-p stmt) (compile-progn stmt type-env funcs))
-    ((return-p stmt) (compile-return stmt type-env funcs))
-    ((function-p stmt) (compile-function stmt type-env funcs :statement-p t))
+    ((if-p stmt) (compile-if stmt type-env def))
+    ((let-p stmt) (compile-let stmt type-env def))
+    ((set-p stmt) (compile-set stmt type-env def))
+    ((progn-p stmt) (compile-progn stmt type-env def))
+    ((return-p stmt) (compile-return stmt type-env def))
+    ((function-p stmt) (compile-function stmt type-env def :statement-p t))
     (t (error "invalid statement: ~A" stmt))))
 
 
@@ -612,16 +664,16 @@
     (('if _ _ else-stmt) else-stmt)
     (_ (error (format nil "invalid statement: ~A" stmt)))))
 
-(defun compile-if (stmt type-env funcs)
+(defun compile-if (stmt type-env def)
   (let ((test-exp (if-test-expression stmt))
         (then-stmt (if-then-statement stmt))
         (else-stmt (if-else-statement stmt)))
     (unlines (format nil "if (~A) {"
-                     (compile-expression test-exp type-env funcs))
-             (indent 2 (compile-statement then-stmt type-env funcs))
+                     (compile-expression test-exp type-env def))
+             (indent 2 (compile-statement then-stmt type-env def))
              (and else-stmt "} else {")
              (and else-stmt
-                  (indent 2 (compile-statement else-stmt type-env funcs)))
+                  (indent 2 (compile-statement else-stmt type-env def)))
              "}")))
 
 
@@ -642,33 +694,33 @@
     (('let _ . stmts) stmts)
     (_ (error (format nil "invalid statement: ~A" stmt0)))))
 
-(defun compile-let (stmt0 type-env funcs)
+(defun compile-let (stmt0 type-env def)
   (let ((bindings (let-bindings stmt0))
         (stmts (let-statements stmt0)))
     (unlines "{"
-             (indent 2 (%compile-let bindings stmts type-env funcs))
+             (indent 2 (%compile-let bindings stmts type-env def))
              "}")))
 
-(defun %compile-let (bindings stmts type-env funcs)
+(defun %compile-let (bindings stmts type-env def)
   (if (null bindings)
-      (compile-let-statements stmts type-env funcs)
-      (compile-let-binding bindings stmts type-env funcs)))
+      (compile-let-statements stmts type-env def)
+      (compile-let-binding bindings stmts type-env def)))
 
-(defun compile-let-binding (bindings stmts type-env funcs)
+(defun compile-let-binding (bindings stmts type-env def)
   (match bindings
     (((var exp) . rest)
-     (let* ((type (type-of-expression exp type-env funcs))
+     (let* ((type (type-of-expression exp type-env def))
             (type-env2 (add-type-environment var type type-env)))
        (unlines (format nil "~A ~A = ~A;"
                         (compile-type type)
                         (compile-identifier var)
-                        (compile-expression exp type-env funcs))
-                (%compile-let rest stmts type-env2 funcs))))
+                        (compile-expression exp type-env def))
+                (%compile-let rest stmts type-env2 def))))
     (_ (error (format nil "invalid bindings: ~A" bindings)))))
 
-(defun compile-let-statements (stmts type-env funcs)
+(defun compile-let-statements (stmts type-env def)
   (unlines (mapcar #'(lambda (stmt)
-                       (compile-statement stmt type-env funcs)) stmts)))
+                       (compile-statement stmt type-env def)) stmts)))
 
 
 ;;; set statement
@@ -688,15 +740,15 @@
     (('set _ exp) exp)
     (_ (error (format nil "invalid statement: ~A" stmt)))))
 
-(defun compile-set (stmt type-env funcs)
+(defun compile-set (stmt type-env def)
   (let ((place (set-place stmt))
         (exp (set-expression stmt)))
-    (format nil "~A = ~A;" (compile-place place type-env funcs)
-                           (compile-expression exp type-env funcs))))
+    (format nil "~A = ~A;" (compile-place place type-env def)
+                           (compile-expression exp type-env def))))
 
-(defun compile-place (place type-env funcs)
+(defun compile-place (place type-env def)
   (cond ((scalar-place-p place) (compile-scalar-place place type-env))
-        ((array-place-p place) (compile-array-place place type-env funcs))
+        ((array-place-p place) (compile-array-place place type-env def))
         (t (error (format nil "invalid place: ~A" place)))))
 
 (defun scalar-place-p (place)
@@ -708,8 +760,8 @@
 (defun compile-scalar-place (var type-env)
   (compile-scalar-variable-reference var type-env))
 
-(defun compile-array-place (place type-env funcs)
-  (compile-array-variable-reference place type-env funcs))
+(defun compile-array-place (place type-env def)
+  (compile-array-variable-reference place type-env def))
 
 
 ;;; progn statement
@@ -724,9 +776,9 @@
     (('progn . stmts) stmts)
     (_ (error (format nil "invalid statement: ~A" stmt0)))))
 
-(defun compile-progn (stmt0 type-env funcs)
+(defun compile-progn (stmt0 type-env def)
   (unlines (mapcar #'(lambda (stmt)
-                       (compile-statement stmt type-env funcs))
+                       (compile-statement stmt type-env def))
                    (progn-statements stmt0))))
     
 
@@ -738,11 +790,11 @@
     (('return _) t)
     (_ nil)))
 
-(defun compile-return (stmt type-env funcs)
+(defun compile-return (stmt type-env def)
   (match stmt
     (('return) "return;")
     (('return exp) (format nil "return ~A;"
-                               (compile-expression exp type-env funcs)))
+                               (compile-expression exp type-env def)))
     (_ (error (format nil "invalid statement: ~A" stmt)))))
 
 
@@ -753,18 +805,18 @@
        (car form)
        (symbolp (car form))))
 
-(defun defined-function-p (form funcs)
+(defun defined-function-p (form def)
   (or (built-in-function-p form)
-      (user-function-p form funcs)))
+      (user-function-p form def)))
 
 (defun built-in-function-p (form)
   (match form
     ((op . _) (and (getf +built-in-functions+ op) t))
     (_ nil)))
 
-(defun user-function-p (form funcs)
+(defun user-function-p (form def)
   (match form
-    ((op . _) (user-function-exists-p op funcs))
+    ((op . _) (kernel-function-exists-p op def))
     (_ nil)))
 
 (defun function-operator (form)
@@ -777,48 +829,56 @@
       (cdr form)
       (error (format nil "invalid statement or expression: ~A" form))))
 
-(defun compile-function (form type-env funcs &key (statement-p nil))
-  (unless (defined-function-p form funcs)
+(defun compile-function (form type-env def &key (statement-p nil))
+  (unless (defined-function-p form def)
     (error (format nil "undefined function: ~A" form)))
   (let ((code (if (built-in-function-p form)
-                  (compile-built-in-function form type-env funcs)
-                  (compile-user-function form type-env funcs))))
+                  (compile-built-in-function form type-env def)
+                  (compile-user-function form type-env def))))
     (if statement-p
         (format nil "~A;" code)
         code)))
 
-(defun compile-built-in-function (form type-env funcs)
+(defun compile-built-in-function (form type-env def)
   (if (built-in-function-infix-p (function-operator form))
-      (compile-built-in-infix-function form type-env funcs)
-      (compile-built-in-prefix-function form type-env funcs)))
+      (compile-built-in-infix-function form type-env def)
+      (compile-built-in-prefix-function form type-env def)))
 
-(defun compile-built-in-infix-function (form type-env funcs)
+(defun compile-built-in-infix-function (form type-env def)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
     (let ((lhe (car operands))
           (op (built-in-function-inferred-operator operator operands
-                                                   type-env funcs))
+                                                   type-env def))
           (rhe (cadr operands)))
-      (format nil "(~A ~A ~A)" (compile-expression lhe type-env funcs)
+      (format nil "(~A ~A ~A)" (compile-expression lhe type-env def)
                                op
-                               (compile-expression rhe type-env funcs)))))
+                               (compile-expression rhe type-env def)))))
 
-(defun compile-built-in-prefix-function (form type-env funcs)
+(defun compile-built-in-prefix-function (form type-env def)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
     (format nil "~A (~A)" (built-in-function-inferred-operator operator operands
-                                                               type-env funcs)
-                          (compile-arguments operands type-env funcs))))
+                                                               type-env def)
+                          (compile-operands operands type-env def))))
 
-(defun compile-user-function (form type-env funcs)
+(defun compile-user-function (form type-env def)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
-    (let ((func (user-function-c-name operator operands type-env funcs)))
-      (format nil "~A (~A)" func (compile-arguments operands type-env funcs)))))
+    (let ((func (kernel-function-c-name operator def)))
+      (unless (equal (kernel-function-arg-types operator def)
+                     (type-of-operands operands type-env def))
+        (error (format nil "invalid arguments: ~A" (cons operands operands))))
+      (format nil "~A (~A)" func (compile-operands operands type-env def)))))
 
-(defun compile-arguments (operands type-env funcs)
+(defun type-of-operands (operands type-env def)
+  (mapcar #'(lambda (exp)
+              (type-of-expression exp type-env def))
+          operands))
+
+(defun compile-operands (operands type-env def)
   (join ", " (mapcar #'(lambda (exp)
-                         (compile-expression exp type-env funcs))
+                         (compile-expression exp type-env def))
                      operands)))
 
 
@@ -850,16 +910,16 @@
   (or (car (getf +built-in-functions+ op))
       (error (format nil "invalid operator: ~A" op))))
 
-(defun built-in-function-inferred-operator (operator operands type-env funcs)
-  (caddr (inferred-function operator operands type-env funcs)))
+(defun built-in-function-inferred-operator (operator operands type-env def)
+  (caddr (inferred-function operator operands type-env def)))
 
-(defun built-in-function-inferred-return-type (operator operands type-env funcs)
-  (cadr (inferred-function operator operands type-env funcs)))
+(defun built-in-function-inferred-return-type (operator operands type-env def)
+  (cadr (inferred-function operator operands type-env def)))
 
-(defun inferred-function (operator operands type-env funcs)
+(defun inferred-function (operator operands type-env def)
   (let ((candidates (function-candidates operator))
         (types (mapcar #'(lambda (exp)
-                            (type-of-expression exp type-env funcs)) operands)))
+                            (type-of-expression exp type-env def)) operands)))
     (or (find types candidates :key #'car :test #'equal)
         (error (format nil "invalid function application: ~A"
                        (cons operator operands))))))
@@ -869,62 +929,14 @@
       (error (format nil "invalid operator: ~A" op))))
 
 
-;;; user defined functions
-;;;   <user-functions> ::= plist { <function-name> => <function-type> }
-;;;   <function-type>  ::= (<arg-types> <return-type>)
-;;;   <arg-types>      ::= (<arg-type>*)
-
-(defun make-user-functions (funcs)
-  ;; takes a list of (<function-name> <return-type> <arg-bindings>)
-  (reduce #'append
-    (mapcar #'(lambda (func)
-                (destructuring-bind (name return-type arg-bindings) func
-                  (make-user-function name return-type arg-bindings)))
-            funcs)))
-
-(defun make-user-function (name return-type arg-bindings)
-  ;; returns (<function-name> <function-type>)
-  ;;   where <function-type> ::= (<arg-types> <return-type>)
-  ;;         <arg-types>     ::= (<arg-type>*)
-  (let ((function-type (list (mapcar #'cadr arg-bindings) return-type)))
-    (list name function-type)))
-
-(defun user-function-c-name (operator operands type-env funcs)
-  (when (user-function operator operands type-env funcs)
-    (compile-identifier operator)))
-
-(defun user-function-type (operator operands type-env funcs)
-  (car (user-function operator operands type-env funcs)))
-
-(defun user-function-return-type (operator operands type-env funcs)
-  (cadr (user-function operator operands type-env funcs)))
-
-(defun user-function-exists-p (operator funcs)
-  (and (getf funcs operator) t))
-
-(defun user-function (operator operands type-env funcs)
-  (let ((func (getf funcs operator)))
-    (unless func
-      (error (format nil "undefined kernel function: ~A" operator)))
-    (unless (user-function-valid-type-p func operands type-env funcs)
-      (error (format nil "invalid arguments: ~A"
-                     (cons operator operands))))
-    func))
-
-(defun user-function-valid-type-p (func operands type-env funcs)
-  (let ((types (mapcar #'(lambda (exp)
-                           (type-of-expression exp type-env funcs)) operands)))
-    (equal (car func) types)))
-
-
 ;;; compile expression
 
-(defun compile-expression (exp type-env funcs)
+(defun compile-expression (exp type-env def)
   (cond ((literal-p exp) (compile-literal exp))
         ((cuda-dimension-p exp) (compile-cuda-dimension exp))
         ((variable-reference-p exp)
-         (compile-variable-reference exp type-env funcs))
-        ((function-p exp) (compile-function exp type-env funcs))
+         (compile-variable-reference exp type-env def))
+        ((function-p exp) (compile-function exp type-env def))
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun literal-p (exp)
@@ -983,11 +995,11 @@
     (('aref _ _) t)
     (_ nil)))
 
-(defun compile-variable-reference (exp type-env funcs)
+(defun compile-variable-reference (exp type-env def)
   (cond ((scalar-variable-reference-p exp)
          (compile-scalar-variable-reference exp type-env))
         ((array-variable-reference-p exp)
-         (compile-array-variable-reference exp type-env funcs))
+         (compile-array-variable-reference exp type-env def))
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun compile-scalar-variable-reference (var type-env)
@@ -995,21 +1007,21 @@
     (error (format nil "unbound variable: ~A" var)))
   (compile-identifier var))
 
-(defun compile-array-variable-reference (form type-env funcs)
+(defun compile-array-variable-reference (form type-env def)
   (match form
     (('aref var idx) (format nil "~A[~A]"
                              (compile-scalar-variable-reference var type-env)
-                             (compile-expression idx type-env funcs)))
+                             (compile-expression idx type-env def)))
     (_ (error (format nil "invalid form: ~A" form)))))
 
 
 ;;; type of expression
 
-(defun type-of-expression (exp type-env funcs)
+(defun type-of-expression (exp type-env def)
   (cond ((literal-p exp) (type-of-literal exp))
         ((cuda-dimension-p exp) 'int)
         ((variable-reference-p exp) (type-of-variable-reference exp type-env))
-        ((function-p exp) (type-of-function exp type-env funcs))
+        ((function-p exp) (type-of-function exp type-env def))
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun type-of-literal (exp)
@@ -1035,22 +1047,21 @@
 (defun lift-type (type)
   (getf +lifting-type-table+ type))
 
-(defun type-of-function (exp type-env funcs)
+(defun type-of-function (exp type-env def)
   (cond ((built-in-function-p exp)
-         (type-of-built-in-function exp type-env funcs))
-        ((user-function-p exp funcs)
-         (type-of-user-function exp type-env funcs))
+         (type-of-built-in-function exp type-env def))
+        ((user-function-p exp def)
+         (type-of-user-function exp def))
         (t (error (format nil "invalid expression: ~A" exp)))))
 
-(defun type-of-built-in-function (exp type-env funcs)
+(defun type-of-built-in-function (exp type-env def)
   (let ((operator (function-operator exp))
         (operands (function-operands exp)))
-    (built-in-function-inferred-return-type operator operands type-env funcs)))
+    (built-in-function-inferred-return-type operator operands type-env def)))
 
-(defun type-of-user-function (exp type-env funcs)
-  (let ((operator (function-operator exp))
-        (operands (function-operands exp)))
-    (user-function-return-type operator operands type-env funcs)))
+(defun type-of-user-function (exp def)
+  (let ((operator (function-operator exp)))
+    (kernel-function-return-type operator def)))
 
 
 ;;; type environment
@@ -1099,3 +1110,5 @@
       (concatenate 'string " " (spaces (1- n)))
       ""))
 
+(defun undefined ()
+  (error "undefined"))
