@@ -11,138 +11,128 @@
 
 
 ;;; test cuInit
+(diag "test cuInit")
 (cu-init 0)
 
 
 ;;; test cuDeviceGet
+(diag "test cuDeviceGet")
 (let ((dev-id 0))
   (cffi:with-foreign-object (device 'cu-device)
     (setf (cffi:mem-ref device :int) 42)
-    (check-cuda-errors (cu-device-get device dev-id))
+    (cu-device-get device dev-id)
     (format t "CUDA device handle: ~A~%" (cffi:mem-ref device 'cu-device))))
 
 
 ;;; test cuDeviceGetCount
+(diag "test cuDeviceGetCount")
 (cffi:with-foreign-object (count :int)
-  (check-cuda-errors (cu-device-get-count count))
+  (cu-device-get-count count)
   (format t "CUDA device count: ~A~%" (cffi:mem-ref count :int)))
 
 
 ;;; test cuDeviceComputeCapability
+(diag "test cuDeviceComputeCapability")
 (let ((dev-id 0))
   (cffi:with-foreign-objects ((major :int)
                               (minor :int)
                               (device 'cu-device))
-    (check-cuda-errors (cu-device-get device dev-id))
-    (check-cuda-errors
-     (cu-device-compute-capability major minor
-                                   (cffi:mem-ref device 'cu-device)))
+    (cu-device-get device dev-id)
+    (cu-device-compute-capability major minor (cffi:mem-ref device 'cu-device))
     (format t "CUDA device compute capability: ~A.~A~%"
-            (cffi:mem-ref major :int) (cffi:mem-ref minor :int))))
+              (cffi:mem-ref major :int) (cffi:mem-ref minor :int))))
 
 
 ;;; test cuDeviceGetName
+(diag "test cuDeviceGetName")
 (let ((dev-id 0))
   (cffi:with-foreign-object (device 'cu-device)
   (cffi:with-foreign-pointer-as-string ((name size) 255)
-    (check-cuda-errors (cu-device-get device dev-id))
-    (check-cuda-errors (cu-device-get-name name size
-                                           (cffi:mem-ref device 'cu-device)))
+    (cu-device-get device dev-id)
+    (cu-device-get-name name size (cffi:mem-ref device 'cu-device))
     (format t "CUDA device name: ~A~%" (cffi:foreign-string-to-lisp name)))))
 
 
 ;;; test cuCtxCreate/cuCtxDestroy
+(diag "test cuCtxCreate/cuCtxDestroy")
 (let ((flags 0)
       (dev-id 0))
   (cffi:with-foreign-objects ((pctx 'cu-context)
                               (device 'cu-device))
-    (check-cuda-errors (cu-device-get device dev-id))
-    (check-cuda-errors (cu-ctx-create pctx flags
-                                      (cffi:mem-ref device 'cu-device)))
-    (format t "a CUDA context is created.~%")
-    (check-cuda-errors (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context)))
-    (format t "a CUDA context is destroyed.~%")))
+    (cu-device-get device dev-id)
+    (cu-ctx-create pctx flags (cffi:mem-ref device 'cu-device))
+    (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context))))
 
 
 ;;; test cuMemAlloc/cuMemFree
+(diag "test cuMemAlloc/cuMemFree")
 (let ((flags 0)
       (dev-id 0))
   (cffi:with-foreign-objects ((device 'cu-device)
                               (pctx 'cu-context)
                               (dptr 'cu-device-ptr))
-    (check-cuda-errors (cu-device-get device dev-id))
-    (check-cuda-errors (cu-ctx-create pctx flags
-                                      (cffi:mem-ref device 'cu-device)))
-    (check-cuda-errors (cu-mem-alloc dptr 1024))
-    (format t "a CUDA memory block is allocated.~%")
-    (check-cuda-errors (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr)))
-    (format t "a CUDA memory block is freed.~%")
-    (check-cuda-errors (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context)))))
+    (cu-device-get device dev-id)
+    (cu-ctx-create pctx flags (cffi:mem-ref device 'cu-device))
+    (cu-mem-alloc dptr 1024)
+    (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr))
+    (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context))))
 
 
 ;;; test cuMemAlloc/cuMemFree using with-cuda-context
+(diag "test cuMemAlloc/cuMemFree using with-cuda-context")
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
     (cffi:with-foreign-object (dptr 'cu-device-ptr)
-      (check-cuda-errors (cu-mem-alloc dptr 1024))
-      (format t "a CUDA memory block is allocated.~%")
-      (check-cuda-errors (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr)))
-      (format t "a CUDA memory block is freed.~%"))))
+      (cu-mem-alloc dptr 1024)
+      (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr)))))
 
 
 ;;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block
+(diag "test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block")
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
-    (with-cuda-memory-block (dptr 1024)
-      (format t "a CUDA memory block is allocated.~%"))))
+    (with-cuda-memory-block (dptr 1024))))
 
 
 ;;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-blocks
+(diag "test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-blocks")
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
     (with-cuda-memory-blocks ((dptr1 1024)
-                              (dptr2 1024))
-      (format t "two CUDA memory blocks are allocated.~%"))))
+                              (dptr2 1024)))))
 
 
 ;;; test cuMemcpyHtoD/cuMemcpyDtoH
+(diag "test cuMemcpyHtoD/cuMemcpyDtoH")
 (let ((dev-id 0)
       (size 1024))
   (with-cuda-context (dev-id)
     (cffi:with-foreign-object (hptr :float size)
       (with-cuda-memory-block (dptr size)
-        (check-cuda-errors
-         (cu-memcpy-host-to-device (cffi:mem-ref dptr 'cu-device-ptr)
-                                   hptr size))
-        (format t "a CUDA memory block is copied from host to device.~%")
-        (check-cuda-errors
-         (cu-memcpy-device-to-host hptr
-                                   (cffi:mem-ref dptr 'cu-device-ptr) size))
-        (format t "a CUDA memory block is copied from device to host.~%")))))
+        (cu-memcpy-host-to-device (cffi:mem-ref dptr 'cu-device-ptr) hptr size)
+        (cu-memcpy-device-to-host hptr (cffi:mem-ref dptr 'cu-device-ptr) size)))))
 
 
 ;;; test cuModuleLoad
+(diag "test cuModuleLoad")
 (let ((dev-id 0))
   (cffi:with-foreign-string (fname "/Developer/GPU Computing/C/src/vectorAddDrv/data/vectorAdd_kernel.ptx")
     (with-cuda-context (dev-id)
       (cffi:with-foreign-object (module 'cu-module)
-        (check-cuda-errors (cu-module-load module fname))
+        (cu-module-load module fname)
         (format t "CUDA module \"vectorAdd_kernel.ptx\" is loaded.~%")))))
 
 
 ;;; test cuModuleGetFunction
+(diag "test cuModuleGetFunction")
 (let ((dev-id 0))
   (cffi:with-foreign-string (fname "/Developer/GPU Computing/C/src/vectorAddDrv/data/vectorAdd_kernel.ptx")
     (cffi:with-foreign-string (name "VecAdd_kernel")
       (with-cuda-context (dev-id)
         (cffi:with-foreign-objects ((module 'cu-module)
                                     (hfunc 'cu-function))
-          (check-cuda-errors (cu-module-load module fname))
-          (check-cuda-errors
-           (cu-module-get-function hfunc
-                                   (cffi:mem-ref module 'cu-module)
-                                   name))
-          (format t "CUDA function \"VecAdd_kernel\" is loaded.~%"))))))
+          (cu-module-load module fname)
+          (cu-module-get-function hfunc (cffi:mem-ref module 'cu-module) name))))))
 
 
 ;;; test cuLaunchKernel
@@ -182,31 +172,23 @@
                               (d-c size))
       (random-init h-a n)
       (random-init h-b n)
-      (check-cuda-errors
-       (cu-memcpy-host-to-device (cffi:mem-ref d-a 'cu-device-ptr)
-                                 h-a size))
-      (check-cuda-errors
-       (cu-memcpy-host-to-device (cffi:mem-ref d-b 'cu-device-ptr)
-                                 h-b size))
+      (cu-memcpy-host-to-device (cffi:mem-ref d-a 'cu-device-ptr) h-a size)
+      (cu-memcpy-host-to-device (cffi:mem-ref d-b 'cu-device-ptr) h-b size)
       (vec-add-kernel d-a d-b d-c n
                       :grid-dim (list blocks-per-grid 1 1)
                       :block-dim (list threads-per-block 1 1))
-      (format t "CUDA function \"vec_add_kernel\" is launched.~%")
-      (check-cuda-errors
-       (cu-memcpy-device-to-host h-c
-                                 (cffi:mem-ref d-c 'cu-device-ptr)
-                                 size))
+      (cu-memcpy-device-to-host h-c (cffi:mem-ref d-c 'cu-device-ptr) size)
       (verify-result h-a h-b h-c n)))))
 
-(defkernel test-let1 (void ())
+(defkernel let1 (void ())
   (let ((i 0))
     (return))
   (let ((i 0))))
 
-(defun test-test-let1 ()
+(defun test-let1 ()
   (let ((dev-id 0))
     (with-cuda-context (dev-id)
-      (test-let1 :grid-dim (list 1 1 1)
+      (let1 :grid-dim (list 1 1 1)
                  :block-dim (list 1 1 1)))))
 
 (defkernel use-one (void ())
