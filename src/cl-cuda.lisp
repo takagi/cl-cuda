@@ -73,6 +73,9 @@
 (defcufun (cu-ctx-destroy "cuCtxDestroy") cu-result
   (pctx cu-context))
 
+;; cuCtxSynchronize
+(defcufun (cu-ctx-synchronize "cuCtxSynchronize") cu-result)
+
 ;; cuMemAlloc
 (defcufun (cu-mem-alloc "cuMemAlloc") cu-result
   (dptr (:pointer cu-device-ptr))
@@ -200,7 +203,7 @@
 (defmacro with-kernel-arguments (args &body body)
   (let ((var (car args))
         (ptrs (cdr args)))
-    `(with-foreign-object (,var :pointer 4)
+    `(with-foreign-object (,var :pointer ,(length ptrs))
        ,@(loop for ptr in ptrs
             for i from 0
             collect `(setf (mem-aref ,var :pointer ,i) ,ptr))
@@ -903,8 +906,8 @@
           ((float float) float "*")))
     / (t (((int int) int "/")
           ((float float) float "/")))
-    = (t (((int int) bool "=")
-          ((float float) bool "=")))
+    = (t (((int int) bool "==")
+          ((float float) bool "==")))
     < (t (((int int) bool "<")
           ((float float) bool "<")))
     <= (t (((int int) bool "<=")
