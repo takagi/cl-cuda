@@ -146,7 +146,7 @@
   (let ((dev-id 0))
     (with-cuda-context (dev-id)
       (let1 :grid-dim (list 1 1 1)
-                 :block-dim (list 1 1 1)))))
+            :block-dim (list 1 1 1)))))
 
 (defkernel use-one (void ())
   (let ((i (one)))

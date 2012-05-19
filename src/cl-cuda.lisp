@@ -154,7 +154,9 @@
            (cu-device-get ,device ,dev-id)
            (cu-ctx-create ,ctx ,flags (mem-ref ,device 'cu-device))
            (unwind-protect
-             (progn ,@body)
+             (progn
+               (ensure-kernel-module-loaded *kernel-manager*)
+               ,@body)
              (progn
                (kernel-manager-unload *kernel-manager*)
                (cu-ctx-destroy (mem-ref ,ctx 'cu-context)))))))))
