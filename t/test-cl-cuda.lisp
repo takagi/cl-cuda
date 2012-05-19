@@ -374,16 +374,6 @@
             simple-error))
 
 
-;;; test built-in functions
-
-(diag "test built-in functions")
-
-(is (cl-cuda::built-in-function-infix-p '+) t)
-(is (cl-cuda::built-in-function-infix-p 'expt) nil)
-(is (cl-cuda::built-in-function-prefix-p '+) nil)
-(is (cl-cuda::built-in-function-prefix-p 'expt) t)
-
-
 ;;; test built-in arithmetic functions
 
 (diag "test built-in arithmetic functions")
