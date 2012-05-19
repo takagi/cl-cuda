@@ -948,7 +948,7 @@
           ((float float) bool "<")))
     <= (t (((int int) bool "<=")
            ((float float) bool "<=")))
-    expt (t (((float float) float "powf")))
+    expt (nil (((float float) float "powf")))
     ))
 
 (defun built-in-function-infix-p (op)
