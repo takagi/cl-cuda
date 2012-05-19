@@ -555,6 +555,9 @@
 (defvar *kernel-manager*
   (make-kernel-manager))
 
+(defun clear-kernel-manager ()
+  (setf *kernel-manager* (make-kernel-manager)))
+
 (defun print-kernel-manager ()
   (list (module-info *kernel-manager*)
         (hash-table-alist (function-handles *kernel-manager*))
