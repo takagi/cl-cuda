@@ -10,6 +10,8 @@
   (:export :main))
 (in-package :cl-cuda-examples.diffuse0)
 
+(setf cl-cuda:*show-messages* nil)
+
 (defun initialize-device-memory (nx ny dx dy fd)
   (cffi:with-foreign-object (fh :float (* nx ny))
     (let ((alpha 30.0))
