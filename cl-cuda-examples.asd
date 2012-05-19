@@ -8,14 +8,15 @@
   (:use :cl :asdf))
 (in-package :cl-cuda-examples-asd)
 
-(defsystem cl-cuda-exmaples
+(defsystem cl-cuda-examples
   :author "Masayuki Takagi"
   :license "LLGPL"
   :depends-on (:cl-cuda
                :imago
                :cl-stopwatch)
-  :components ((:module "t"
+  :components ((:module "examples"
                 :serial t
                 :components
-                ((:file "diffuse0"))))
+                ((:file "diffuse0")
+                 (:file "vector-add"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
