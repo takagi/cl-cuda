@@ -12,18 +12,62 @@
 
 (setf cl-cuda:*show-messages* nil)
 
-(defun initialize-device-memory (nx ny dx dy fd)
+
+;;; image output functions
+
+(declaim (inline index))
+(defun index (nx jx jy)
+  (the fixnum (+ (the fixnum (* nx jy)) jx)))
+
+(defun image-value (f i j nx fmax fmin)
+  (let ((fc (cffi:mem-aref f :float (index nx i j))))
+    (truncate (* 256.0
+                 (/ (- fc fmin) (- fmax fmin))))))
+
+(defun file-name (dir i nout)
+  (let ((n (truncate (/ i nout))))
+    (concatenate 'string dir (format nil "~4,'0D.pgm" n))))
+
+(defun output-pnm (dir i nout nx ny fd)
   (cffi:with-foreign-object (fh :float (* nx ny))
-    (let ((alpha 30.0))
-      (dotimes (jy ny)
-        (dotimes (jx nx)
-          (let ((j (index nx jx jy))
-                (x (- (* dx (+ (float jx 1.0) 0.5)) 0.5))
-                (y (- (* dy (+ (float jy 1.0) 0.5)) 0.5)))
-            (setf (cffi:mem-aref fh :float j)
-                  (exp (* (- alpha)
-                          (+ (* x x) (* y y)))))))))
-    (cu-memcpy-host-to-device (cffi:mem-ref fd 'cu-device-ptr) fh (* nx ny 4))))
+    (cu-memcpy-device-to-host fh (cffi:mem-ref fd 'cu-device-ptr) (* nx ny 4))
+    (let ((image (make-instance 'imago:grayscale-image
+                                :width nx :height ny)))
+      (dotimes (i nx)
+        (dotimes (j ny)
+          (setf (imago:image-pixel image i j) (image-value fh i j nx 1.0 0.0))))
+      (imago:write-pnm image (file-name dir i nout) :ASCII)))
+  (values))
+
+
+;;; timer functions
+
+(defun start-timer ()
+  (cl-stopwatch:stopwatch-reset :diffuse)
+  (cl-stopwatch:stopwatch-start :diffuse))
+
+(defun stop-timer ()
+  (cl-stopwatch:stopwatch-stop :diffuse))
+
+(defun elapsed-time ()
+  (cl-stopwatch:stopwatch-read :diffuse))
+
+
+;;; print functions
+
+(defun print-elapsed-time ()
+  (let ((time (* (elapsed-time) 1.0e-3)))
+    (format t "Elapsed Time = ~,3F [sec]~%" time)))
+
+(defun print-performance (flo)
+  (let ((time (* (elapsed-time) 1.0e-3)))
+    (format t "Performance = ~,2F [MFlops]~%" (* (/ flo time) 1.0e-6))))
+
+(defun print-time (cnt time)
+  (format t "time(~A) = ~,5F~%" cnt time))
+
+
+;;; main functions
 
 (defkernel cuda-diffusion2d (void ((f float*) (fn float*)
                                    (nx int) (ny int)
@@ -52,6 +96,19 @@
                           (* c1 (+ fcn fcs))
                           (* c2 fcc))))))
 
+(defun initialize-device-memory (nx ny dx dy fd)
+  (cffi:with-foreign-object (fh :float (* nx ny))
+    (let ((alpha 30.0))
+      (dotimes (jy ny)
+        (dotimes (jx nx)
+          (let ((j (index nx jx jy))
+                (x (- (* dx (+ (float jx 1.0) 0.5)) 0.5))
+                (y (- (* dy (+ (float jy 1.0) 0.5)) 0.5)))
+            (setf (cffi:mem-aref fh :float j)
+                  (exp (* (- alpha)
+                          (+ (* x x) (* y y)))))))))
+    (cu-memcpy-host-to-device (cffi:mem-ref fd 'cu-device-ptr) fh (* nx ny 4))))
+
 (defvar +block-dim-x+ 256)
 (defvar +block-dim-y+ 1)
 
@@ -66,53 +123,8 @@
     (cu-ctx-synchronize)
     (* nx ny 7.0)))
 
-(declaim (inline index))
-(defun index (nx jx jy)
-  (the fixnum (+ (the fixnum (* nx jy)) jx)))
-
-(defun image-value (f i j nx fmax fmin)
-  (let ((fc (cffi:mem-aref f :float (index nx i j))))
-    (truncate (* 256.0
-                 (/ (- fc fmin) (- fmax fmin))))))
-
-(defun file-name (dir i nout)
-  (let ((n (truncate (/ i nout))))
-    (concatenate 'string dir (format nil "~4,'0D.pgm" n))))
-
-(defun output-pnm (dir i nout nx ny fd)
-  (cffi:with-foreign-object (fh :float (* nx ny))
-    (cu-memcpy-device-to-host fh (cffi:mem-ref fd 'cu-device-ptr) (* nx ny 4))
-    (let ((image (make-instance 'imago:grayscale-image
-                                :width nx :height ny)))
-      (dotimes (i nx)
-        (dotimes (j ny)
-          (setf (imago:image-pixel image i j) (image-value fh i j nx 1.0 0.0))))
-      (imago:write-pnm image (file-name dir i nout) :ASCII)))
-  (values))
-
 (defmacro swap (a b)
   `(rotatef ,a ,b))
-
-(defun start-timer ()
-  (cl-stopwatch:stopwatch-reset :diffuse)
-  (cl-stopwatch:stopwatch-start :diffuse))
-
-(defun stop-timer ()
-  (cl-stopwatch:stopwatch-stop :diffuse))
-
-(defun elapsed-time ()
-  (cl-stopwatch:stopwatch-read :diffuse))
-
-(defun print-elapsed-time ()
-  (let ((time (* (elapsed-time) 1.0e-3)))
-    (format t "Elapsed Time = ~,3F [sec]~%" time)))
-
-(defun print-performance (flo)
-  (let ((time (* (elapsed-time) 1.0e-3)))
-    (format t "Performance = ~,2F [MFlops]~%" (* (/ flo time) 1.0e-6))))
-
-(defun print-time (cnt time)
-  (format t "time(~A) = ~,5F~%" cnt time))
 
 (defun main ()
   (let* ((dev-id 0)
