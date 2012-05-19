@@ -19,6 +19,7 @@
            :cu-device-compute-capability
            :cu-device-get-name
            :cu-ctx-create
+           :cu-ctx-synchronize
            :cu-ctx-destroy
            :cu-mem-alloc
            :cu-mem-free
