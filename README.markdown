@@ -6,7 +6,15 @@ Cl-cuda is in very early stage of development. Any feedbacks are welcome.
 
 ## Usage
 
+I will write some usage later. For now, please see the examples directory.
+
 ## Installation
+
+I will write about installation later.
+
+## Rquirements
+
+Since cl-cuda now uses some features that depend on SBCL, you will need some modification if you use it on any Common Lisp implementations other than SBCL. I will fix this later.
 
 ## Author
 
