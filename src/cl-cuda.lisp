@@ -7,15 +7,15 @@
 
 ;;; defcufun
 
-(defmacro defcufun (name-and-options return-type &body args0)
+(defmacro defcufun (name-and-options return-type &body args)
   (let* ((name (car name-and-options))
          (name% (symbolicate name "%"))
-         (name-and-options% (cons name% (cdr name-and-options))))
-    (with-gensyms (args)
+         (name-and-options% (cons name% (cdr name-and-options)))
+         (params (mapcar #'car args)))
       `(progn
-         (defun ,name (&rest ,args)
-           (check-cuda-errors ',name (apply #',name% ,args)))
-         (defcfun ,name-and-options% ,return-type ,@args0)))))
+         (defun ,name (,@params)
+           (check-cuda-errors ',name (,name% ,@params)))
+         (defcfun ,name-and-options% ,return-type ,@args))))
 
 
 ;;; load CUDA driver API
@@ -134,11 +134,14 @@
 
 ;;; Helpers
 
+(defvar *show-messages* t)
+
 (defun check-cuda-errors (name return-code)
   (unless (= return-code +cuda-success+)
     (error (format nil "~A failed with driver API error No. ~A.~%"
                        name return-code)))
-  (format t "~A succeeded.~%" name)
+  (when *show-messages*
+    (format t "~A succeeded.~%" name))
   (values))
 
 (defmacro with-cuda-context (args &body body)

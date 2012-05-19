@@ -29,6 +29,7 @@
            :cu-launch-kernel
            :+cuda-success+              ; Constants
            :check-cuda-errors           ; Helpers
+           :*show-messages*
            :with-cuda-context
            :with-cuda-memory-block
            :with-cuda-memory-blocks
