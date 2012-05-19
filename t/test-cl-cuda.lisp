@@ -378,7 +378,12 @@
           simple-error)
 
 (is (cl-cuda::built-in-function-infix-p '+) t)
+(is (cl-cuda::built-in-function-infix-p 'expt) nil)
 (is-error (cl-cuda::built-in-function-infix-p 'foo) simple-error)
+
+(is (cl-cuda::built-in-function-prefix-p '+) nil)
+(is (cl-cuda::built-in-function-prefix-p 'expt) t)
+(is-error (cl-cuda::built-in-function-prefix-p 'foo) simple-error)
 
 (is (cl-cuda::function-p 'a) nil)
 (is (cl-cuda::function-p '()) nil)
@@ -402,7 +407,7 @@
              (cl-cuda::empty-kernel-definition))))
   (is (cl-cuda::compile-function '(foo) nil def :statement-p t) "foo ();"))
 (is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
-(is-error (cl-cuda::compile-function '(+ 1 1 1) nil nil) simple-error)
+(is (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
 (is-error (cl-cuda::compile-function '(foo 1 1) nil nil) simple-error)
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '((x int) (y int)) '()
              (cl-cuda::empty-kernel-definition))))
@@ -410,6 +415,28 @@
       "foo (1, 1);")
   (is-error (cl-cuda::compile-function '(foo 1 1 1) nil def :statement-p t)
             simple-error))
+
+
+;;; test built-in functions
+
+(diag "test built-in functions")
+
+(is (cl-cuda::built-in-function-infix-p '+) t)
+(is (cl-cuda::built-in-function-infix-p 'expt) nil)
+(is (cl-cuda::built-in-function-prefix-p '+) nil)
+(is (cl-cuda::built-in-function-prefix-p 'expt) t)
+
+
+;;; test built-in arithmetic functions
+
+(diag "test built-in arithmetic functions")
+
+(is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
+(is (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
+(is (cl-cuda::compile-function '(+ 1.0 1.0 1.0) nil nil) "((1.0 + 1.0) + 1.0)")
+(is-error (cl-cuda::compile-function '(+ 1 1 1.0) nil nil) simple-error)
+(is-error (cl-cuda::compile-function '(+) nil nil) simple-error)
+(is-error (cl-cuda::compile-function '(+ 1) nil nil) simple-error)
 
 
 ;;; test type-of-expression

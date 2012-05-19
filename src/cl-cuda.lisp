@@ -556,7 +556,8 @@
   (make-kernel-manager))
 
 (defun clear-kernel-manager ()
-  (setf *kernel-manager* (make-kernel-manager)))
+  (setf *kernel-manager* (make-kernel-manager))
+  (values))
 
 (defun print-kernel-manager ()
   (list (module-info *kernel-manager*)
@@ -854,9 +855,38 @@
         code)))
 
 (defun compile-built-in-function (form type-env def)
-  (if (built-in-function-infix-p (function-operator form))
-      (compile-built-in-infix-function form type-env def)
-      (compile-built-in-prefix-function form type-env def)))
+  (let ((op (function-operator form)))
+    (cond
+      ((built-in-function-arithmetic-p op)
+       (compile-built-in-arithmetic-function form type-env def))
+      ((built-in-function-infix-p op)
+       (compile-built-in-infix-function form type-env def))
+      ((built-in-function-prefix-p op)
+       (compile-built-in-prefix-function form type-env def))
+      (t (error (format nil "invalid built-in function: ~A" op))))))
+
+(defun compile-built-in-arithmetic-function (form type-env def)
+  (let ((operator (function-operator form))
+        (operands (function-operands form)))
+    (unless (arithmetic-function-valid-type-p
+              (type-of-operands operands type-env def) operator)
+      (error (format nil "invalid arguments: ~A" (cons operator operands))))
+    (compile-built-in-infix-function (binarize-1 form) type-env def)))
+
+(defun binarize-1 (form)
+  (if (atom form)
+      form
+      (if (and (nthcdr 3 form)
+               (member (car form) '(+ - * /)))
+          (destructuring-bind (op a1 a2 . rest) form
+            (binarize-1 `(,op (,op ,a1 ,a2) ,@rest)))
+          form)))
+
+(defun arithmetic-function-valid-type-p (arg-types op)
+  (let ((arg-type (remove-duplicates arg-types)))
+    (and (= (length arg-type) 1)
+         (find (car arg-type) (arithmetic-function-type-candidates op))
+         t)))
 
 (defun compile-built-in-infix-function (form type-env def)
   (let ((operator (function-operator form))
@@ -918,11 +948,19 @@
           ((float float) bool "<")))
     <= (t (((int int) bool "<=")
            ((float float) bool "<=")))
+    expt (t (((float float) float "pow")))
     ))
 
 (defun built-in-function-infix-p (op)
-  (or (car (getf +built-in-functions+ op))
-      (error (format nil "invalid operator: ~A" op))))
+  (aif (getf +built-in-functions+ op)
+       (and (car it)
+            t)
+       (error (format nil "invalid built-in function: ~A" op))))
+
+(defun built-in-function-prefix-p (op)
+  (aif (getf +built-in-functions+ op)
+       (not (car it))
+       (error (format nil "invalid built-in function: ~A" op))))
 
 (defun built-in-function-inferred-operator (operator operands type-env def)
   (caddr (inferred-function operator operands type-env def)))
@@ -940,6 +978,20 @@
 
 (defun function-candidates (op)
   (or (cadr (getf +built-in-functions+ op))
+      (error (format nil "invalid operator: ~A" op))))
+
+(defvar +built-in-arithmetic-functions+
+  '(+ (int float)
+    - (int float)
+    * (int float)
+    / (int float)))
+
+(defun built-in-function-arithmetic-p (op)
+  (and (getf +built-in-arithmetic-functions+ op)
+       t))
+
+(defun arithmetic-function-type-candidates (op)
+  (or (getf +built-in-arithmetic-functions+ op)
       (error (format nil "invalid operator: ~A" op))))
 
 
