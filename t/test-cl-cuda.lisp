@@ -334,6 +334,52 @@
   (is (cl-cuda::compile-let lisp-code nil nil) c-code))
 
 
+;;; test compile-for
+
+(diag "test compile-for")
+
+(is (cl-cuda::for-p '(for ((a 0 15 1)
+                           (b 0 15 1)))) t)
+(is (cl-cuda::for-bindings '(for ((a 0 15 1)
+                                  (b 0 15 1)))) '((a 0 15 1) (b 0 15 1)))
+(is (cl-cuda::for-vars '(for ((a 0 15 1)
+                              (b 0 15 1)))) '(a b))
+(is (cl-cuda::for-begins '(for ((a 0 15 1)
+                               (b 0 15 1)))) '(0 0))
+(is (cl-cuda::for-ends '(for ((a 0 15 1)
+                              (b 0 15 1)))) '(15 15))
+(is (cl-cuda::for-steps '(for ((a 0 15 1)
+                               (b 0 15))) nil nil) '(1 1))
+(is (cl-cuda::for-statements '(for ((a 0 15))
+                                (return))) '((return)))
+
+(let ((lisp-code '(for ((a 0 15 1)
+                        (b 0 15))
+                    (return)))
+      (c-code (cl-cuda::unlines "for ( int a = 0, int b = 0; a <= 15, b <= 15; a += 1, b += 1 )"
+                                "{"
+                                "  return;"
+                                "}")))
+  (is (cl-cuda::compile-for-begin-part lisp-code nil nil)
+      "int a = 0, int b = 0")
+  (is (cl-cuda::compile-for-end-part lisp-code nil nil)
+      "a <= 15, b <= 15")
+  (is (cl-cuda::compile-for-step-part lisp-code nil nil)
+      "a += 1, b += 1")
+  (is (cl-cuda::compile-for lisp-code nil nil) c-code))
+
+(is-error (cl-cuda::compile-for '(for (())) nil nil) simple-error)
+(is-error (cl-cuda::compile-for '(for ((a))) nil nil) simple-error)
+(is-error (cl-cuda::compile-for '(for ((a 0))) nil nil) simple-error)
+
+(let ((lisp-code '(for ((a 0.0 15.0))))
+      (c-code (cl-cuda::unlines "for ( float a = 0.0; a <= 15.0; a += 1.0 )"
+                                "{"
+                                ""
+                                "}")))
+  (is (cl-cuda::compile-for lisp-code nil nil) c-code))
+
+
 ;;; test compile-set
 
 (diag "test compile-set")

@@ -40,5 +40,5 @@
            :block-dim-x :block-dim-y :block-dim-z
            :block-idx-x :block-idx-y :block-idx-z
            :thread-idx-x :thread-idx-y :thread-idx-z
-           :with-shared-memory :syncthreads
+           :for :with-shared-memory :syncthreads
            ))

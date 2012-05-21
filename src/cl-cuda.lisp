@@ -521,7 +521,7 @@
                         (foreign-free it)
                         (setf it nil))) handles)))
 
-(defvar +temporary-path-template+ "/tmp/cl-cuda")
+(defvar +temporary-path-template+ "/tmp/cl-cuda-")
 (defvar +nvcc-path+ "/usr/local/cuda/bin/nvcc")
 
 (defun kernel-manager-compile (mgr)
@@ -672,6 +672,7 @@
   (cond
     ((if-p stmt) (compile-if stmt type-env def))
     ((let-p stmt) (compile-let stmt type-env def))
+    ((for-p stmt) (compile-for stmt type-env def))
     ((with-shared-memory-p stmt) (compile-with-shared-memory stmt type-env def))
     ((set-p stmt) (compile-set stmt type-env def))
     ((progn-p stmt) (compile-progn stmt type-env def))
@@ -838,6 +839,85 @@
     (('return exp) (format nil "return ~A;"
                                (compile-expression exp type-env def)))
     (_ (error (format nil "invalid statement: ~A" stmt)))))
+
+
+;;; for statement
+
+(defun for-p (stmt)
+  (match stmt
+    (('for . _) t)
+    (_ nil)))
+
+(defun for-bindings (stmt)
+  (match stmt
+    (('for bindings . _) bindings)
+    (_ (error (format nil "invalid statement: ~A" stmt)))))
+
+(defun for-types (stmt type-env def)
+  (mapcar #'(lambda (begin)
+              (type-of-expression begin type-env def))
+          (for-begins stmt)))
+
+(defun for-vars (stmt)
+  (mapcar #'car (for-bindings stmt)))
+
+(defun for-begins (stmt)
+  (mapcar #'cadr (for-bindings stmt)))
+
+(defun for-ends (stmt)
+  (mapcar #'caddr (for-bindings stmt)))
+
+(defun for-steps (stmt type-env def)
+  (labels ((aux (type val)
+             (or val
+                 (case type
+                   (int 1)
+                   (float 1.0)
+                   (t (error (format nil "invalid statement: ~A" stmt)))))))
+    (let ((types (for-types stmt type-env def))
+          (steps (mapcar #'cadddr (for-bindings stmt))))
+      (mapcar #'aux types steps))))
+
+(defun for-statements (stmt)
+  (match stmt
+    (('for _ . stmts) stmts)
+    (_ (error (format nil "invalid statement: ~A" stmt)))))
+
+(defun compile-for (stmt type-env def)
+  (let ((begin-part (compile-for-begin-part stmt type-env def))
+        (end-part (compile-for-end-part stmt type-env def))
+        (step-part (compile-for-step-part stmt type-env def)))
+    (unlines (format nil "for ( ~A; ~A; ~A )" begin-part end-part step-part)
+             "{"
+             (indent 2 (compile-for-statements stmt type-env def))
+             "}")))
+
+(defun compile-for-begin-part (stmt type-env def)
+  (labels ((part (type var begin)
+             (format nil "~A ~A = ~A" (compile-type type)
+                                      (compile-identifier var)
+                                      (compile-expression begin type-env def))))
+    (join ", " (mapcar #'part (for-types stmt type-env def)
+                              (for-vars stmt)
+                              (for-begins stmt)))))
+
+(defun compile-for-end-part (stmt type-env def)
+  (labels ((part (var end)
+             (format nil "~A <= ~A" (compile-identifier var)
+                                    (compile-expression end type-env def))))
+    (join ", " (mapcar #'part (for-vars stmt) (for-ends stmt)))))
+
+(defun compile-for-step-part (stmt type-env def)
+  (labels ((part (var step)
+             (format nil "~A += ~A" (compile-identifier var)
+                                    (compile-expression step type-env def))))
+    (join ", " (loop for var in (for-vars stmt)
+                     for step in (for-steps stmt type-env def)
+                  when step
+                  collect (part var step)))))
+
+(defun compile-for-statements (stmt type-env def)
+  (compile-let-statements (for-statements stmt) type-env def))
 
 
 ;;; with-shared-memory statement
@@ -1318,10 +1398,10 @@
 (defun nequal (&rest args)
   (not (apply #'equal args)))
 
-(defun join (str xs0 &key (remove-nil nil))
-  (let ((xs (if remove-nil (remove-if #'null xs0) xs0)))
-    (if (not (null xs))
-      (reduce #'(lambda (a b) (concatenate 'string a str b)) xs)
+(defun join (str xs &key (remove-nil nil))
+  (let ((xs2 (if remove-nil (remove-if #'null xs) xs)))
+    (if (not (null xs2))
+      (reduce #'(lambda (a b) (concatenate 'string a str b)) xs2)
       "")))
 
 (defun indent (n str)
