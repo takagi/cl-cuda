@@ -3,6 +3,10 @@
   Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
 |#
 
+#|
+  This file is based on the CUDA SDK's "vectorAddDrv" sample.
+|#
+
 (in-package :cl-user)
 (defpackage cl-cuda-examples.vector-add
   (:use :cl
