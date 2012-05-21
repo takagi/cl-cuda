@@ -4,6 +4,30 @@ Cl-cuda is a library to use Nvidia CUDA in Common Lisp programs. You can write C
 
 Cl-cuda is in very early stage of development. Any feedbacks are welcome.
 
+## Example
+
+Following is a part of vector addition example using cl-cuda wichi is based on the CUDA SDK's "vectorAdd" sample.
+
+Kernel functions are simply written with defkernel macro and the cl-cuda kernel description language which has Common Lisp-like syntax.
+
+Once kernel functions are defined, they can be launched as if ordinal Common Lisp functions except that followed by :grid-dim and :block-dim keyword parameters which provide the dimensions of the grid and block.
+
+For the whole code, please see the file vector-add.lisp in the examples directory.
+
+  (defkernel vec-add-kernel (void ((a float*) (b float*) (c float*) (n int)))
+    (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x)))
+      (if (< i n)
+          (set (aref c i)
+               (+ (aref a i) (aref b i))))))
+
+  (let ((dev-id 0))
+    (with-cuda-context (dev-id)
+      ...
+      (vec-add-kernel d-a d-b d-c n
+                      :grid-dim (list blocks-per-grid 1 1)
+                      :block-dim (list threads-per-block 1 1))
+      ...))
+
 ## Usage
 
 I will write some usage later. For now, please see the examples directory.
