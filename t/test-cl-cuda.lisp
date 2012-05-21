@@ -172,6 +172,35 @@
                   :block-dim (list 1 1 1)))))
 
 
+;;; test valid-type-p
+
+(is (cl-cuda::valid-type-p 'void) t)
+(is (cl-cuda::valid-type-p 'int) t)
+(is (cl-cuda::valid-type-p 'float) t)
+(is (cl-cuda::valid-type-p 'double) nil)
+(is (cl-cuda::valid-type-p 'float*) t)
+(is (cl-cuda::valid-type-p 'float**) t)
+(is (cl-cuda::valid-type-p '*float**) nil)
+
+(is (cl-cuda::pointer-type-p 'int) nil)
+(is (cl-cuda::pointer-type-p 'float*) t)
+(is-error (cl-cuda::pointer-type-p '*float*) simple-error)
+
+(is (cl-cuda::add-star 'int -1) 'int)
+(is (cl-cuda::add-star 'int 0) 'int)
+(is (cl-cuda::add-star 'int 1) 'int*)
+(is (cl-cuda::add-star 'int 2) 'int**)
+
+(is (cl-cuda::remove-star 'int) 'int)
+(is (cl-cuda::remove-star 'int*) 'int)
+(is (cl-cuda::remove-star 'int**) 'int)
+
+(is (cl-cuda::type-dimension 'int) 0)
+(is (cl-cuda::type-dimension 'int*) 1)
+(is (cl-cuda::type-dimension 'int**) 2)
+(is (cl-cuda::type-dimension 'int***) 3)
+
+
 ;;; test kernel definition
 
 (is (cl-cuda::empty-kernel-definition) '(nil nil))
@@ -320,6 +349,78 @@
   (is (cl-cuda::compile-set '(set (aref x 0) 1) type-env nil) "x[0] = 1;"))
 
 
+;;; test compile-with-shared-memory
+
+(diag "test compile-with-shared-memory")
+
+(is (cl-cuda::with-shared-memory-p '(with-shared-memory ((a float 16))
+                                      (return)))
+    t)
+(is (cl-cuda::with-shared-memory-p '(with-shared-memory () (return))) t)
+(is (cl-cuda::with-shared-memory-p '(with-shared-memory ())) t)
+(is (cl-cuda::with-shared-memory-p '(with-shared-memory)) t)
+
+(let ((lisp-code '(with-shared-memory ((a int 16)
+                                       (b float 16 16))
+                   (return)))
+      (c-code (cl-cuda::unlines "{"
+                                "  __shared__ int a[16];"
+                                "  __shared__ float b[16][16];"
+                                "  return;"
+                                "}")))
+  (is (cl-cuda::compile-with-shared-memory lisp-code nil nil) c-code))
+
+(let ((lisp-code '(with-shared-memory () (return)))
+      (c-code (cl-cuda::unlines "{"
+                                "  return;"
+                                "}")))
+  (is (cl-cuda::compile-with-shared-memory lisp-code nil nil) c-code))
+
+(let ((lisp-code '(with-shared-memory ()))
+      (c-code (cl-cuda::unlines "{"
+                                ""
+                                "}")))
+  (is (cl-cuda::compile-with-shared-memory lisp-code nil nil) c-code))
+
+(is-error (cl-cuda::compile-with-shared-memory '(with-shared-memory) nil nil)
+          simple-error)
+
+(let ((lisp-code '(with-shared-memory ((a float))
+                    (return)))
+      (c-code (cl-cuda::unlines "{"
+                                "  __shared__ float a;"
+                                "  return;"
+                                "}")))
+  (is (cl-cuda::compile-with-shared-memory lisp-code nil nil) c-code))
+
+(let ((lisp-code '(with-shared-memory (a float)
+                    (return))))
+  (is-error (cl-cuda::compile-with-shared-memory lisp-code nil nil)
+            simple-error))
+
+(let ((lisp-code '(with-shared-memory ((a float 16 16))
+                    (set (aref a 0 0) 1.0)))
+      (c-code (cl-cuda::unlines "{"
+                                "  __shared__ float a[16][16];"
+                                "  a[0][0] = 1.0;"
+                                "}")))
+  (is (cl-cuda::compile-with-shared-memory lisp-code nil nil) c-code))
+
+(let ((lisp-code '(with-shared-memory ((a float 16 16))
+                    (set (aref a 0) 1.0))))
+  (is-error (cl-cuda::compile-with-shared-memory lisp-code nil nil)
+            simple-error))
+
+
+;;; test compile-syncthreads
+
+(diag "test compile-syncthreads")
+
+(is (cl-cuda::syncthreads-p '(syncthreads)) t)
+
+(is (cl-cuda::compile-syncthreads '(syncthreads)) "__syncthreads();")
+
+
 ;;; test compile-function
 
 (diag "test compile-function")
@@ -385,6 +486,22 @@
 (is-error (cl-cuda::compile-function '(+) nil nil) simple-error)
 (is-error (cl-cuda::compile-function '(+ 1) nil nil) simple-error)
 
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '() nil nil) nil)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1) nil nil) t)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1.0 1.0) nil nil) t)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1.0) nil nil) nil)
+(is-error (cl-cuda::arithmetic-function-valid-type-p 'foo '() nil nil)
+          simple-error)
+
+(is-error (cl-cuda::arithmetic-function-return-type '+ '() nil nil)
+          simple-error)
+(is (cl-cuda::arithmetic-function-return-type '+ '(1 1) nil nil) 'int)
+(is (cl-cuda::arithmetic-function-return-type '+ '(1.0 1.0) nil nil) 'float)
+(is-error (cl-cuda::arithmetic-function-return-type '+ '(1 1.0) nil nil)
+          simple-error)
+(is-error (cl-cuda::arithmetic-function-return-type 'foo '() nil nil)
+          simple-error)
+
 
 ;;; test type-of-expression
 
@@ -409,6 +526,11 @@
 (let ((def (cl-cuda::define-kernel-function 'foo 'int '((x int) (y int)) '()
              (cl-cuda::empty-kernel-definition))))
   (is (cl-cuda::type-of-function '(foo 1 1) nil def) 'int))
+
+(is (cl-cuda::type-of-function '(+ 1 1 1) nil nil) 'int)
+(is (cl-cuda::type-of-function '(+ 1.0 1.0 1.0) nil nil) 'float)
+(is-error (cl-cuda::type-of-function '(+ 1 1 1.0) nil nil) simple-error)
+(is (cl-cuda::type-of-function '(expt 1.0 1.0) nil nil) 'float)
 
 (is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x nil nil) 'int)
 (is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-y nil nil) 'int)
@@ -439,23 +561,57 @@
 
 (is (cl-cuda::variable-reference-p 'x) t)
 (is (cl-cuda::variable-reference-p 1) nil)
+(is (cl-cuda::variable-reference-p '(aref x)) t)
 (is (cl-cuda::variable-reference-p '(aref x i)) t)
-(is (cl-cuda::variable-reference-p '(aref x i i)) nil)
+(is (cl-cuda::variable-reference-p '(aref x i i)) t)
+(is (cl-cuda::variable-reference-p '(aref x i i i)) t)
 
 (is-error (cl-cuda::compile-variable-reference 'x nil nil) simple-error)
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int (cl-cuda::empty-type-environment))))
-  (is (cl-cuda::compile-variable-reference 'x type-env nil) "x"))
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int* (cl-cuda::empty-type-environment))))
-  (is (cl-cuda::compile-variable-reference '(aref x 0) type-env nil) "x[0]"))
 
 (let ((type-env (cl-cuda::add-type-environment
                   'x 'int (cl-cuda::empty-type-environment))))
-  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int))
+  (is (cl-cuda::compile-variable-reference 'x type-env nil) "x")
+  (is-error (cl-cuda::compile-variable-reference '(aref x) type-env nil)
+            simple-error)
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil)
+            simple-error))
+
 (let ((type-env (cl-cuda::add-type-environment
                   'x 'int* (cl-cuda::empty-type-environment))))
-  (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'int))
+  (is-error (cl-cuda::compile-variable-reference 'x type-env nil) simple-error)
+  (is (cl-cuda::compile-variable-reference '(aref x 0) type-env nil) "x[0]")
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
+            simple-error))
+
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int** (cl-cuda::empty-type-environment))))
+  (is-error (cl-cuda::compile-variable-reference 'x type-env nil) simple-error)
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil)
+            simple-error)
+  (is (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
+      "x[0][0]"))
+
+(is-error (cl-cuda::type-of-variable-reference 'x nil) simple-error)
+
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int)
+  (is-error (cl-cuda::type-of-variable-reference '(aref x) type-env)
+            simple-error))
+
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int* (cl-cuda::empty-type-environment))))
+  (is-error (cl-cuda::type-of-variable-reference 'x type-env) simple-error)
+  (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'int)
+  (is-error (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env)
+            simple-error))
+
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'int** (cl-cuda::empty-type-environment))))
+  (is-error (cl-cuda::type-of-variable-reference 'x type-env) simple-error)
+  (is-error (cl-cuda::type-of-variable-reference '(aref x 0) type-env)
+            simple-error)
+  (is (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) 'int))
 
 
 (finalize)

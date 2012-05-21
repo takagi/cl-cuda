@@ -241,15 +241,39 @@
 ;;; kernel-arg
 
 (defun non-pointer-type-p (type)
-  (assert (valid-type-p type))
-  (find type '(void bool int float)))
+  (unless (valid-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (find type '(void int float)))
 
 (defun pointer-type-p (type)
-  (assert (valid-type-p type))
-  (find type '(int* float*)))
+  (unless (valid-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (let ((last (subseq (reverse (princ-to-string type)) 0 1)))
+    (and (string= last "*")
+         t)))
 
 (defun valid-type-p (type)
-  (find type '(void bool int int* float float*)))
+  (and (find (remove-star type) '(void int float))
+       t))
+
+(defun add-star (type n)
+  (labels ((aux (str n2)
+             (if (< n2 1)
+                 str
+                 (aux (concatenate 'string str "*") (1- n2)))))
+;    (intern (aux (princ-to-string type) n) :cl-cuda))
+    (symbolicate (aux (princ-to-string type) n))))
+
+(defun remove-star (type)
+  (let ((rev (reverse (princ-to-string type))))
+    (if (string= (subseq rev 0 1) "*")
+        (remove-star (symbolicate (reverse (subseq rev 1))))
+        type)))
+
+(defun type-dimension (type)
+  (unless (valid-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (count #\* (princ-to-string type)))
 
 (defvar +cffi-type-table+ '(int :int
                             float :float))
@@ -648,12 +672,13 @@
   (cond
     ((if-p stmt) (compile-if stmt type-env def))
     ((let-p stmt) (compile-let stmt type-env def))
+    ((with-shared-memory-p stmt) (compile-with-shared-memory stmt type-env def))
     ((set-p stmt) (compile-set stmt type-env def))
     ((progn-p stmt) (compile-progn stmt type-env def))
     ((return-p stmt) (compile-return stmt type-env def))
+    ((syncthreads-p stmt) (compile-syncthreads stmt))
     ((function-p stmt) (compile-function stmt type-env def :statement-p t))
     (t (error "invalid statement: ~A" stmt))))
-
 
 ;;; if statement
 
@@ -815,6 +840,110 @@
     (_ (error (format nil "invalid statement: ~A" stmt)))))
 
 
+;;; with-shared-memory statement
+
+(defun with-shared-memory-p (stmt)
+  (match stmt
+    (('with-shared-memory . _) t)
+    (_ nil)))
+
+(defun with-shared-memory-specs (stmt)
+  (match stmt
+    (('with-shared-memory specs . _) specs)
+    (_ (error (format nil "invalid statement: ~A" stmt)))))
+
+(defun with-shared-memory-statements (stmt)
+  (match stmt
+    (('with-shared-memory _ . stmts) stmts)
+    (_ (error (format nil "invalid statement: ~A" stmt)))))
+
+(defun compile-with-shared-memory (stmt type-env def)
+  (let ((specs (with-shared-memory-specs stmt))
+        (stmts (with-shared-memory-statements stmt)))
+    (unlines "{"
+             (indent 2 (%compile-with-shared-memory specs stmts type-env def))
+             "}")))
+
+(defun %compile-with-shared-memory (specs stmts type-env def)
+  (if (null specs)
+      (compile-with-shared-memory-statements stmts type-env def)
+      (compile-with-shared-memory-spec specs stmts type-env def)))
+
+(defun compile-with-shared-memory-spec (specs stmts type-env def)
+  (match specs
+    (((var type . sizes) . rest)
+     (let* ((type-env2 (add-type-environment var (add-star type (length sizes))
+                                             type-env)))
+       (unlines (format nil "__shared__ ~A ~A~{[~A]~};"
+                            (compile-type type)
+                            (compile-identifier var)
+                            (mapcar #'(lambda (exp)
+                                        (compile-expression exp type-env def))
+                                    sizes))
+                (%compile-with-shared-memory rest stmts type-env2 def))))
+    (_ (error (format nil "invalid specs: ~A" specs)))))
+
+(defun compile-with-shared-memory-statements (stmts type-env def)
+  (compile-let-statements stmts type-env def))
+
+
+;;; with-shared-array statement (prototype)
+
+(defun with-shared-array-p% (stmt)
+  (match stmt
+    (('with-shared-array . _) t)
+    (_ nil)))
+
+(defun with-shared-array-args% (stmt)
+  (match stmt
+    (('with-shared-array args . _) args)
+    (_ (error (format nil "invalid statement: ~A" stmt)))))
+
+(defun with-shared-array-statements% (stmt)
+  (match stmt
+    (('with-shared-array _ . stmts) stmts)
+    (_ (error (format nil "invalid statement: ~A" stmt)))))
+
+(defun compile-with-shared-array% (stmt type-env def)
+  (let ((args (with-shared-array-args% stmt))
+        (stmts (with-shared-array-statements% stmt)))
+    (destructuring-bind (var type . idxs) args
+      (let ((type-env2 (add-type-environment var
+                                             (add-star type (length idxs))
+                                             type-env)))
+        (unlines "{"
+                 (indent 2 (compile-with-shared-array-declaration%
+                             args type-env def))
+                 (indent 2 (compile-with-shared-array-statements%
+                             stmts type-env2 def))
+                 "}")))))
+
+(defun compile-with-shared-array-declaration% (args type-env def)
+  (destructuring-bind (var type . sizes) args
+    (format nil "__shared__ ~A ~A~{[~A]~};"
+                (compile-type type)
+                (compile-identifier var)
+                (mapcar #'(lambda (exp)
+                            (compile-expression exp type-env def))
+                        sizes))))
+
+(defun compile-with-shared-array-statements% (stmts type-env def)
+  (unlines (mapcar #'(lambda (stmt)
+                       (compile-statement stmt type-env def)) stmts)))  
+
+
+;;; compile syncthreads
+
+(defun syncthreads-p (stmt)
+  (match stmt
+    (('syncthreads) t)
+    (_ nil)))
+
+(defun compile-syncthreads (stmt)
+  (declare (ignorable stmt))
+  "__syncthreads();")
+
+
 ;;; compile function
 
 (defun function-p (form)
@@ -870,8 +999,7 @@
 (defun compile-built-in-arithmetic-function (form type-env def)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
-    (unless (arithmetic-function-valid-type-p
-              (type-of-operands operands type-env def) operator)
+    (unless (arithmetic-function-valid-type-p operator operands type-env def)
       (error (format nil "invalid arguments: ~A" (cons operator operands))))
     (compile-built-in-infix-function (binarize-1 form) type-env def)))
 
@@ -883,12 +1011,6 @@
           (destructuring-bind (op a1 a2 . rest) form
             (binarize-1 `(,op (,op ,a1 ,a2) ,@rest)))
           form)))
-
-(defun arithmetic-function-valid-type-p (arg-types op)
-  (let ((arg-type (remove-duplicates arg-types)))
-    (and (= (length arg-type) 1)
-         (find (car arg-type) (arithmetic-function-type-candidates op))
-         t)))
 
 (defun compile-built-in-infix-function (form type-env def)
   (let ((operator (function-operator form))
@@ -972,8 +1094,7 @@
 
 (defun inferred-function (operator operands type-env def)
   (let ((candidates (function-candidates operator))
-        (types (mapcar #'(lambda (exp)
-                            (type-of-expression exp type-env def)) operands)))
+        (types (type-of-operands operands type-env def)))
     (or (find types candidates :key #'car :test #'equal)
         (error (format nil "invalid function application: ~A"
                        (cons operator operands))))))
@@ -991,6 +1112,20 @@
 (defun built-in-function-arithmetic-p (op)
   (and (getf +built-in-arithmetic-functions+ op)
        t))
+
+(defun arithmetic-function-valid-type-p (operator operands type-env def)
+  (and (%arithmetic-function-return-type operator operands type-env def)
+       t))
+
+(defun arithmetic-function-return-type (operator operands type-env def)
+  (or (%arithmetic-function-return-type operator operands type-env def)
+      (error (format nil "invalid arguments: ~A" (cons operator operands)))))
+
+(defun %arithmetic-function-return-type (operator operands type-env def)
+  (let ((candidates (arithmetic-function-type-candidates operator))
+        (arg-type (remove-duplicates (type-of-operands operands type-env def))))
+    (and (= (length arg-type) 1)
+         (find (car arg-type) candidates))))
 
 (defun arithmetic-function-type-candidates (op)
   (or (getf +built-in-arithmetic-functions+ op)
@@ -1060,7 +1195,7 @@
 
 (defun array-variable-reference-p (exp) 
   (match exp
-    (('aref _ _) t)
+    (('aref . _) t)
     (_ nil)))
 
 (defun compile-variable-reference (exp type-env def)
@@ -1071,16 +1206,28 @@
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun compile-scalar-variable-reference (var type-env)
-  (unless (lookup-type-environment var type-env)
-    (error (format nil "unbound variable: ~A" var)))
+  (let ((type (lookup-type-environment var type-env)))
+    (unless type
+      (error (format nil "unbound variable: ~A" var)))
+    (unless (non-pointer-type-p type)
+      (error (format nil "invalid variable: ~A" var))))
   (compile-identifier var))
 
 (defun compile-array-variable-reference (form type-env def)
   (match form
-    (('aref var idx) (format nil "~A[~A]"
-                             (compile-scalar-variable-reference var type-env)
-                             (compile-expression idx type-env def)))
-    (_ (error (format nil "invalid form: ~A" form)))))
+    (('aref _)
+     (error (format nil "invalid variable reference: ~A" form)))
+    (('aref var . idxs)
+     (let ((type (lookup-type-environment var type-env)))
+       (unless type
+         (error (format nil "unbound variable: ~A" form)))
+       (unless (= (type-dimension type) (length idxs))
+         (error (format nil "invalid dimension: ~A" form)))
+       (format nil "~A~{[~A]~}"
+                   (compile-identifier var)
+                   (mapcar #'(lambda (idx)
+                               (compile-expression idx type-env def)) idxs))))
+    (_ (error (format nil "invalid variable reference: ~A" form)))))
 
 
 ;;; type of expression
@@ -1105,15 +1252,25 @@
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun type-of-scalar-variable-reference (var type-env)
-  (lookup-type-environment var type-env))
+  (let ((type (lookup-type-environment var type-env)))
+    (unless type
+      (error (format nil "unbound variable: ~A" var)))
+    (unless (non-pointer-type-p type)
+      (error (format nil "invalid variable: ~A" var)))
+    type))
 
 (defun type-of-array-variable-reference (exp type-env)
-  (lift-type (lookup-type-environment (cadr exp) type-env)))
+  (match exp
+    (('aref _) (error (format nil "invalid variable reference: ~A" exp)))
+    (('aref var . idxs)
+     (let ((type (lookup-type-environment var type-env)))
+       (unless type
+         (error (format nil "unbound variable: ~A" exp)))
+       (unless (= (type-dimension type) (length idxs))
+         (error (format nil "invalid dimension: ~A" exp)))
+       (remove-star type)))
+    (_ (error (format nil "invalid variable reference: ~A" exp)))))
 
-(defvar +lifting-type-table+ '(int* int
-                               float* float))
-(defun lift-type (type)
-  (getf +lifting-type-table+ type))
 
 (defun type-of-function (exp type-env def)
   (cond ((built-in-function-p exp)
@@ -1125,7 +1282,14 @@
 (defun type-of-built-in-function (exp type-env def)
   (let ((operator (function-operator exp))
         (operands (function-operands exp)))
-    (built-in-function-inferred-return-type operator operands type-env def)))
+    (if (built-in-function-arithmetic-p operator)
+        (type-of-built-in-arithmetic-function
+          operator operands type-env def)
+        (built-in-function-inferred-return-type
+          operator operands type-env def))))
+
+(defun type-of-built-in-arithmetic-function (operator operands type-env def)
+  (arithmetic-function-return-type operator operands type-env def))
 
 (defun type-of-user-function (exp def)
   (let ((operator (function-operator exp)))
