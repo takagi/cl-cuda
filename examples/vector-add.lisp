@@ -4,7 +4,7 @@
 |#
 
 #|
-  This file is based on the CUDA SDK's "vectorAddDrv" sample.
+  This file is based on the CUDA SDK's "vectorAdd" sample.
 |#
 
 (in-package :cl-user)
