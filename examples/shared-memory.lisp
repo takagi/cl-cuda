@@ -27,13 +27,6 @@
   (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x)))
     (set (aref a i) (+ (aref a i) 1.0))))
 
-#|
-(defkernel global-memory (void ((a float*) (n int)))
-  (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x)))
-    (for (i 0 n)
-      (set (aref a i) (+ (aref a i) 1.0)))))
-|#
-
 (defmacro def-shared-memory (n)
   (let ((name (symbolicate "SHARED-MEMORY-" (princ-to-string n))))
     `(defkernel ,name (void ((a float*)))
