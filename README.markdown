@@ -34,11 +34,21 @@ I will write some usage later. For now, please see the examples directory.
 
 ## Installation
 
-I will write about installation later.
+Since cl-cuda is not registered on Quicklisp yet, please
+
+    git clone git clone git://github.com/takagi/cl-cuda.git
+
+to install it.
+
+Before using cl-cuda, you must specify where **libcuda** dynamic library is and where nvcc compiler is. Please change the related part of src/cl-cuda.lisp. I will make better way to specify them later.
+
+I will write more about installation later.
 
 ## Rquirements
 
-Since cl-cuda now uses some features that depend on SBCL, you will need some modification if you use it on any Common Lisp implementations other than SBCL. I will fix this later.
+* NVIDIA CUDA-enabled GPU
+* CUDA Toolkit, CUDA Drivers and CUDA SDK need to be installed
+* SBCL Common Lisp compiler, because cl-cuda uses some sbcl extensions to run nvcc compiler externally. I will fix it later to make it possible to be used on other Common Lisp implementations. For now, if you want to use cl-cuda on those implementations other than SBCL, you can rewrite the related part of src/cl-cuda.lisp to suit your environment. It is only a few lines.
 
 ## Author
 
