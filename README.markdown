@@ -8,7 +8,7 @@ Cl-cuda is in very early stage of development. Any feedbacks are welcome.
 
 Following is a part of vector addition example using cl-cuda which is based on the CUDA SDK's "vectorAdd" sample.
 
-Kernel functions are simply written with **defkernel** macro and the cl-cuda kernel description language which has Common Lisp-like syntax.
+Kernel functions are simply written with `defkernel` macro and the cl-cuda kernel description language which has Common Lisp-like syntax.
 
 Once kernel functions are defined, they can be launched as if ordinal Common Lisp functions except that they are followed by :grid-dim and :block-dim keyword parameters which provide the dimensions of the grid and block.
 
