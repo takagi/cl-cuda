@@ -967,51 +967,6 @@
   (compile-let-statements stmts type-env def))
 
 
-;;; with-shared-array statement (prototype)
-
-(defun with-shared-array-p% (stmt)
-  (match stmt
-    (('with-shared-array . _) t)
-    (_ nil)))
-
-(defun with-shared-array-args% (stmt)
-  (match stmt
-    (('with-shared-array args . _) args)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
-
-(defun with-shared-array-statements% (stmt)
-  (match stmt
-    (('with-shared-array _ . stmts) stmts)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
-
-(defun compile-with-shared-array% (stmt type-env def)
-  (let ((args (with-shared-array-args% stmt))
-        (stmts (with-shared-array-statements% stmt)))
-    (destructuring-bind (var type . idxs) args
-      (let ((type-env2 (add-type-environment var
-                                             (add-star type (length idxs))
-                                             type-env)))
-        (unlines "{"
-                 (indent 2 (compile-with-shared-array-declaration%
-                             args type-env def))
-                 (indent 2 (compile-with-shared-array-statements%
-                             stmts type-env2 def))
-                 "}")))))
-
-(defun compile-with-shared-array-declaration% (args type-env def)
-  (destructuring-bind (var type . sizes) args
-    (format nil "__shared__ ~A ~A~{[~A]~};"
-                (compile-type type)
-                (compile-identifier var)
-                (mapcar #'(lambda (exp)
-                            (compile-expression exp type-env def))
-                        sizes))))
-
-(defun compile-with-shared-array-statements% (stmts type-env def)
-  (unlines (mapcar #'(lambda (stmt)
-                       (compile-statement stmt type-env def)) stmts)))  
-
-
 ;;; compile syncthreads
 
 (defun syncthreads-p (stmt)
