@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda
-  (:use :cl :cffi :alexandria :cl-pattern)
+  (:use :cl :cffi :alexandria :anaphora :cl-pattern)
   (:export :cu-result                   ; Types
            :cu-device
            :cu-context
