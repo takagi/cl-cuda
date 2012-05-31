@@ -485,11 +485,10 @@
 (is (cl-cuda::set-p '(set x 1)) t)
 (is (cl-cuda::set-p '(set (aref x i) 1)) t)
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x int)))
   (is (cl-cuda::compile-set '(set x 1) type-env nil) "x = 1;"))
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int* (cl-cuda::empty-type-environment))))
+
+(cl-cuda::with-type-environment (type-env ((x int*)))
   (is (cl-cuda::compile-set '(set (aref x 0) 1) type-env nil) "x[0] = 1;"))
 
 
@@ -635,31 +634,27 @@
 
 (is-error (cl-cuda::compile-variable-reference 'x nil nil) simple-error)
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x int)))
   (is (cl-cuda::compile-variable-reference 'x type-env nil) "x")
   (is-error (cl-cuda::compile-variable-reference '(aref x) type-env nil)
             simple-error)
   (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil)
             simple-error))
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int* (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x int*)))
   (is-error (cl-cuda::compile-variable-reference 'x type-env nil) simple-error)
   (is (cl-cuda::compile-variable-reference '(aref x 0) type-env nil) "x[0]")
   (is-error (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
             simple-error))
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int** (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x int**)))
   (is-error (cl-cuda::compile-variable-reference 'x type-env nil) simple-error)
   (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil)
             simple-error)
   (is (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
       "x[0][0]"))
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'float3 (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x float3)))
   (is (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) "x.x")
   (is (cl-cuda::compile-variable-reference '(float3-y x) type-env nil) "x.y")
   (is (cl-cuda::compile-variable-reference '(float3-z x) type-env nil) "x.z"))
@@ -738,28 +733,24 @@
 
 (is-error (cl-cuda::type-of-variable-reference 'x nil) simple-error)
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x int)))
   (is (cl-cuda::type-of-variable-reference 'x type-env) 'int)
   (is-error (cl-cuda::type-of-variable-reference '(aref x) type-env)
             simple-error))
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int* (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x int*)))
   (is-error (cl-cuda::type-of-variable-reference 'x type-env) simple-error)
   (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'int)
   (is-error (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env)
             simple-error))
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int** (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x int**)))
   (is-error (cl-cuda::type-of-variable-reference 'x type-env) simple-error)
   (is-error (cl-cuda::type-of-variable-reference '(aref x 0) type-env)
             simple-error)
   (is (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) 'int))
 
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'float3 (cl-cuda::empty-type-environment))))
+(cl-cuda::with-type-environment (type-env ((x float3)))
   (is (cl-cuda::type-of-variable-reference '(float3-x x) type-env) 'float)
   (is (cl-cuda::type-of-variable-reference '(float3-y x) type-env) 'float)
   (is (cl-cuda::type-of-variable-reference '(float3-z x) type-env) 'float))

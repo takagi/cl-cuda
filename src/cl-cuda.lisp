@@ -1456,6 +1456,14 @@
     ((_ . type) type)
     (_ (error (format nil "unbound variable: ~A" var)))))
 
+(defmacro with-type-environment ((var bindings) &body body)
+  `(let ((,var ,(reduce #'(lambda (form binding)
+                            (destructuring-bind (var type) binding
+                              `(add-type-environment ',var ',type ,form)))
+                        bindings
+                        :initial-value '(empty-type-environment))))
+     ,@body))
+
 
 ;;; utilities
 
