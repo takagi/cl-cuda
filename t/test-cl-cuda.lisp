@@ -135,6 +135,63 @@
           (cu-module-get-function hfunc (cffi:mem-ref module 'cu-module) name))))))
 
 
+;;; test kernel-defun
+
+(diag "test kernel-defun")
+
+(is (cl-cuda::vector-type-selector 'float3 'x)
+    'float3-x)
+
+(is (cl-cuda::vector-type-selectors)
+    '(float3-x float3-y float3-z))
+
+(is (cl-cuda::vector-type-length 'float3) 3)
+
+(is (cl-cuda::foreign-pointer-setf-vector-type 'x 'x-ptr 'float3)
+    '(progn
+      (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::x) (float3-x x))
+      (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::y) (float3-y x))
+      (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::z) (float3-z x))))
+
+(is-expand
+  (cl-cuda::with-non-pointer-arguments ((n n-ptr :int)
+                                        (x x-ptr :float)
+                                        (a a-ptr float3))
+    nil)
+  (cffi:with-foreign-objects ((n-ptr :int)
+                              (x-ptr :float)
+                              (a-ptr 'float3))
+    (setf (cffi:mem-ref n-ptr :int) n)
+    (setf (cffi:mem-ref x-ptr :float) x)
+    (progn
+      (setf (cffi:foreign-slot-value a-ptr 'float3 'cl-cuda::x) (float3-x a))
+      (setf (cffi:foreign-slot-value a-ptr 'float3 'cl-cuda::y) (float3-y a))
+      (setf (cffi:foreign-slot-value a-ptr 'float3 'cl-cuda::z) (float3-z a)))
+    nil))
+
+(is-expand
+ (cl-cuda::with-kernel-arguments (args d-a d-b d-c n-ptr)
+   nil)
+ (cffi:with-foreign-object (args :pointer 4)
+   (setf (cffi:mem-aref args :pointer 0) d-a)
+   (setf (cffi:mem-aref args :pointer 1) d-b)
+   (setf (cffi:mem-aref args :pointer 2) d-c)
+   (setf (cffi:mem-aref args :pointer 3) n-ptr)
+   nil))
+
+(is (cl-cuda::kernel-arg-names
+      '((a float*) (b float*) (c float*) (n int) (x float3)))
+    '(a b c n x))
+
+(is (cl-cuda::kernel-arg-names-as-pointer
+      '((a float*) (b float*) (c float*) (n int) (x float3)))
+    '(a b c n-ptr x-ptr))
+
+(is (cl-cuda::kernel-arg-foreign-pointer-bindings
+      '((a float*) (b float*) (c float*) (n int) (x float3)))
+    '((n n-ptr :int) (x x-ptr float3)))
+
+
 ;;; test defkernel
 
 (defkernel let1 (void ())
@@ -171,20 +228,54 @@
       (argument 1 :grid-dim (list 1 1 1)
                   :block-dim (list 1 1 1)))))
 
+(defkernel kernel-float3 (void ((ary float*) (x float3)))
+  (set (aref ary 0) (+ (float3-x x) (float3-y x) (float3-z x))))
+
+(let ((dev-id 0)
+      (n 1)
+      (x (make-float3 1.0 2.0 3.0)))
+  (with-cuda-context (dev-id)
+    (cffi:with-foreign-objects ((h-a :float n))
+      (with-cuda-memory-blocks ((d-a (* n 4)))
+        (setf (cffi:mem-aref h-a :float 0) 0.0)
+        (cu-memcpy-host-to-device (cffi:mem-aref d-a 'cu-device-ptr)
+                                  h-a (* n 4))
+        (kernel-float3 d-a x :grid-dim '(1 1 1)
+                             :block-dim '(1 1 1))
+        (cu-memcpy-device-to-host h-a (cffi:mem-aref d-a 'cu-device-ptr)
+                                  (* n 4))
+        (is (cffi:mem-aref h-a :float 0) 6.0)))))
+
 
 ;;; test valid-type-p
+
+(is (cl-cuda::basic-type-p 'void) t)
+(is (cl-cuda::basic-type-p 'int) t)
+(is (cl-cuda::basic-type-p 'float) t)
+
+(is (cl-cuda::vector-type-p 'float3) t)
+(is (cl-cuda::vector-type-p 'float4) nil)
+(is (cl-cuda::vector-type-p 'float5) nil)
 
 (is (cl-cuda::valid-type-p 'void) t)
 (is (cl-cuda::valid-type-p 'int) t)
 (is (cl-cuda::valid-type-p 'float) t)
 (is (cl-cuda::valid-type-p 'double) nil)
+(is (cl-cuda::valid-type-p 'float3) t)
+(is (cl-cuda::valid-type-p 'float4) nil)
 (is (cl-cuda::valid-type-p 'float*) t)
 (is (cl-cuda::valid-type-p 'float**) t)
 (is (cl-cuda::valid-type-p '*float**) nil)
 
 (is (cl-cuda::pointer-type-p 'int) nil)
 (is (cl-cuda::pointer-type-p 'float*) t)
-(is-error (cl-cuda::pointer-type-p '*float*) simple-error)
+(is (cl-cuda::pointer-type-p 'float3*) t)
+(is (cl-cuda::pointer-type-p '*float*) nil)
+
+(is (cl-cuda::non-pointer-type-p 'int) t)
+(is (cl-cuda::non-pointer-type-p 'float*) nil)
+(is (cl-cuda::non-pointer-type-p 'float3*) nil)
+(is (cl-cuda::non-pointer-type-p '*float3*) nil)
 
 (is (cl-cuda::add-star 'int -1) 'int)
 (is (cl-cuda::add-star 'int 0) 'int)
@@ -199,6 +290,13 @@
 (is (cl-cuda::type-dimension 'int*) 1)
 (is (cl-cuda::type-dimension 'int**) 2)
 (is (cl-cuda::type-dimension 'int***) 3)
+
+(is-error (cl-cuda::cffi-type 'void) simple-error)
+(is (cl-cuda::cffi-type 'int) :int)
+(is (cl-cuda::cffi-type 'float) :float)
+(is (cl-cuda::cffi-type 'float3) 'float3)
+(is (cl-cuda::cffi-type 'float*) 'cu-device-ptr)
+(is (cl-cuda::cffi-type 'float3*) 'cu-device-ptr)
 
 
 ;;; test kernel definition
@@ -560,14 +658,6 @@
 (is (cl-cuda::type-of-literal '1.0) 'float)
 (is-error (cl-cuda::type-of-literal '1.0d0) simple-error)
 
-(is-error (cl-cuda::type-of-variable-reference 'x nil) simple-error)
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'int (cl-cuda::empty-type-environment))))
-  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int))
-(let ((type-env (cl-cuda::add-type-environment
-                  'x 'float* (cl-cuda::empty-type-environment))))
-  (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'float))
-
 (is (cl-cuda::type-of-function '(+ 1 1) nil nil) 'int)
 (let ((def (cl-cuda::define-kernel-function 'foo 'int '((x int) (y int)) '()
              (cl-cuda::empty-kernel-definition))))
@@ -611,6 +701,9 @@
 (is (cl-cuda::variable-reference-p '(aref x i)) t)
 (is (cl-cuda::variable-reference-p '(aref x i i)) t)
 (is (cl-cuda::variable-reference-p '(aref x i i i)) t)
+(is (cl-cuda::variable-reference-p '(float3-x x)) t)
+(is (cl-cuda::variable-reference-p '(float3-y x)) t)
+(is (cl-cuda::variable-reference-p '(float3-z x)) t)
 
 (is-error (cl-cuda::compile-variable-reference 'x nil nil) simple-error)
 
@@ -637,6 +730,12 @@
   (is (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
       "x[0][0]"))
 
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'float3 (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) "x.x")
+  (is (cl-cuda::compile-variable-reference '(float3-y x) type-env nil) "x.y")
+  (is (cl-cuda::compile-variable-reference '(float3-z x) type-env nil) "x.z"))
+
 (is-error (cl-cuda::type-of-variable-reference 'x nil) simple-error)
 
 (let ((type-env (cl-cuda::add-type-environment
@@ -658,6 +757,12 @@
   (is-error (cl-cuda::type-of-variable-reference '(aref x 0) type-env)
             simple-error)
   (is (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) 'int))
+
+(let ((type-env (cl-cuda::add-type-environment
+                  'x 'float3 (cl-cuda::empty-type-environment))))
+  (is (cl-cuda::type-of-variable-reference '(float3-x x) type-env) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float3-y x) type-env) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float3-z x) type-env) 'float))
 
 
 (finalize)

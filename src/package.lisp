@@ -34,6 +34,8 @@
            :with-cuda-context
            :with-cuda-memory-block
            :with-cuda-memory-blocks
+           :float3 :make-float3         ; Built-in Vector Types
+           :float3-x :float3-y :float3-z
            :defkernel                   ; defkernel
            :void :int :int* :float :float*
            :grid-dim-x :grid-dim-y :grid-dim-z

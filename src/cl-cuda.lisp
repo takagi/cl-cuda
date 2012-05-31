@@ -127,6 +127,19 @@
   (extra (:pointer :pointer)))
 
 
+;;; Built-in Vector Types
+
+(defstruct (float3 (:constructor make-float3 (x y z)))
+  (x 0.0 :type single-float)
+  (y 0.0 :type single-float)
+  (z 0.0 :type single-float))
+
+(defcstruct float3
+  (x :float)
+  (y :float)
+  (z :float))
+
+
 ;;; Constants
 
 (defvar +cuda-success+ 0)
@@ -191,15 +204,31 @@
                                      ,func-name)
              ,@body))))))
 
+(defun foreign-pointer-setf-vector-type (var var-ptr type)
+  (let ((n (vector-type-length type)))
+    `(progn
+       ,@(loop repeat n
+               for elm in +vector-type-elements+
+            collect `(setf (cffi:foreign-slot-value ,var-ptr ',type ',elm)
+                           (,(vector-type-selector type elm) ,var))))))
+
+(defun foreign-pointer-setf-else (var var-ptr type)
+  `(setf (cffi:mem-ref ,var-ptr ,type) ,var))
+
+(defun foreign-pointer-setf (binding)
+  (destructuring-bind (var var-ptr type) binding
+    (if (vector-type-p type)
+        (foreign-pointer-setf-vector-type var var-ptr type)
+        (foreign-pointer-setf-else var var-ptr type))))
+
 (defmacro with-non-pointer-arguments (bindings &body body)
   (if bindings
       (labels ((ptr-type-pair (binding)
                  (destructuring-bind (_ var-ptr type) binding
                    (declare (ignorable _))
-                   (list var-ptr type)))
-               (foreign-pointer-setf (binding)
-                 (destructuring-bind (var var-ptr type) binding
-                   `(setf (mem-ref ,var-ptr ,type) ,var))))
+                   (if (vector-type-p type)
+                       `(,var-ptr ',type)
+                       `(,var-ptr ,type)))))
         `(with-foreign-objects (,@(mapcar #'ptr-type-pair bindings))
            ,@(mapcar #'foreign-pointer-setf bindings)
            ,@body))
@@ -240,21 +269,56 @@
 
 ;;; kernel-arg
 
+(defvar +basic-types+ '(void int float))
+
+(defvar +vector-type-table+ '(float3 (float 3)))
+
+(defvar +vector-type-elements+ '(x y z w))
+
+(defun basic-type-p (type)
+  (and (find type +basic-types+)
+       t))
+
+(defun vector-type-p (type)
+  (and (getf +vector-type-table+ type)
+       t))
+
+(defun vector-type-length (type)
+  ;; e.g. float3 => 3
+  (cadr (getf +vector-type-table+ type)))
+
+(defun vector-type-selector (type elm)
+  ;; e.g. float3 x => float3-x
+  (symbolicate (princ-to-string type) "-" (princ-to-string elm)))
+
+(defun vector-type-selector-return-type (selector)
+  ;; e.g. float3-x => float
+  (unless (find selector (vector-type-selectors))
+    (error (format nil "invalid selector: ~A" selector)))
+  (symbolicate (reverse (subseq (reverse (princ-to-string selector)) 3))))
+
+(defun vector-type-selectors ()
+  (labels ((aux (type)
+             (loop repeat (vector-type-length type)
+                   for elm in +vector-type-elements+
+                collect (vector-type-selector type elm))))
+    (flatten
+      (mapcar #'aux
+        (mapcar #'car (group +vector-type-table+ 2))))))
+
 (defun non-pointer-type-p (type)
-  (unless (valid-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (find type '(void int float)))
+  (or (basic-type-p type)
+      (vector-type-p type)))
 
 (defun pointer-type-p (type)
-  (unless (valid-type-p type)
-    (error (format nil "invalid type: ~A" type)))
   (let ((last (subseq (reverse (princ-to-string type)) 0 1)))
     (and (string= last "*")
+         (non-pointer-type-p (remove-star type))
          t)))
 
 (defun valid-type-p (type)
-  (and (find (remove-star type) '(void int float))
-       t))
+  (or (pointer-type-p type)
+      (non-pointer-type-p type)))
 
 (defun add-star (type n)
   (labels ((aux (str n2)
@@ -279,9 +343,13 @@
                             float :float))
 
 (defun cffi-type (type)
-  (if (pointer-type-p type)
-      'cu-device-ptr
-      (getf +cffi-type-table+ type)))
+  (unless (valid-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (acond
+    ((pointer-type-p type) 'cu-device-ptr)
+    ((getf +cffi-type-table+ type) it)
+    ((vector-type-p type) type)
+    (t (error (format nil "invalid type: ~A" type)))))
 
 (defun kernel-arg-names (arg-bindings)
   ;; ((a float*) (b float*) (c float*) (n int)) -> (a b c n)
@@ -294,6 +362,8 @@
 (defun arg-name-as-pointer (arg-binding)
   ; (a float*) -> a, (n int) -> n-ptr
   (destructuring-bind (var type) arg-binding
+    (unless (valid-type-p type)
+      (error (format nil "invalid type: ~A" type)))
     (if (non-pointer-type-p type)
         (var-ptr var)
         var)))
@@ -308,7 +378,10 @@
     (list var (var-ptr var) (cffi-type type))))
 
 (defun arg-binding-with-non-pointer-type-p (arg-binding)
-  (non-pointer-type-p (cadr arg-binding)))
+  (let ((type (cadr arg-binding)))
+    (unless (valid-type-p type)
+      (error (format nil "invalid type: ~A" type)))
+    (non-pointer-type-p type)))
 
 (defun var-ptr (var)
   (symbolicate var "-PTR"))
@@ -1223,10 +1296,17 @@
 
 (defun variable-reference-p (exp)
   (or (scalar-variable-reference-p exp)
+      (vector-variable-reference-p exp)
       (array-variable-reference-p exp)))
 
 (defun scalar-variable-reference-p (exp)
   (symbolp exp))
+
+(defun vector-variable-reference-p (exp)
+  (match exp
+    ((selector _) (and (find selector (vector-type-selectors))
+                       t))
+    (_ nil)))
 
 (defun array-variable-reference-p (exp) 
   (match exp
@@ -1236,6 +1316,8 @@
 (defun compile-variable-reference (exp type-env def)
   (cond ((scalar-variable-reference-p exp)
          (compile-scalar-variable-reference exp type-env))
+        ((vector-variable-reference-p exp)
+         (compile-vector-variable-reference exp type-env))
         ((array-variable-reference-p exp)
          (compile-array-variable-reference exp type-env def))
         (t (error (format nil "invalid expression: ~A" exp)))))
@@ -1247,6 +1329,21 @@
     (unless (non-pointer-type-p type)
       (error (format nil "invalid variable: ~A" var))))
   (compile-identifier var))
+
+(defun compile-vector-selector (selector)
+  (unless (find selector (vector-type-selectors))
+    (error (format nil "invalid selector: ~A" selector)))
+  (string-downcase (subseq (reverse (princ-to-string selector)) 0 1)))
+
+(defun compile-vector-variable-reference (form type-env)
+  (match form
+    ((selector var) (let ((type (lookup-type-environment var type-env)))
+                      (unless type
+                        (error (format nil "unbound variable: ~A" form)))
+                      (format nil "~A.~A"
+                              (compile-identifier var)
+                              (compile-vector-selector selector))))
+    (_ (error (format nil "invalid variable reference: ~A" form)))))
 
 (defun compile-array-variable-reference (form type-env def)
   (match form
@@ -1282,6 +1379,8 @@
 (defun type-of-variable-reference (exp type-env)
   (cond ((scalar-variable-reference-p exp)
          (type-of-scalar-variable-reference exp type-env))
+        ((vector-variable-reference-p exp)
+         (type-of-vector-variable-reference exp type-env))
         ((array-variable-reference-p exp)
          (type-of-array-variable-reference exp type-env))
         (t (error (format nil "invalid expression: ~A" exp)))))
@@ -1293,6 +1392,14 @@
     (unless (non-pointer-type-p type)
       (error (format nil "invalid variable: ~A" var)))
     type))
+
+(defun type-of-vector-variable-reference (exp type-env)
+  (match exp
+    ((selector var) (let ((type (lookup-type-environment var type-env)))
+                      (unless type
+                        (error (format nil "unbound variable: ~A" exp)))
+                      (vector-type-selector-return-type selector)))
+    (_ (error (format nil "invalid variable reference: ~A" exp)))))
 
 (defun type-of-array-variable-reference (exp type-env)
   (match exp
@@ -1376,6 +1483,15 @@
   (if (< 0 n)
       (concatenate 'string " " (spaces (1- n)))
       ""))
+
+(defun group (source n)
+  (if (zerop n) (error "zero length"))
+  (labels ((rec (source acc)
+             (let ((rest (nthcdr n source)))
+               (if (consp rest)
+                   (rec rest (cons (subseq source 0 n) acc))
+                   (nreverse (cons source acc))))))
+    (if source (rec source nil) nil)))
 
 (defun undefined ()
   (error "undefined"))
