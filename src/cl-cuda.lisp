@@ -267,7 +267,7 @@
   (kernel-defun *kernel-manager* '*kernel-manager* name))
 
 
-;;; kernel-arg
+;;; cl-cuda types
 
 (defvar +basic-types+ '(void int float))
 
@@ -350,6 +350,8 @@
     ((getf +cffi-type-table+ type) it)
     ((vector-type-p type) type)
     (t (error (format nil "invalid type: ~A" type)))))
+
+;;; kernel-arg
 
 (defun kernel-arg-names (arg-bindings)
   ;; ((a float*) (b float*) (c float*) (n int)) -> (a b c n)
