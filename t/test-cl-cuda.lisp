@@ -619,78 +619,6 @@
             simple-error))
 
 
-;;; test built-in arithmetic functions
-
-(diag "test built-in arithmetic functions")
-
-(is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
-(is (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
-(is (cl-cuda::compile-function '(+ 1.0 1.0 1.0) nil nil) "((1.0 + 1.0) + 1.0)")
-(is-error (cl-cuda::compile-function '(+ 1 1 1.0) nil nil) simple-error)
-(is-error (cl-cuda::compile-function '(+) nil nil) simple-error)
-(is-error (cl-cuda::compile-function '(+ 1) nil nil) simple-error)
-
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '() nil nil) nil)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1) nil nil) t)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1.0 1.0) nil nil) t)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1.0) nil nil) nil)
-(is-error (cl-cuda::arithmetic-function-valid-type-p 'foo '() nil nil)
-          simple-error)
-
-(is-error (cl-cuda::arithmetic-function-return-type '+ '() nil nil)
-          simple-error)
-(is (cl-cuda::arithmetic-function-return-type '+ '(1 1) nil nil) 'int)
-(is (cl-cuda::arithmetic-function-return-type '+ '(1.0 1.0) nil nil) 'float)
-(is-error (cl-cuda::arithmetic-function-return-type '+ '(1 1.0) nil nil)
-          simple-error)
-(is-error (cl-cuda::arithmetic-function-return-type 'foo '() nil nil)
-          simple-error)
-
-
-;;; test type-of-expression
-
-(diag "test type-of-expression")
-
-(is (cl-cuda::type-of-expression '1 nil nil) 'int)
-(is (cl-cuda::type-of-expression '1.0 nil nil) 'float)
-
-(is (cl-cuda::type-of-literal '1) 'int)
-(is (cl-cuda::type-of-literal '1.0) 'float)
-(is-error (cl-cuda::type-of-literal '1.0d0) simple-error)
-
-(is (cl-cuda::type-of-function '(+ 1 1) nil nil) 'int)
-(let ((def (cl-cuda::define-kernel-function 'foo 'int '((x int) (y int)) '()
-             (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::type-of-function '(foo 1 1) nil def) 'int))
-
-(is (cl-cuda::type-of-function '(+ 1 1 1) nil nil) 'int)
-(is (cl-cuda::type-of-function '(+ 1.0 1.0 1.0) nil nil) 'float)
-(is-error (cl-cuda::type-of-function '(+ 1 1 1.0) nil nil) simple-error)
-(is (cl-cuda::type-of-function '(expt 1.0 1.0) nil nil) 'float)
-
-(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-y nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-z nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-x nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-y nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-z nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-x nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-y nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-z nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-x nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-y nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-z nil nil) 'int)
-
-
-;;; test compile-identifier
-
-(diag "test compile-identifier")
-
-(is (cl-cuda::compile-identifier 'x) "x")
-(is (cl-cuda::compile-identifier 'vec-add-kernel) "vec_add_kernel")
-(is (cl-cuda::compile-identifier 'VecAdd_kernel) "vecadd_kernel")
-
-
 ;;; test compile-variable-reference
 
 (diag "test compile-variable-reference")
@@ -735,6 +663,78 @@
   (is (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) "x.x")
   (is (cl-cuda::compile-variable-reference '(float3-y x) type-env nil) "x.y")
   (is (cl-cuda::compile-variable-reference '(float3-z x) type-env nil) "x.z"))
+
+
+;;; test built-in arithmetic functions
+
+(diag "test built-in arithmetic functions")
+
+(is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
+(is (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
+(is (cl-cuda::compile-function '(+ 1.0 1.0 1.0) nil nil) "((1.0 + 1.0) + 1.0)")
+(is-error (cl-cuda::compile-function '(+ 1 1 1.0) nil nil) simple-error)
+(is-error (cl-cuda::compile-function '(+) nil nil) simple-error)
+(is-error (cl-cuda::compile-function '(+ 1) nil nil) simple-error)
+
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '() nil nil) nil)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1) nil nil) t)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1.0 1.0) nil nil) t)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1.0) nil nil) nil)
+(is-error (cl-cuda::arithmetic-function-valid-type-p 'foo '() nil nil)
+          simple-error)
+
+(is-error (cl-cuda::arithmetic-function-return-type '+ '() nil nil)
+          simple-error)
+(is (cl-cuda::arithmetic-function-return-type '+ '(1 1) nil nil) 'int)
+(is (cl-cuda::arithmetic-function-return-type '+ '(1.0 1.0) nil nil) 'float)
+(is-error (cl-cuda::arithmetic-function-return-type '+ '(1 1.0) nil nil)
+          simple-error)
+(is-error (cl-cuda::arithmetic-function-return-type 'foo '() nil nil)
+          simple-error)
+
+
+;;; test compile-identifier
+
+(diag "test compile-identifier")
+
+(is (cl-cuda::compile-identifier 'x) "x")
+(is (cl-cuda::compile-identifier 'vec-add-kernel) "vec_add_kernel")
+(is (cl-cuda::compile-identifier 'VecAdd_kernel) "vecadd_kernel")
+
+
+;;; test type-of-expression
+
+(diag "test type-of-expression")
+
+(is (cl-cuda::type-of-expression '1 nil nil) 'int)
+(is (cl-cuda::type-of-expression '1.0 nil nil) 'float)
+
+(is (cl-cuda::type-of-literal '1) 'int)
+(is (cl-cuda::type-of-literal '1.0) 'float)
+(is-error (cl-cuda::type-of-literal '1.0d0) simple-error)
+
+(is (cl-cuda::type-of-function '(+ 1 1) nil nil) 'int)
+(let ((def (cl-cuda::define-kernel-function 'foo 'int '((x int) (y int)) '()
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::type-of-function '(foo 1 1) nil def) 'int))
+
+(is (cl-cuda::type-of-function '(+ 1 1 1) nil nil) 'int)
+(is (cl-cuda::type-of-function '(+ 1.0 1.0 1.0) nil nil) 'float)
+(is-error (cl-cuda::type-of-function '(+ 1 1 1.0) nil nil) simple-error)
+(is (cl-cuda::type-of-function '(expt 1.0 1.0) nil nil) 'float)
+
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-y nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-z nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-x nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-y nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-z nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-x nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-y nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-z nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-x nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-y nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-z nil nil) 'int)
 
 (is-error (cl-cuda::type-of-variable-reference 'x nil) simple-error)
 
