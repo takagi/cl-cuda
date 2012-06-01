@@ -867,17 +867,24 @@
 
 (defun compile-place (place type-env def)
   (cond ((scalar-place-p place) (compile-scalar-place place type-env))
+        ((vector-place-p place) (compile-vector-place place type-env))
         ((array-place-p place) (compile-array-place place type-env def))
         (t (error (format nil "invalid place: ~A" place)))))
 
 (defun scalar-place-p (place)
   (scalar-variable-reference-p place))
 
+(defun vector-place-p (place)
+  (vector-variable-reference-p place))
+
 (defun array-place-p (place)
   (array-variable-reference-p place))
 
 (defun compile-scalar-place (var type-env)
   (compile-scalar-variable-reference var type-env))
+
+(defun compile-vector-place (place type-env)
+  (compile-vector-variable-reference place type-env))
 
 (defun compile-array-place (place type-env def)
   (compile-array-variable-reference place type-env def))
