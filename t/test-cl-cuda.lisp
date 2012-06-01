@@ -142,12 +142,13 @@
 (is (cl-cuda::vector-type-length 'float3) 3)
 (is-error (cl-cuda::vector-type-length 'float) simple-error)
 
-(is (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::x)
-    'float3-x)
+(is (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::x) 'float3-x)
 (is-error (cl-cuda::vector-type-selector-symbol 'float 'cl-cuda::x)
           simple-error)
 (is-error (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::a)
           simple-error)
+
+(is (cl-cuda::vector-type-selector 'float3 'cl-cuda::x) #'float3-x)
 
 (is (cl-cuda::vector-type-selector-symbols)
     '(float3-x float3-y float3-z))

@@ -297,6 +297,10 @@
     (error (format nil "invalid element: ~A" elm)))
   (symbolicate (princ-to-string type) "-" (princ-to-string elm)))
 
+(defun vector-type-selector (type elm)
+  ;; e.g. float3 x => #'float3-x
+  (symbol-function (vector-type-selector-symbol type elm)))
+
 (defun vector-type-selector-return-type (selector)
   ;; e.g. float3-x => float
   (unless (find selector (vector-type-selector-symbols))
