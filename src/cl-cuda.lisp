@@ -1110,7 +1110,8 @@
 (defun compile-built-in-arithmetic-function (form type-env def)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
-    (unless (arithmetic-function-valid-type-p operator operands type-env def)
+    (unless (built-in-arithmetic-function-valid-type-p operator operands
+                                                       type-env def)
       (error (format nil "invalid arguments: ~A" (cons operator operands))))
     (compile-built-in-infix-function (binarize-1 form) type-env def)))
 
@@ -1224,11 +1225,12 @@
   (and (getf +built-in-arithmetic-functions+ op)
        t))
 
-(defun arithmetic-function-valid-type-p (operator operands type-env def)
+(defun built-in-arithmetic-function-valid-type-p (operator operands
+                                                  type-env def)
   (and (%arithmetic-function-return-type operator operands type-env def)
        t))
 
-(defun arithmetic-function-return-type (operator operands type-env def)
+(defun built-in-arithmetic-function-return-type (operator operands type-env def)
   (or (%arithmetic-function-return-type operator operands type-env def)
       (error (format nil "invalid arguments: ~A" (cons operator operands)))))
 
@@ -1428,13 +1430,10 @@
   (let ((operator (function-operator exp))
         (operands (function-operands exp)))
     (if (built-in-function-arithmetic-p operator)
-        (type-of-built-in-arithmetic-function
+        (built-in-arithmetic-function-return-type
           operator operands type-env def)
         (built-in-function-inferred-return-type
           operator operands type-env def))))
-
-(defun type-of-built-in-arithmetic-function (operator operands type-env def)
-  (arithmetic-function-return-type operator operands type-env def))
 
 (defun type-of-user-function (exp def)
   (let ((operator (function-operator exp)))
