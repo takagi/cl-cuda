@@ -249,6 +249,8 @@
 
 ;;; test valid-type-p
 
+(diag "test valid-type-p")
+
 (is (cl-cuda::basic-type-p 'void) t)
 (is (cl-cuda::basic-type-p 'int) t)
 (is (cl-cuda::basic-type-p 'float) t)
@@ -300,6 +302,8 @@
 
 
 ;;; test kernel definition
+
+(diag "test kernel definition")
 
 (is (cl-cuda::empty-kernel-definition) '(nil nil))
 
@@ -358,6 +362,8 @@
 
 ;;; test compile-kernel-definition
 
+(diag "test compile-kernel-definition")
+
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
       (c-code (cl-cuda::unlines "extern \"C\" __global__ void foo ();"
@@ -371,6 +377,8 @@
 
 
 ;;; test compile-kernel-function-prototype
+
+(diag "test compile-kernel-function-prototype")
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
@@ -390,6 +398,23 @@
                                 "}"
                                 "")))
   (is (cl-cuda::compile-kernel-function 'foo def) c-code))
+
+
+;;; test compile-function-specifier (not implemented)
+
+
+
+;;; test compile-type (not implemented)
+
+
+
+;;; test compile-identifier
+
+(diag "test compile-identifier")
+
+(is (cl-cuda::compile-identifier 'x) "x")
+(is (cl-cuda::compile-identifier 'vec-add-kernel) "vec_add_kernel")
+(is (cl-cuda::compile-identifier 'VecAdd_kernel) "vecadd_kernel")
 
 
 ;;; test compile-if
@@ -478,20 +503,6 @@
   (is (cl-cuda::compile-for lisp-code nil nil) c-code))
 
 
-;;; test compile-set
-
-(diag "test compile-set")
-
-(is (cl-cuda::set-p '(set x 1)) t)
-(is (cl-cuda::set-p '(set (aref x i) 1)) t)
-
-(cl-cuda::with-type-environment (type-env ((x int)))
-  (is (cl-cuda::compile-set '(set x 1) type-env nil) "x = 1;"))
-
-(cl-cuda::with-type-environment (type-env ((x int*)))
-  (is (cl-cuda::compile-set '(set (aref x 0) 1) type-env nil) "x[0] = 1;"))
-
-
 ;;; test compile-with-shared-memory
 
 (diag "test compile-with-shared-memory")
@@ -553,6 +564,35 @@
                     (set (aref a 0) 1.0))))
   (is-error (cl-cuda::compile-with-shared-memory lisp-code nil nil)
             simple-error))
+
+
+;;; test compile-set
+
+(diag "test compile-set")
+
+(is (cl-cuda::set-p '(set x 1)) t)
+(is (cl-cuda::set-p '(set (aref x i) 1)) t)
+
+(cl-cuda::with-type-environment (type-env ((x int)))
+  (is (cl-cuda::compile-set '(set x 1) type-env nil) "x = 1;"))
+
+(cl-cuda::with-type-environment (type-env ((x int*)))
+  (is (cl-cuda::compile-set '(set (aref x 0) 1) type-env nil) "x[0] = 1;"))
+
+(cl-cuda::with-type-environment (type-env ((x float3)))
+  (is (cl-cuda::compile-set '(set (float3-x x) 1.0) type-env nil) "x.x = 1.0;"))
+
+
+;;; test compile-place (not implemented)
+
+ 
+
+;;; test compile-progn (not implemented)
+
+
+
+;;; test compile-return (not implemented)
+
 
 
 ;;; test compile-syncthreads
@@ -618,6 +658,42 @@
             simple-error))
 
 
+;;; test built-in arithmetic functions
+
+(diag "test built-in arithmetic functions")
+
+(is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
+(is (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
+(is (cl-cuda::compile-function '(+ 1.0 1.0 1.0) nil nil) "((1.0 + 1.0) + 1.0)")
+(is-error (cl-cuda::compile-function '(+ 1 1 1.0) nil nil) simple-error)
+(is-error (cl-cuda::compile-function '(+) nil nil) simple-error)
+(is-error (cl-cuda::compile-function '(+ 1) nil nil) simple-error)
+
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '() nil nil) nil)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1) nil nil) t)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1.0 1.0) nil nil) t)
+(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1.0) nil nil) nil)
+(is-error (cl-cuda::arithmetic-function-valid-type-p 'foo '() nil nil)
+          simple-error)
+
+(is-error (cl-cuda::arithmetic-function-return-type '+ '() nil nil)
+          simple-error)
+(is (cl-cuda::arithmetic-function-return-type '+ '(1 1) nil nil) 'int)
+(is (cl-cuda::arithmetic-function-return-type '+ '(1.0 1.0) nil nil) 'float)
+(is-error (cl-cuda::arithmetic-function-return-type '+ '(1 1.0) nil nil)
+          simple-error)
+(is-error (cl-cuda::arithmetic-function-return-type 'foo '() nil nil)
+          simple-error)
+
+
+;;; test compile-literal (not implemented)
+
+
+
+;;; test compile-cuda-dimension (not implemented)
+
+
+
 ;;; test compile-variable-reference
 
 (diag "test compile-variable-reference")
@@ -658,43 +734,6 @@
   (is (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) "x.x")
   (is (cl-cuda::compile-variable-reference '(float3-y x) type-env nil) "x.y")
   (is (cl-cuda::compile-variable-reference '(float3-z x) type-env nil) "x.z"))
-
-
-;;; test built-in arithmetic functions
-
-(diag "test built-in arithmetic functions")
-
-(is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
-(is (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
-(is (cl-cuda::compile-function '(+ 1.0 1.0 1.0) nil nil) "((1.0 + 1.0) + 1.0)")
-(is-error (cl-cuda::compile-function '(+ 1 1 1.0) nil nil) simple-error)
-(is-error (cl-cuda::compile-function '(+) nil nil) simple-error)
-(is-error (cl-cuda::compile-function '(+ 1) nil nil) simple-error)
-
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '() nil nil) nil)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1) nil nil) t)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1.0 1.0) nil nil) t)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1.0) nil nil) nil)
-(is-error (cl-cuda::arithmetic-function-valid-type-p 'foo '() nil nil)
-          simple-error)
-
-(is-error (cl-cuda::arithmetic-function-return-type '+ '() nil nil)
-          simple-error)
-(is (cl-cuda::arithmetic-function-return-type '+ '(1 1) nil nil) 'int)
-(is (cl-cuda::arithmetic-function-return-type '+ '(1.0 1.0) nil nil) 'float)
-(is-error (cl-cuda::arithmetic-function-return-type '+ '(1 1.0) nil nil)
-          simple-error)
-(is-error (cl-cuda::arithmetic-function-return-type 'foo '() nil nil)
-          simple-error)
-
-
-;;; test compile-identifier
-
-(diag "test compile-identifier")
-
-(is (cl-cuda::compile-identifier 'x) "x")
-(is (cl-cuda::compile-identifier 'vec-add-kernel) "vec_add_kernel")
-(is (cl-cuda::compile-identifier 'VecAdd_kernel) "vecadd_kernel")
 
 
 ;;; test type-of-expression

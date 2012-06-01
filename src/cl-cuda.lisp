@@ -351,6 +351,7 @@
     ((vector-type-p type) type)
     (t (error (format nil "invalid type: ~A" type)))))
 
+
 ;;; kernel-arg
 
 (defun kernel-arg-names (arg-bindings)
