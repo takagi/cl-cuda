@@ -139,13 +139,18 @@
 
 (diag "test kernel-defun")
 
-(is (cl-cuda::vector-type-selector 'float3 'x)
-    'float3-x)
-
-(is (cl-cuda::vector-type-selectors)
-    '(float3-x float3-y float3-z))
-
 (is (cl-cuda::vector-type-length 'float3) 3)
+(is-error (cl-cuda::vector-type-length 'float) simple-error)
+
+(is (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::x)
+    'float3-x)
+(is-error (cl-cuda::vector-type-selector-symbol 'float 'cl-cuda::x)
+          simple-error)
+(is-error (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::a)
+          simple-error)
+
+(is (cl-cuda::vector-type-selector-symbols)
+    '(float3-x float3-y float3-z))
 
 (is (cl-cuda::foreign-pointer-setf-vector-type 'x 'x-ptr 'float3)
     '(progn
@@ -669,20 +674,24 @@
 (is-error (cl-cuda::compile-function '(+) nil nil) simple-error)
 (is-error (cl-cuda::compile-function '(+ 1) nil nil) simple-error)
 
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '() nil nil) nil)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1) nil nil) t)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1.0 1.0) nil nil) t)
-(is (cl-cuda::arithmetic-function-valid-type-p '+ '(1 1.0) nil nil) nil)
-(is-error (cl-cuda::arithmetic-function-valid-type-p 'foo '() nil nil)
+(is (cl-cuda::built-in-arithmetic-function-valid-type-p '+ '() nil nil) nil)
+(is (cl-cuda::built-in-arithmetic-function-valid-type-p '+ '(1 1) nil nil) t)
+(is (cl-cuda::built-in-arithmetic-function-valid-type-p '+ '(1.0 1.0) nil nil)
+    t)
+(is (cl-cuda::built-in-arithmetic-function-valid-type-p '+ '(1 1.0) nil nil)
+    nil)
+(is-error (cl-cuda::built-in-arithmetic-function-valid-type-p 'foo '() nil nil)
           simple-error)
 
-(is-error (cl-cuda::arithmetic-function-return-type '+ '() nil nil)
+(is-error (cl-cuda::built-in-arithmetic-function-return-type '+ '() nil nil)
           simple-error)
-(is (cl-cuda::arithmetic-function-return-type '+ '(1 1) nil nil) 'int)
-(is (cl-cuda::arithmetic-function-return-type '+ '(1.0 1.0) nil nil) 'float)
-(is-error (cl-cuda::arithmetic-function-return-type '+ '(1 1.0) nil nil)
-          simple-error)
-(is-error (cl-cuda::arithmetic-function-return-type 'foo '() nil nil)
+(is (cl-cuda::built-in-arithmetic-function-return-type '+ '(1 1) nil nil) 'int)
+(is (cl-cuda::built-in-arithmetic-function-return-type '+ '(1.0 1.0) nil nil)
+    'float)
+(is-error
+ (cl-cuda::built-in-arithmetic-function-return-type '+ '(1 1.0) nil nil)
+ simple-error)
+(is-error (cl-cuda::built-in-arithmetic-function-return-type 'foo '() nil nil)
           simple-error)
 
 

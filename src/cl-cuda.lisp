@@ -210,7 +210,7 @@
        ,@(loop repeat n
                for elm in +vector-type-elements+
             collect `(setf (cffi:foreign-slot-value ,var-ptr ',type ',elm)
-                           (,(vector-type-selector type elm) ,var))))))
+                           (,(vector-type-selector-symbol type elm) ,var))))))
 
 (defun foreign-pointer-setf-else (var var-ptr type)
   `(setf (cffi:mem-ref ,var-ptr ,type) ,var))
@@ -271,7 +271,7 @@
 
 (defvar +basic-types+ '(void int float))
 
-(defvar +vector-type-table+ '(float3 (float 3)))
+(defvar +vector-type-table+ '(float3))
 
 (defvar +vector-type-elements+ '(x y z w))
 
@@ -280,31 +280,36 @@
        t))
 
 (defun vector-type-p (type)
-  (and (getf +vector-type-table+ type)
+  (and (find type +vector-type-table+)
        t))
 
 (defun vector-type-length (type)
   ;; e.g. float3 => 3
-  (cadr (getf +vector-type-table+ type)))
+  (unless (vector-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (parse-integer (subseq (reverse (princ-to-string type)) 0 1)))
 
-(defun vector-type-selector (type elm)
+(defun vector-type-selector-symbol (type elm)
   ;; e.g. float3 x => float3-x
+  (unless (vector-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (unless (find elm +vector-type-elements+)
+    (error (format nil "invalid element: ~A" elm)))
   (symbolicate (princ-to-string type) "-" (princ-to-string elm)))
 
 (defun vector-type-selector-return-type (selector)
   ;; e.g. float3-x => float
-  (unless (find selector (vector-type-selectors))
+  (unless (find selector (vector-type-selector-symbols))
     (error (format nil "invalid selector: ~A" selector)))
   (symbolicate (reverse (subseq (reverse (princ-to-string selector)) 3))))
 
-(defun vector-type-selectors ()
+(defun vector-type-selector-symbols ()
   (labels ((aux (type)
              (loop repeat (vector-type-length type)
                    for elm in +vector-type-elements+
-                collect (vector-type-selector type elm))))
+                collect (vector-type-selector-symbol type elm))))
     (flatten
-      (mapcar #'aux
-        (mapcar #'car (group +vector-type-table+ 2))))))
+      (mapcar #'aux +vector-type-table+))))
 
 (defun non-pointer-type-p (type)
   (or (basic-type-p type)
@@ -1316,7 +1321,7 @@
 
 (defun vector-variable-reference-p (exp)
   (match exp
-    ((selector _) (and (find selector (vector-type-selectors))
+    ((selector _) (and (find selector (vector-type-selector-symbols))
                        t))
     (_ nil)))
 
@@ -1343,7 +1348,7 @@
   (compile-identifier var))
 
 (defun compile-vector-selector (selector)
-  (unless (find selector (vector-type-selectors))
+  (unless (find selector (vector-type-selector-symbols))
     (error (format nil "invalid selector: ~A" selector)))
   (string-downcase (subseq (reverse (princ-to-string selector)) 0 1)))
 
