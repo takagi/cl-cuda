@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda
-  (:use :cl :cffi :alexandria :anaphora :cl-pattern)
+  (:use :cl :alexandria :anaphora :cl-pattern)
   (:export :cu-result                   ; Types
            :cu-device
            :cu-context
@@ -34,8 +34,12 @@
            :with-cuda-context
            :with-cuda-memory-block
            :with-cuda-memory-blocks
+           :with-memory-blocks          ; Memory Block
+           :mem-aref
+           :memcpy-host-to-device
+           :memcpy-device-to-host
            :float3 :make-float3         ; Built-in Vector Types
-           :float3-x :float3-y :float3-z
+           :float3-x :float3-y :float3-z :float3-=
            :defkernel                   ; defkernel
            :void :int :int* :float :float*
            :grid-dim-x :grid-dim-y :grid-dim-z

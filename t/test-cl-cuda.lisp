@@ -135,12 +135,83 @@
           (cu-module-get-function hfunc (cffi:mem-ref module 'cu-module) name))))))
 
 
+;;; test memory blocks
+
+(diag "test memory blocks")
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (let (blk)
+      (ok (setf blk (cl-cuda::alloc-memory-block 'int 1024)))
+      (cl-cuda::free-memory-block blk))
+    (is-error (cl-cuda::alloc-memory-block 'void 1024) simple-error)
+    (is-error (cl-cuda::alloc-memory-block 'int* 1024) simple-error)
+    (is-error (cl-cuda::alloc-memory-block 'int (* 1024 1024 256))
+              simple-error)
+    (is-error (cl-cuda::alloc-memory-block 'int 0) simple-error)
+    (is-error (cl-cuda::alloc-memory-block 'int -1) type-error)))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((blk 'int 1024))
+      (ok (cl-cuda::memory-block-cffi-ptr blk))
+      (ok (cl-cuda::memory-block-device-ptr blk))
+      (is (cl-cuda::memory-block-type blk) 'int)
+      (is (cl-cuda::memory-block-cffi-type blk) :int)
+      (is (cl-cuda::memory-block-length blk) 1024)
+      (is (cl-cuda::memory-block-bytes blk) (* 1024 4))
+      (is (cl-cuda::memory-block-element-bytes blk) 4))))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((x 'int 1))
+      (setf (mem-aref x 0) 1)
+      (is (mem-aref x 0) 1))
+    (with-memory-blocks ((x 'float 1))
+      (setf (mem-aref x 0) 1.0)
+      (is (mem-aref x 0) 1.0))
+    (with-memory-blocks ((x 'float3 1))
+      (setf (mem-aref x 0) (make-float3 1.0 1.0 1.0))
+      (is (mem-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=))
+    (with-memory-blocks ((x 'int 1))
+      (is-error (mem-aref x -1) simple-error)
+      (is-error (setf (mem-aref x -1) 0) simple-error)
+      (is-error (mem-aref x 1) simple-error)
+      (is-error (setf (mem-aref x 1) 0) simple-error))))
+
+(defkernel test-memcpy (void ((x int*) (y float*)))
+  (set (aref x 0) (+ (aref x 0) 1))
+  (set (aref y 0) (+ (aref y 0) 1.0)))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((x 'int 1)
+                         (y 'float 1))
+      (setf (mem-aref x 0) 1)
+      (setf (mem-aref y 0) 1.0)
+      (memcpy-host-to-device x y)
+      (test-memcpy x y :grid-dim '(1 1 1)
+                       :block-dim '(1 1 1))
+      (memcpy-device-to-host x y)
+      (is (mem-aref x 0) 2)
+      (is (mem-aref y 0) 2.0))))
+
+
 ;;; test kernel-defun
 
 (diag "test kernel-defun")
 
 (is (cl-cuda::vector-type-length 'float3) 3)
 (is-error (cl-cuda::vector-type-length 'float) simple-error)
+(is-error (cl-cuda::vector-type-length 'float3*) simple-error)
+
+(is (cl-cuda::vector-type-base-type 'float3) 'float)
+(is-error (cl-cuda::vector-type-base-type 'float) simple-error)
+(is-error (cl-cuda::vector-type-base-type 'float3*) simple-error)
+
+(is (cl-cuda::vector-type-constructor 'float3) #'make-float3)
+(is-error (cl-cuda::vector-type-constructor 'float) simple-error)
+(is-error (cl-cuda::vector-type-constructor 'float3*) simple-error)
 
 (is (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::x) 'float3-x)
 (is-error (cl-cuda::vector-type-selector-symbol 'float 'cl-cuda::x)
@@ -176,12 +247,16 @@
     nil))
 
 (is-expand
- (cl-cuda::with-kernel-arguments (args d-a d-b d-c n-ptr)
+ (cl-cuda::with-kernel-arguments (args
+                                  (cl-cuda::memory-block-device-ptr a)
+                                  (cl-cuda::memory-block-device-ptr b)
+                                  (cl-cuda::memory-block-device-ptr c)
+                                  n-ptr)
    nil)
  (cffi:with-foreign-object (args :pointer 4)
-   (setf (cffi:mem-aref args :pointer 0) d-a)
-   (setf (cffi:mem-aref args :pointer 1) d-b)
-   (setf (cffi:mem-aref args :pointer 2) d-c)
+   (setf (cffi:mem-aref args :pointer 0) (cl-cuda::memory-block-device-ptr a))
+   (setf (cffi:mem-aref args :pointer 1) (cl-cuda::memory-block-device-ptr b))
+   (setf (cffi:mem-aref args :pointer 2) (cl-cuda::memory-block-device-ptr c))
    (setf (cffi:mem-aref args :pointer 3) n-ptr)
    nil))
 
@@ -191,7 +266,10 @@
 
 (is (cl-cuda::kernel-arg-names-as-pointer
       '((a float*) (b float*) (c float*) (n int) (x float3)))
-    '(a b c n-ptr x-ptr))
+    '((cl-cuda::memory-block-device-ptr a)
+      (cl-cuda::memory-block-device-ptr b)
+      (cl-cuda::memory-block-device-ptr c)
+      n-ptr x-ptr))
 
 (is (cl-cuda::kernel-arg-foreign-pointer-bindings
       '((a float*) (b float*) (c float*) (n int) (x float3)))
@@ -238,19 +316,15 @@
   (set (aref ary 0) (+ (float3-x x) (float3-y x) (float3-z x))))
 
 (let ((dev-id 0)
-      (n 1)
       (x (make-float3 1.0 2.0 3.0)))
   (with-cuda-context (dev-id)
-    (cffi:with-foreign-objects ((h-a :float n))
-      (with-cuda-memory-blocks ((d-a (* n 4)))
-        (setf (cffi:mem-aref h-a :float 0) 0.0)
-        (cu-memcpy-host-to-device (cffi:mem-aref d-a 'cu-device-ptr)
-                                  h-a (* n 4))
-        (kernel-float3 d-a x :grid-dim '(1 1 1)
-                             :block-dim '(1 1 1))
-        (cu-memcpy-device-to-host h-a (cffi:mem-aref d-a 'cu-device-ptr)
-                                  (* n 4))
-        (is (cffi:mem-aref h-a :float 0) 6.0)))))
+    (with-memory-blocks ((a 'float 1))
+      (setf (mem-aref a 0) 1.0)
+      (memcpy-host-to-device a)
+      (kernel-float3 a x :grid-dim '(1 1 1)
+                         :block-dim '(1 1 1))
+      (memcpy-device-to-host a)
+      (is (mem-aref a 0) 6.0))))
 
 
 ;;; test valid-type-p
@@ -288,7 +362,7 @@
 (is (cl-cuda::add-star 'int -1) 'int)
 (is (cl-cuda::add-star 'int 0) 'int)
 (is (cl-cuda::add-star 'int 1) 'int*)
-(is (cl-cuda::add-star 'int 2) 'int**)
+(is (cl-cuda::add-star 'int 2) 'cl-cuda::int**)
 
 (is (cl-cuda::remove-star 'int) 'int)
 (is (cl-cuda::remove-star 'int*) 'int)
@@ -305,6 +379,14 @@
 (is (cl-cuda::cffi-type 'float3) 'float3)
 (is (cl-cuda::cffi-type 'float*) 'cu-device-ptr)
 (is (cl-cuda::cffi-type 'float3*) 'cu-device-ptr)
+
+(is (cl-cuda::size-of 'void) 0)
+(is (cl-cuda::size-of 'int) 4)
+(is (cl-cuda::size-of 'float) 4)
+(is (cl-cuda::size-of 'float3) 12)
+(is (cl-cuda::size-of 'int*) 4)
+(is (cl-cuda::size-of 'int**) 4)
+(is (cl-cuda::size-of 'int***) 4)
 
 
 ;;; test kernel definition
@@ -803,6 +885,12 @@
   (is (cl-cuda::type-of-variable-reference '(float3-x x) type-env) 'float)
   (is (cl-cuda::type-of-variable-reference '(float3-y x) type-env) 'float)
   (is (cl-cuda::type-of-variable-reference '(float3-z x) type-env) 'float))
+
+
+;;; test utilities
+
+(is (cl-cuda::cl-cuda-symbolicate 'a) 'cl-cuda::a)
+(is (cl-cuda::cl-cuda-symbolicate 'a 'b) 'cl-cuda::ab)
 
 
 (finalize)

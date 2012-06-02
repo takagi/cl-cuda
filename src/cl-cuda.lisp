@@ -5,6 +5,7 @@
 
 (in-package :cl-cuda)
 
+
 ;;; defcufun
 
 (defmacro defcufun (name-and-options return-type &body args)
@@ -15,26 +16,26 @@
       `(progn
          (defun ,name (,@params)
            (check-cuda-errors ',name (,name% ,@params)))
-         (defcfun ,name-and-options% ,return-type ,@args))))
+         (cffi:defcfun ,name-and-options% ,return-type ,@args))))
 
 
 ;;; load CUDA driver API
 
-(define-foreign-library libcuda
+(cffi:define-foreign-library libcuda
   (t (:default "/usr/local/cuda/lib/libcuda")))
-(use-foreign-library libcuda)
+(cffi:use-foreign-library libcuda)
 
 
 ;;; Types
 
-(defctype cu-result :unsigned-int)
-(defctype cu-device :int)
-(defctype cu-context :pointer)
-(defctype cu-module :pointer)
-(defctype cu-function :pointer)
-(defctype cu-stream :pointer)
-(defctype cu-device-ptr :unsigned-int)
-(defctype size-t :unsigned-int)
+(cffi:defctype cu-result :unsigned-int)
+(cffi:defctype cu-device :int)
+(cffi:defctype cu-context :pointer)
+(cffi:defctype cu-module :pointer)
+(cffi:defctype cu-function :pointer)
+(cffi:defctype cu-stream :pointer)
+(cffi:defctype cu-device-ptr :unsigned-int)
+(cffi:defctype size-t :unsigned-int)
 
 
 ;;; Functions
@@ -134,7 +135,12 @@
   (y 0.0 :type single-float)
   (z 0.0 :type single-float))
 
-(defcstruct float3
+(defun float3-= (a b)
+  (and (= (float3-x a) (float3-x b))
+       (= (float3-y a) (float3-y b))
+       (= (float3-z a) (float3-z b))))
+
+(cffi:defcstruct float3
   (x :float)
   (y :float)
   (z :float))
@@ -143,6 +149,148 @@
 ;;; Constants
 
 (defvar +cuda-success+ 0)
+
+
+;;; Memory Blocks
+
+(defun alloc-memory-block (type n)
+  (unless (non-pointer-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (let ((cffi-ptr (cffi:foreign-alloc (cffi-type type) :count n))
+        (device-ptr (cffi:foreign-alloc 'cu-device-ptr)))
+    (cu-mem-alloc device-ptr (* n (size-of type)))
+    (list cffi-ptr device-ptr type n)))
+
+(defun free-memory-block (blk)
+  (if blk
+      (let ((device-ptr (memory-block-device-ptr blk))
+            (cffi-ptr (memory-block-cffi-ptr blk)))
+        (cu-mem-free (cffi:mem-ref device-ptr 'cu-device-ptr))
+        (cffi:foreign-free device-ptr)
+        (cffi:foreign-free cffi-ptr)
+        (setf device-ptr nil)
+        (setf cffi-ptr nil))))
+
+(defun memory-block-cffi-ptr (blk)
+  (car blk))
+
+(defun memory-block-device-ptr (blk)
+  (cadr blk))
+
+(defun memory-block-type (blk)
+  (caddr blk))
+
+(defun memory-block-cffi-type (blk)
+  (cffi-type (memory-block-type blk)))
+
+(defun memory-block-length (blk)
+  (cadddr blk))
+
+(defun memory-block-bytes (blk)
+  (* (memory-block-element-bytes blk)
+     (memory-block-length blk)))
+
+(defun memory-block-element-bytes (blk)
+  (size-of (memory-block-type blk)))
+
+(defun memory-block-binding-var (binding)
+  (match binding
+    ((var _ _) var)
+    (_ (error (format nil "invalid memory block binding: ~A" binding)))))
+
+(defun memory-block-binding-type (binding)
+  (match binding
+    ((_ type _) type)
+    (_ (error (format nil "invalid memory block binding: ~A" binding)))))
+
+(defun memory-block-binding-size (binding)
+  (match binding
+    ((_ _ size) size)
+    (_ (error (format nil "invalid memory block binding: ~A" binding)))))
+
+(defun alloc-memory-block-form (binding)
+  (let ((var (memory-block-binding-var binding))
+        (type (memory-block-binding-type binding))
+        (size (memory-block-binding-size binding)))
+    `(setf ,var (alloc-memory-block ,type ,size))))
+
+(defun free-memory-block-form (binding)
+  `(free-memory-block ,(memory-block-binding-var binding)))
+
+(defmacro with-memory-blocks (bindings &body body)
+  `(let ,(mapcar #'memory-block-binding-var bindings)
+     (unwind-protect
+          (progn
+            ,@(mapcar #'alloc-memory-block-form bindings)
+            ,@body)
+       (progn
+         ,@(mapcar #'free-memory-block-form bindings)))))
+
+(defun basic-type-mem-aref (blk idx)
+  (cffi:mem-aref (memory-block-cffi-ptr blk)
+                 (memory-block-cffi-type blk)
+                 idx))
+
+(defun vector-type-mem-aref (blk idx)
+  (let* ((type (memory-block-type blk))
+         (cffi-type (memory-block-cffi-type blk))
+         (ptr (cffi:mem-aref (memory-block-cffi-ptr blk) cffi-type idx)))
+    (let ((constructor (vector-type-constructor type))
+          (elements (loop repeat (vector-type-length type)
+                       for elm in +vector-type-elements+
+                       collect (cffi:foreign-slot-value ptr cffi-type elm))))
+      (apply constructor elements))))
+
+(defun mem-aref (blk idx)
+  (unless (and (<= 0 idx) (< idx (memory-block-length blk)))
+    (error (format nil "invalid index: ~A" idx)))
+  (let ((type (memory-block-type blk)))
+    (cond
+      ((basic-type-p type) (basic-type-mem-aref blk idx))
+      ((vector-type-p type) (vector-type-mem-aref blk idx))
+      (t (error "must not be reached")))))
+
+(defun basic-type-setf-mem-aref (blk idx val)
+  (setf (cffi:mem-aref (memory-block-cffi-ptr blk)
+                       (memory-block-cffi-type blk)
+                       idx)
+        val))
+
+(defun vector-type-setf-mem-aref (blk idx val)
+  (let* ((type (memory-block-type blk))
+         (cffi-type (memory-block-cffi-type blk))
+         (ptr (cffi:mem-aref (memory-block-cffi-ptr blk) cffi-type idx)))
+    (loop repeat (vector-type-length type)
+       for elm in +vector-type-elements+
+       do (setf (cffi:foreign-slot-value ptr cffi-type elm)
+                (funcall (vector-type-selector type elm) val)))))
+
+(defun (setf mem-aref) (val blk idx)
+  (unless (and (<= 0 idx) (< idx (memory-block-length blk)))
+    (error (format nil "invalid index: ~A" idx)))
+  (let ((type (memory-block-type blk)))
+    (cond
+      ((basic-type-p type) (basic-type-setf-mem-aref blk idx val))
+      ((vector-type-p type) (vector-type-setf-mem-aref blk idx val))
+      (t (error "must not be reached")))))
+
+(defun memcpy-host-to-device (&rest blks)
+  (dolist (blk blks)
+    (let ((device-ptr (memory-block-device-ptr blk))
+          (cffi-ptr (memory-block-cffi-ptr blk))
+          (bytes (memory-block-bytes blk)))
+      (cu-memcpy-host-to-device (cffi:mem-ref device-ptr 'cu-device-ptr)
+                                cffi-ptr
+                                bytes))))
+
+(defun memcpy-device-to-host (&rest blks)
+  (dolist (blk blks)
+    (let ((device-ptr (memory-block-device-ptr blk))
+          (cffi-ptr (memory-block-cffi-ptr blk))
+          (bytes (memory-block-bytes blk)))
+      (cu-memcpy-device-to-host cffi-ptr
+                                (cffi:mem-ref device-ptr 'cu-device-ptr)
+                                bytes))))
 
 
 ;;; Helpers
@@ -161,26 +309,26 @@
   (destructuring-bind (dev-id) args
     (let ((flags 0))
       (with-gensyms (device ctx)
-        `(with-foreign-objects ((,device 'cu-device)
-                                (,ctx 'cu-context))
+        `(cffi:with-foreign-objects ((,device 'cu-device)
+                                     (,ctx 'cu-context))
            (cu-init 0)
            (cu-device-get ,device ,dev-id)
-           (cu-ctx-create ,ctx ,flags (mem-ref ,device 'cu-device))
+           (cu-ctx-create ,ctx ,flags (cffi:mem-ref ,device 'cu-device))
            (unwind-protect
              (progn
                (ensure-kernel-module-loaded *kernel-manager*)
                ,@body)
              (progn
                (kernel-manager-unload *kernel-manager*)
-               (cu-ctx-destroy (mem-ref ,ctx 'cu-context)))))))))
+               (cu-ctx-destroy (cffi:mem-ref ,ctx 'cu-context)))))))))
 
 (defmacro with-cuda-memory-block (args &body body)
   (destructuring-bind (dptr size) args
-    `(with-foreign-object (,dptr 'cu-device-ptr)
+    `(cffi:with-foreign-object (,dptr 'cu-device-ptr)
        (cu-mem-alloc ,dptr ,size)
        (unwind-protect
             (progn ,@body)
-         (cu-mem-free (mem-ref ,dptr 'cu-device-ptr))))))
+         (cu-mem-free (cffi:mem-ref ,dptr 'cu-device-ptr))))))
 
 (defmacro with-cuda-memory-blocks (bindings &body body)
   (if bindings
@@ -195,12 +343,12 @@
 (defmacro with-module-and-function (args &body body)
   (destructuring-bind (hfunc module function) args
     (with-gensyms (module-name func-name hmodule)
-      `(with-foreign-string (,module-name ,module)
-         (with-foreign-string (,func-name ,function)
-           (with-foreign-objects ((,hmodule 'cu-module)
-                                  (,hfunc 'cu-function))
+      `(cffi:with-foreign-string (,module-name ,module)
+         (cffi:with-foreign-string (,func-name ,function)
+           (cffi:with-foreign-objects ((,hmodule 'cu-module)
+                                       (,hfunc 'cu-function))
              (cu-module-load ,hmodule ,module-name)
-             (cu-module-get-function ,hfunc (mem-ref ,hmodule 'cu-module)
+             (cu-module-get-function ,hfunc (cffi:mem-ref ,hmodule 'cu-module)
                                      ,func-name)
              ,@body))))))
 
@@ -229,7 +377,7 @@
                    (if (vector-type-p type)
                        `(,var-ptr ',type)
                        `(,var-ptr ,type)))))
-        `(with-foreign-objects (,@(mapcar #'ptr-type-pair bindings))
+        `(cffi:with-foreign-objects (,@(mapcar #'ptr-type-pair bindings))
            ,@(mapcar #'foreign-pointer-setf bindings)
            ,@body))
       `(progn ,@body)))
@@ -237,10 +385,10 @@
 (defmacro with-kernel-arguments (args &body body)
   (let ((var (car args))
         (ptrs (cdr args)))
-    `(with-foreign-object (,var :pointer ,(length ptrs))
+    `(cffi:with-foreign-object (,var :pointer ,(length ptrs))
        ,@(loop for ptr in ptrs
             for i from 0
-            collect `(setf (mem-aref ,var :pointer ,i) ,ptr))
+            collect `(setf (cffi:mem-aref ,var :pointer ,i) ,ptr))
        ,@body)))
 
 (defun kernel-defun (mgr mgr-symbol name)
@@ -256,11 +404,11 @@
                      (grid-dim-x grid-dim-y grid-dim-z) grid-dim
                (destructuring-bind
                      (block-dim-x block-dim-y block-dim-z) block-dim
-                 (cu-launch-kernel (mem-ref ,hfunc 'cu-function)
+                 (cu-launch-kernel (cffi:mem-ref ,hfunc 'cu-function)
                                    grid-dim-x grid-dim-y grid-dim-z
                                    block-dim-x block-dim-y block-dim-z
-                                   0 (null-pointer)
-                                   ,args (null-pointer)))))))))))
+                                   0 (cffi:null-pointer)
+                                   ,args (cffi:null-pointer)))))))))))
 
 (defmacro defkernel (name arg-bindings &rest body)
   (kernel-manager-define-function *kernel-manager* name arg-bindings body)
@@ -269,7 +417,9 @@
 
 ;;; cl-cuda types
 
-(defvar +basic-types+ '(void int float))
+(defvar +basic-types+ '(void 0
+                        int 4
+                        float 4))
 
 (defvar +vector-type-table+ '(float3))
 
@@ -289,13 +439,26 @@
     (error (format nil "invalid type: ~A" type)))
   (parse-integer (subseq (reverse (princ-to-string type)) 0 1)))
 
+(defun vector-type-base-type (type)
+  ;; e.g. float3 => float
+  (unless (vector-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (cl-cuda-symbolicate (reverse (subseq (reverse (princ-to-string type)) 1))))
+
+(defun vector-type-constructor (type)
+  ;; e.g. float3 => #'make-float3
+  (unless (vector-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (symbol-function
+    (cl-cuda-symbolicate "MAKE-" (princ-to-string type))))
+
 (defun vector-type-selector-symbol (type elm)
   ;; e.g. float3 x => float3-x
   (unless (vector-type-p type)
     (error (format nil "invalid type: ~A" type)))
   (unless (find elm +vector-type-elements+)
     (error (format nil "invalid element: ~A" elm)))
-  (symbolicate (princ-to-string type) "-" (princ-to-string elm)))
+  (cl-cuda-symbolicate (princ-to-string type) "-" (princ-to-string elm)))
 
 (defun vector-type-selector (type elm)
   ;; e.g. float3 x => #'float3-x
@@ -305,7 +468,8 @@
   ;; e.g. float3-x => float
   (unless (find selector (vector-type-selector-symbols))
     (error (format nil "invalid selector: ~A" selector)))
-  (symbolicate (reverse (subseq (reverse (princ-to-string selector)) 3))))
+  (cl-cuda-symbolicate
+    (reverse (subseq (reverse (princ-to-string selector)) 3))))
 
 (defun vector-type-selector-symbols ()
   (labels ((aux (type)
@@ -334,13 +498,12 @@
              (if (< n2 1)
                  str
                  (aux (concatenate 'string str "*") (1- n2)))))
-;    (intern (aux (princ-to-string type) n) :cl-cuda))
-    (symbolicate (aux (princ-to-string type) n))))
+    (cl-cuda-symbolicate (aux (princ-to-string type) n))))
 
 (defun remove-star (type)
   (let ((rev (reverse (princ-to-string type))))
     (if (string= (subseq rev 0 1) "*")
-        (remove-star (symbolicate (reverse (subseq rev 1))))
+        (remove-star (cl-cuda-symbolicate (reverse (subseq rev 1))))
         type)))
 
 (defun type-dimension (type)
@@ -352,13 +515,26 @@
                             float :float))
 
 (defun cffi-type (type)
-  (unless (valid-type-p type)
-    (error (format nil "invalid type: ~A" type)))
   (acond
     ((pointer-type-p type) 'cu-device-ptr)
     ((getf +cffi-type-table+ type) it)
     ((vector-type-p type) type)
     (t (error (format nil "invalid type: ~A" type)))))
+
+(defun basic-type-size (type)
+  (getf +basic-types+ type))
+
+(defun vector-type-size (type)
+  (* (vector-type-length type)
+     (size-of (vector-type-base-type type))))
+
+(defun size-of (type)
+  (cond
+    ((pointer-type-p type) 4)
+    ((basic-type-p type) (basic-type-size type))
+    ((vector-type-p type) (vector-type-size type))
+    (t (error (format nil "invalid type: ~A" type)))))
+
 
 
 ;;; kernel-arg
@@ -378,7 +554,7 @@
       (error (format nil "invalid type: ~A" type)))
     (if (non-pointer-type-p type)
         (var-ptr var)
-        var)))
+        `(memory-block-device-ptr ,var))))
 
 (defun kernel-arg-foreign-pointer-bindings (arg-bindings)
   ; ((a float*) (b float*) (c float*) (n int)) -> ((n n-ptr :int))
@@ -567,9 +743,9 @@
   (when (kernel-manager-function-handle mgr name)
     (error "kernel function \"~A\" is already loaded." name))
   (let ((hmodule (kernel-manager-module-handle mgr))
-        (hfunc (foreign-alloc 'cu-function))
+        (hfunc (cffi:foreign-alloc 'cu-function))
         (fname (kernel-manager-function-c-name mgr name)))
-    (cu-module-get-function hfunc (mem-ref hmodule 'cu-module) fname)
+    (cu-module-get-function hfunc (cffi:mem-ref hmodule 'cu-module) fname)
     (setf (kernel-manager-function-handle mgr name) hfunc)))
 
 (defun kernel-manager-load-module (mgr)
@@ -577,7 +753,7 @@
     (error "kernel module is already loaded."))
   (unless (no-kernel-functions-loaded-p mgr)
     (error "some kernel functions are already loaded."))
-  (let ((hmodule (foreign-alloc 'cu-module))
+  (let ((hmodule (cffi:foreign-alloc 'cu-module))
         (path (kernel-manager-module-path mgr)))
     (cu-module-load hmodule path)
     (setf (kernel-manager-module-handle mgr) hmodule)))
@@ -590,20 +766,20 @@
 
 (defun kernel-manager-unload (mgr)
   (swhen (kernel-manager-module-handle mgr)
-    (cu-module-unload (mem-ref it 'cu-module)))
+    (cu-module-unload (cffi:mem-ref it 'cu-module)))
   (free-function-handles mgr)
   (free-module-handle mgr))
 
 (defun free-module-handle (mgr)
   (swhen (kernel-manager-module-handle mgr)
-    (foreign-free it)
+    (cffi:foreign-free it)
     (setf it nil)))
 
 (defun free-function-handles (mgr)
   (let ((handles (function-handles mgr)))
     (maphash-keys #'(lambda (key)
                       (swhen (gethash key handles)
-                        (foreign-free it)
+                        (cffi:foreign-free it)
                         (setf it nil))) handles)))
 
 (defvar +temporary-path-template+ "/tmp/cl-cuda-")
@@ -1521,3 +1697,7 @@
 
 (defun undefined ()
   (error "undefined"))
+
+(defun cl-cuda-symbolicate (&rest args)
+  (intern (apply #'concatenate 'string (mapcar #'princ-to-string args))
+          :cl-cuda))
