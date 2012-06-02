@@ -11,6 +11,8 @@
   (:export :main))
 (in-package :cl-cuda-examples.shared-memory)
 
+(setf cl-cuda:*show-messages* nil)
+
 (defmacro def-global-memory (n)
   (let ((name (symbolicate "GLOBAL-MEMORY-" (princ-to-string n))))
     `(defkernel ,name (void ((a float*)))
@@ -52,30 +54,29 @@
 
 (defun init (a n)
   (dotimes (i n)
-    (setf (cffi:mem-aref a :float i) 0.0)))
+    (setf (mem-aref a i) 0.0)))
 
 (defun verify (a n expected)
   (dotimes (i n)
-    (unless (= (cffi:mem-aref a :float i) expected)
+    (unless (= (mem-aref a i) expected)
       (error (format nil "verification fault: ~A ~A"
-                         (cffi:mem-aref a :float i) expected))))
+                         (mem-aref a i) expected))))
   (format t "verification succeed.~%"))
 
 (defun main (func expected)
   (let ((n (* 256 256)))
     (with-cuda-context (0)
-      (cffi:with-foreign-object (h-a :float n)
-      (with-cuda-memory-block (d-a (* n 4))
-        (init h-a n)
-        (cu-memcpy-host-to-device (cffi:mem-ref d-a 'cu-device-ptr) h-a (* n 4))
+      (with-memory-blocks ((a 'float n))
+        (init a n)
+        (memcpy-host-to-device a)
         (time
          (dotimes (i 100)
-           (funcall func d-a
+           (funcall func a
                     :grid-dim (list (/ n 16) 1 1)
                     :block-dim '(16 1 1))
            (cu-ctx-synchronize)))
-        (cu-memcpy-device-to-host h-a (cffi:mem-ref d-a 'cu-device-ptr) (* n 4))
-        (verify h-a n expected))))))
+        (memcpy-device-to-host a)
+        (verify a n expected)))))
 
 (defun main-shared-memory ()
   (format t "#shared-memory-1000~%")
