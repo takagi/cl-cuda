@@ -32,8 +32,6 @@
            :check-cuda-errors           ; Helpers
            :*show-messages*
            :with-cuda-context
-           :with-cuda-memory-block
-           :with-cuda-memory-blocks
            :with-memory-blocks          ; Memory Block
            :mem-aref
            :memcpy-host-to-device
