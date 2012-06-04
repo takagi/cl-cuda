@@ -227,19 +227,23 @@
          ,@(mapcar #'free-memory-block-form bindings)))))
 
 (defun basic-type-mem-aref (blk idx)
-  (cffi:mem-aref (memory-block-cffi-ptr blk)
-                 (memory-block-cffi-type blk)
-                 idx))
+  ;; give type and slot names as constant explicitly for better performance
+  (case (memory-block-type blk)
+    (int (cffi:mem-aref (memory-block-cffi-ptr blk) :int idx))
+    (float (cffi:mem-aref (memory-block-cffi-ptr blk) :float idx))
+    (t (error "must not be reached"))))
+
+(defun float3-mem-aref (blk idx)
+  ;; give type and slot names as constant explicitly for better performance
+  (let ((ptr (cffi:mem-aref (memory-block-cffi-ptr blk) 'float3 idx)))
+    (make-float3 (cffi:foreign-slot-value ptr 'float3 'x)
+                 (cffi:foreign-slot-value ptr 'float3 'y)
+                 (cffi:foreign-slot-value ptr 'float3 'z))))
 
 (defun vector-type-mem-aref (blk idx)
-  (let* ((type (memory-block-type blk))
-         (cffi-type (memory-block-cffi-type blk))
-         (ptr (cffi:mem-aref (memory-block-cffi-ptr blk) cffi-type idx)))
-    (let ((constructor (vector-type-constructor type))
-          (elements (loop repeat (vector-type-length type)
-                       for elm in +vector-type-elements+
-                       collect (cffi:foreign-slot-value ptr cffi-type elm))))
-      (apply constructor elements))))
+  (case (memory-block-type blk)
+    (float3 (float3-mem-aref blk idx))
+    (t (error "must not be reached"))))
 
 (defun mem-aref (blk idx)
   (unless (and (<= 0 idx) (< idx (memory-block-length blk)))
@@ -251,19 +255,23 @@
       (t (error "must not be reached")))))
 
 (defun basic-type-setf-mem-aref (blk idx val)
-  (setf (cffi:mem-aref (memory-block-cffi-ptr blk)
-                       (memory-block-cffi-type blk)
-                       idx)
-        val))
+  ;; give type as constant explicitly for better performance
+  (case (memory-block-type blk)
+    (int (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :int idx) val))
+    (float (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :float idx) val))
+    (t (error "must not be reached"))))
+
+(defun float3-setf-mem-aref (blk idx val)
+  ;; give type and slot names as constant explicitly for better performance
+  (let ((ptr (cffi:mem-aref (memory-block-cffi-ptr blk) 'float3 idx)))
+    (setf (cffi:foreign-slot-value ptr 'float3 'x) (float3-x val))
+    (setf (cffi:foreign-slot-value ptr 'float3 'y) (float3-y val))
+    (setf (cffi:foreign-slot-value ptr 'float3 'z) (float3-z val))))
 
 (defun vector-type-setf-mem-aref (blk idx val)
-  (let* ((type (memory-block-type blk))
-         (cffi-type (memory-block-cffi-type blk))
-         (ptr (cffi:mem-aref (memory-block-cffi-ptr blk) cffi-type idx)))
-    (loop repeat (vector-type-length type)
-       for elm in +vector-type-elements+
-       do (setf (cffi:foreign-slot-value ptr cffi-type elm)
-                (funcall (vector-type-selector type elm) val)))))
+  (case (memory-block-type blk)
+    (float3 (float3-setf-mem-aref blk idx val))
+    (t (error "must not be unreached"))))
 
 (defun (setf mem-aref) (val blk idx)
   (unless (and (<= 0 idx) (< idx (memory-block-length blk)))
@@ -426,7 +434,7 @@
 (defvar +vector-type-elements+ '(x y z w))
 
 (defun basic-type-p (type)
-  (and (find type +basic-types+)
+  (and (getf +basic-types+ type)
        t))
 
 (defun vector-type-p (type)
@@ -437,20 +445,14 @@
   ;; e.g. float3 => 3
   (unless (vector-type-p type)
     (error (format nil "invalid type: ~A" type)))
-  (parse-integer (subseq (reverse (princ-to-string type)) 0 1)))
+  (let ((str (symbol-name type)))
+    (parse-integer (subseq str (1- (length str))))))
 
 (defun vector-type-base-type (type)
   ;; e.g. float3 => float
   (unless (vector-type-p type)
     (error (format nil "invalid type: ~A" type)))
   (cl-cuda-symbolicate (reverse (subseq (reverse (princ-to-string type)) 1))))
-
-(defun vector-type-constructor (type)
-  ;; e.g. float3 => #'make-float3
-  (unless (vector-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (symbol-function
-    (cl-cuda-symbolicate "MAKE-" (princ-to-string type))))
 
 (defun vector-type-selector-symbol (type elm)
   ;; e.g. float3 x => float3-x
@@ -459,10 +461,6 @@
   (unless (find elm +vector-type-elements+)
     (error (format nil "invalid element: ~A" elm)))
   (cl-cuda-symbolicate (princ-to-string type) "-" (princ-to-string elm)))
-
-(defun vector-type-selector (type elm)
-  ;; e.g. float3 x => #'float3-x
-  (symbol-function (vector-type-selector-symbol type elm)))
 
 (defun vector-type-selector-return-type (selector)
   ;; e.g. float3-x => float
@@ -484,10 +482,11 @@
       (vector-type-p type)))
 
 (defun pointer-type-p (type)
-  (let ((last (subseq (reverse (princ-to-string type)) 0 1)))
-    (and (string= last "*")
-         (non-pointer-type-p (remove-star type))
-         t)))
+  (let ((type-str (symbol-name type)))
+    (let ((last (aref type-str (1- (length type-str)))))
+      (and (eq last #\*)
+           (non-pointer-type-p (remove-star type))
+           t))))
 
 (defun valid-type-p (type)
   (or (pointer-type-p type)
@@ -534,7 +533,6 @@
     ((basic-type-p type) (basic-type-size type))
     ((vector-type-p type) (vector-type-size type))
     (t (error (format nil "invalid type: ~A" type)))))
-
 
 
 ;;; kernel-arg
