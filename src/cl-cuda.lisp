@@ -227,7 +227,7 @@
          ,@(mapcar #'free-memory-block-form bindings)))))
 
 (defun basic-type-mem-aref (blk idx)
-  ;; give type and slot names as constant explicitly for better performance
+  ;; give type as constant explicitly for better performance
   (case (memory-block-type blk)
     (int (cffi:mem-aref (memory-block-cffi-ptr blk) :int idx))
     (float (cffi:mem-aref (memory-block-cffi-ptr blk) :float idx))
