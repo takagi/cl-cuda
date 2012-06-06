@@ -34,13 +34,16 @@ I will write some usage later. For now, please see the examples directory.
 
 ## Installation
 
-Since cl-cuda is not registered on Quicklisp yet, please
+Since cl-cuda is not available in Quicklisp distribution yet, please use Quicklisp's local-projects feature.
 
-    git clone git://github.com/takagi/cl-cuda.git
+    $ cd ~/quicklisp/local-projects
+    $ git clone git://github.com/takagi/cl-cuda.git
 
-to install it.
+Then use the `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
-Before using cl-cuda, you must specify where libcuda dynamic library is and where nvcc compiler is. Please change the related part of src/cl-cuda.lisp. I will make better way to specify them later.
+Please notice that if you use slime-repl on OS X, you must load it on inferior-lisp buffer instead of slime-repl buffer because OS X can only load libcuda library which is used in cl-cuda through CFFI from the main thread, otherwise an unexpected connection break down will happen.
+
+Before using cl-cuda, you must specify where `libcuda` dynamic library is and where `nvcc` compiler is on your environment. Please change the related part of src/cl-cuda.lisp. I will make better way to specify them later.
 
 I will write more about installation later.
 
