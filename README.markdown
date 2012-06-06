@@ -54,7 +54,7 @@ Since cl-cuda is not available in Quicklisp distribution yet, please use Quickli
 
 Then use the `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
-Please notice that if you use slime-repl on OS X, you must load it on inferior-lisp buffer instead of slime-repl buffer because OS X can only load libcuda library which is used in cl-cuda through CFFI from the main thread, otherwise an unexpected connection break down will happen.
+Please notice that if you use slime-repl on OS X, you must load cl-cuda on inferior-lisp buffer instead of slime-repl buffer because OS X can only load libcuda library which is used in cl-cuda through CFFI from the main thread, otherwise an unexpected connection break down will happen.
 
 Before using cl-cuda, you must specify where `libcuda` dynamic library is and where `nvcc` compiler is on your environment. Please change the related part of src/cl-cuda.lisp. I will make better way to specify them later.
 
