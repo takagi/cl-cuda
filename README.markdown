@@ -14,19 +14,31 @@ Once kernel functions are defined, they can be launched as if ordinal Common Lis
 
 For the whole code, please see examples/vector-add.lisp.
 
+    (defun random-init ...)
+    (defun verivy-result ...)
+
     (defkernel vec-add-kernel (void ((a float*) (b float*) (c float*) (n int)))
       (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x)))
         (if (< i n)
             (set (aref c i)
                  (+ (aref a i) (aref b i))))))
     
-    (let ((dev-id 0))
+    (let ((dev-id 0)
+          (n 1024)
+          (threads-per-block 256)
+          (blocks-per-grid (/ n threads-per-block)))
       (with-cuda-context (dev-id)
-        ...
-        (vec-add-kernel d-a d-b d-c n
-                        :grid-dim (list blocks-per-grid 1 1)
-                        :block-dim (list threads-per-block 1 1))
-        ...))
+        (with-memory-blocks ((a 'float n)
+                             (b 'float n)
+                             (c 'float n))
+          (random-init a n)
+          (random-init b n)
+          (memcpy-host-to-device a b)
+          (vec-add-kernel d-a d-b d-c n
+                          :grid-dim (list blocks-per-grid 1 1)
+                          :block-dim (list threads-per-block 1 1))
+          (memcpy-device-to-host c)
+          (verify-result a b c n))))
 
 ## Usage
 
