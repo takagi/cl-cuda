@@ -39,7 +39,7 @@ For the whole code, please see examples/vector-add.lisp.
                             :grid-dim (list blocks-per-grid 1 1)
                             :block-dim (list threads-per-block 1 1))
             (memcpy-device-to-host c)
-            (verify-result a b c n))))
+            (verify-result a b c n)))))
 
 ## Usage
 
