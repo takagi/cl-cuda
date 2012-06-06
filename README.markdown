@@ -34,7 +34,7 @@ For the whole code, please see examples/vector-add.lisp.
           (random-init a n)
           (random-init b n)
           (memcpy-host-to-device a b)
-          (vec-add-kernel d-a d-b d-c n
+          (vec-add-kernel a b c n
                           :grid-dim (list blocks-per-grid 1 1)
                           :block-dim (list threads-per-block 1 1))
           (memcpy-device-to-host c)
