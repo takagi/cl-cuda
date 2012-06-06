@@ -36,11 +36,11 @@ I will write some usage later. For now, please see the examples directory.
 
 Since cl-cuda is not registered on Quicklisp yet, please
 
-    git clone git clone git://github.com/takagi/cl-cuda.git
+    git clone git://github.com/takagi/cl-cuda.git
 
 to install it.
 
-Before using cl-cuda, you must specify where **libcuda** dynamic library is and where nvcc compiler is. Please change the related part of src/cl-cuda.lisp. I will make better way to specify them later.
+Before using cl-cuda, you must specify where libcuda dynamic library is and where nvcc compiler is. Please change the related part of src/cl-cuda.lisp. I will make better way to specify them later.
 
 I will write more about installation later.
 
