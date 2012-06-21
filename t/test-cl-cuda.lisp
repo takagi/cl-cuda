@@ -164,15 +164,23 @@
 
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
+    ;; int array
     (with-memory-blocks ((x 'int 1))
       (setf (mem-aref x 0) 1)
       (is (mem-aref x 0) 1))
+    ;; float array
     (with-memory-blocks ((x 'float 1))
       (setf (mem-aref x 0) 1.0)
       (is (mem-aref x 0) 1.0))
+    ;; float3 array
     (with-memory-blocks ((x 'float3 1))
       (setf (mem-aref x 0) (make-float3 1.0 1.0 1.0))
       (is (mem-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=))
+    ;; float4 array
+    (with-memory-blocks ((x 'float4 1))
+      (setf (mem-aref x 0) (make-float4 1.0 1.0 1.0 1.0))
+      (is (mem-aref x 0) (make-float4 1.0 1.0 1.0 1.0) :test #'float4-=))
+    ;; error cases
     (with-memory-blocks ((x 'int 1))
       (is-error (mem-aref x -1) simple-error)
       (is-error (setf (mem-aref x -1) 0) simple-error)
@@ -216,7 +224,8 @@
           simple-error)
 
 (is (cl-cuda::vector-type-selector-symbols)
-    '(float3-x float3-y float3-z))
+    '(float3-x float3-y float3-z
+      float4-x float4-y float4-z float4-w))
 
 (is (cl-cuda::foreign-pointer-setf-vector-type 'x 'x-ptr 'float3)
     '(progn
@@ -330,7 +339,7 @@
 (is (cl-cuda::basic-type-p 'float) t)
 
 (is (cl-cuda::vector-type-p 'float3) t)
-(is (cl-cuda::vector-type-p 'float4) nil)
+(is (cl-cuda::vector-type-p 'float4) t)
 (is (cl-cuda::vector-type-p 'float5) nil)
 
 (is (cl-cuda::valid-type-p 'void) t)
@@ -338,7 +347,7 @@
 (is (cl-cuda::valid-type-p 'float) t)
 (is (cl-cuda::valid-type-p 'double) nil)
 (is (cl-cuda::valid-type-p 'float3) t)
-(is (cl-cuda::valid-type-p 'float4) nil)
+(is (cl-cuda::valid-type-p 'float4) t)
 (is (cl-cuda::valid-type-p 'float*) t)
 (is (cl-cuda::valid-type-p 'float**) t)
 (is (cl-cuda::valid-type-p '*float**) nil)
@@ -346,11 +355,13 @@
 (is (cl-cuda::pointer-type-p 'int) nil)
 (is (cl-cuda::pointer-type-p 'float*) t)
 (is (cl-cuda::pointer-type-p 'float3*) t)
+(is (cl-cuda::pointer-type-p 'float4*) t)
 (is (cl-cuda::pointer-type-p '*float*) nil)
 
 (is (cl-cuda::non-pointer-type-p 'int) t)
 (is (cl-cuda::non-pointer-type-p 'float*) nil)
 (is (cl-cuda::non-pointer-type-p 'float3*) nil)
+(is (cl-cuda::non-pointer-type-p 'float4*) nil)
 (is (cl-cuda::non-pointer-type-p '*float3*) nil)
 
 (is (cl-cuda::add-star 'int -1) 'int)
@@ -371,13 +382,16 @@
 (is (cl-cuda::cffi-type 'int) :int)
 (is (cl-cuda::cffi-type 'float) :float)
 (is (cl-cuda::cffi-type 'float3) 'float3)
+(is (cl-cuda::cffi-type 'float4) 'float4)
 (is (cl-cuda::cffi-type 'float*) 'cu-device-ptr)
 (is (cl-cuda::cffi-type 'float3*) 'cu-device-ptr)
+(is (cl-cuda::cffi-type 'float4*) 'cu-device-ptr)
 
 (is (cl-cuda::size-of 'void) 0)
 (is (cl-cuda::size-of 'int) 4)
 (is (cl-cuda::size-of 'float) 4)
 (is (cl-cuda::size-of 'float3) 12)
+(is (cl-cuda::size-of 'float4) 16)
 (is (cl-cuda::size-of 'int*) 4)
 (is (cl-cuda::size-of 'int**) 4)
 (is (cl-cuda::size-of 'int***) 4)
@@ -741,6 +755,8 @@
 
 (is (cl-cuda::compile-function '(float3 1.0 1.0 1.0) nil nil)
     "make_float3 (1.0, 1.0, 1.0)")
+(is (cl-cuda::compile-function '(float4 1.0 1.0 1.0 1.0) nil nil)
+    "make_float4 (1.0, 1.0, 1.0, 1.0)")
 
 
 ;;; test built-in arithmetic functions
@@ -796,6 +812,10 @@
 (is (cl-cuda::variable-reference-p '(float3-x x)) t)
 (is (cl-cuda::variable-reference-p '(float3-y x)) t)
 (is (cl-cuda::variable-reference-p '(float3-z x)) t)
+(is (cl-cuda::variable-reference-p '(float4-x x)) t)
+(is (cl-cuda::variable-reference-p '(float4-y x)) t)
+(is (cl-cuda::variable-reference-p '(float4-z x)) t)
+(is (cl-cuda::variable-reference-p '(float4-w x)) t)
 
 (is-error (cl-cuda::compile-variable-reference 'x nil nil) simple-error)
 
@@ -823,6 +843,12 @@
   (is (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) "x.x")
   (is (cl-cuda::compile-variable-reference '(float3-y x) type-env nil) "x.y")
   (is (cl-cuda::compile-variable-reference '(float3-z x) type-env nil) "x.z"))
+
+(cl-cuda::with-type-environment (type-env ((x float4)))
+  (is (cl-cuda::compile-variable-reference '(float4-x x) type-env nil) "x.x")
+  (is (cl-cuda::compile-variable-reference '(float4-y x) type-env nil) "x.y")
+  (is (cl-cuda::compile-variable-reference '(float4-z x) type-env nil) "x.z")
+  (is (cl-cuda::compile-variable-reference '(float4-w x) type-env nil) "x.w"))
 
 
 ;;; test type-of-expression
@@ -882,6 +908,12 @@
   (is (cl-cuda::type-of-variable-reference '(float3-x x) type-env) 'float)
   (is (cl-cuda::type-of-variable-reference '(float3-y x) type-env) 'float)
   (is (cl-cuda::type-of-variable-reference '(float3-z x) type-env) 'float))
+
+(cl-cuda::with-type-environment (type-env ((x float4)))
+  (is (cl-cuda::type-of-variable-reference '(float4-x x) type-env) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float4-y x) type-env) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float4-z x) type-env) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float4-w x) type-env) 'float))
 
 
 ;;; test utilities

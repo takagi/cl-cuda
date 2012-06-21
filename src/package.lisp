@@ -38,6 +38,8 @@
            :memcpy-device-to-host
            :float3 :make-float3         ; Built-in Vector Types
            :float3-x :float3-y :float3-z :float3-=
+           :float4 :make-float4
+           :float4-x :float4-y :float4-z :float4-w :float4-=
            :defkernel                   ; defkernel
            :void :int :int* :float :float*
            :grid-dim-x :grid-dim-y :grid-dim-z

@@ -145,6 +145,24 @@
   (y :float)
   (z :float))
 
+(defstruct (float4 (:constructor make-float4 (x y z w)))
+  (x 0.0 :type single-float)
+  (y 0.0 :type single-float)
+  (z 0.0 :type single-float)
+  (w 0.0 :type single-float))
+
+(defun float4-= (a b)
+  (and (= (float4-x a) (float4-x b))
+       (= (float4-y a) (float4-y b))
+       (= (float4-z a) (float4-z b))
+       (= (float4-w a) (float4-w b))))
+
+(cffi:defcstruct float4
+  (x :float)
+  (y :float)
+  (z :float)
+  (w :float))
+
 
 ;;; Constants
 
@@ -240,9 +258,18 @@
                  (cffi:foreign-slot-value ptr 'float3 'y)
                  (cffi:foreign-slot-value ptr 'float3 'z))))
 
+(defun float4-mem-aref (blk idx)
+  ;; give type and slot names as constant explicitly for better performance
+  (let ((ptr (cffi:mem-aref (memory-block-cffi-ptr blk) 'float4 idx)))
+    (make-float4 (cffi:foreign-slot-value ptr 'float4 'x)
+                 (cffi:foreign-slot-value ptr 'float4 'y)
+                 (cffi:foreign-slot-value ptr 'float4 'z)
+                 (cffi:foreign-slot-value ptr 'float4 'w))))
+                 
 (defun vector-type-mem-aref (blk idx)
   (case (memory-block-type blk)
     (float3 (float3-mem-aref blk idx))
+    (float4 (float4-mem-aref blk idx))
     (t (error "must not be reached"))))
 
 (defun mem-aref (blk idx)
@@ -268,9 +295,18 @@
     (setf (cffi:foreign-slot-value ptr 'float3 'y) (float3-y val))
     (setf (cffi:foreign-slot-value ptr 'float3 'z) (float3-z val))))
 
+(defun float4-setf-mem-aref (blk idx val)
+  ;; give type and slot names as constant explicitly for better performance
+  (let ((ptr (cffi:mem-aref (memory-block-cffi-ptr blk) 'float4 idx)))
+    (setf (cffi:foreign-slot-value ptr 'float4 'x) (float4-x val))
+    (setf (cffi:foreign-slot-value ptr 'float4 'y) (float4-y val))
+    (setf (cffi:foreign-slot-value ptr 'float4 'z) (float4-z val))
+    (setf (cffi:foreign-slot-value ptr 'float4 'w) (float4-w val))))
+
 (defun vector-type-setf-mem-aref (blk idx val)
   (case (memory-block-type blk)
     (float3 (float3-setf-mem-aref blk idx val))
+    (float4 (float4-setf-mem-aref blk idx val))
     (t (error "must not be unreached"))))
 
 (defun (setf mem-aref) (val blk idx)
@@ -429,7 +465,7 @@
                         int 4
                         float 4))
 
-(defvar +vector-type-table+ '(float3))
+(defvar +vector-type-table+ '(float3 float4))
 
 (defvar +vector-type-elements+ '(x y z w))
 
@@ -1376,6 +1412,7 @@
            ((float float) bool "<=")))
     expt (nil (((float float) float "powf")))
     float3 (nil (((float float float) float3 "make_float3")))
+    float4 (nil (((float float float float) float4 "make_float4")))
     ))
 
 (defun built-in-function-infix-p (op)
