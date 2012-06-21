@@ -574,10 +574,10 @@
 
 (let ((lisp-code '(for ((a 0 15 1)
                         (b 0 15))
-                    (return)))
+                    (+ a b)))
       (c-code (cl-cuda::unlines "for ( int a = 0, int b = 0; a <= 15, b <= 15; a += 1, b += 1 )"
                                 "{"
-                                "  return;"
+                                "  (a + b);"
                                 "}")))
   (is (cl-cuda::compile-for-begin-part lisp-code nil nil)
       "int a = 0, int b = 0")

@@ -1163,6 +1163,9 @@
 (defun for-vars (stmt)
   (mapcar #'car (for-bindings stmt)))
 
+(defun for-var-types (stmt type-env def)
+  (mapcar #'list (for-vars stmt) (for-types stmt type-env def)))
+
 (defun for-begins (stmt)
   (mapcar #'cadr (for-bindings stmt)))
 
@@ -1188,10 +1191,12 @@
 (defun compile-for (stmt type-env def)
   (let ((begin-part (compile-for-begin-part stmt type-env def))
         (end-part (compile-for-end-part stmt type-env def))
-        (step-part (compile-for-step-part stmt type-env def)))
+        (step-part (compile-for-step-part stmt type-env def))
+        (type-env2 (bulk-add-type-environment (for-var-types stmt type-env def)
+                                              type-env)))
     (unlines (format nil "for ( ~A; ~A; ~A )" begin-part end-part step-part)
              "{"
-             (indent 2 (compile-for-statements stmt type-env def))
+             (indent 2 (compile-for-statements stmt type-env2 def))
              "}")))
 
 (defun compile-for-begin-part (stmt type-env def)
@@ -1680,17 +1685,20 @@
   (assert (valid-type-p type))
   (cons (cons var type) type-env))
 
+(defun bulk-add-type-environment (bindings type-env)
+  (reduce #'(lambda (type-env2 binding)
+              (destructuring-bind (var type) binding
+                (add-type-environment var type type-env2)))
+          bindings
+          :initial-value type-env))
+
 (defun lookup-type-environment (var type-env)
   (match (assoc var type-env)
     ((_ . type) type)
     (_ (error (format nil "unbound variable: ~A" var)))))
 
 (defmacro with-type-environment ((var bindings) &body body)
-  `(let ((,var ,(reduce #'(lambda (form binding)
-                            (destructuring-bind (var type) binding
-                              `(add-type-environment ',var ',type ,form)))
-                        bindings
-                        :initial-value '(empty-type-environment))))
+  `(let ((,var (bulk-add-type-environment ',bindings (empty-type-environment))))
      ,@body))
 
 
