@@ -1227,7 +1227,7 @@
                                         (compile-expression exp type-env def))
                                     sizes))
                 (%compile-with-shared-memory rest stmts type-env2 def))))
-    (_ (error (format nil "invalid specs: ~A" specs)))))
+    (_ (error (format nil "invalid shared memory specs: ~A" specs)))))
 
 (defun compile-with-shared-memory-statements (stmts type-env def)
   (compile-let-statements stmts type-env def))
