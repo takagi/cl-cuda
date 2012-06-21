@@ -1375,6 +1375,7 @@
     <= (t (((int int) bool "<=")
            ((float float) bool "<=")))
     expt (nil (((float float) float "powf")))
+    float3 (nil (((float float float) float3 "make_float3")))
     ))
 
 (defun built-in-function-infix-p (op)

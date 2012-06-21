@@ -739,6 +739,9 @@
   (is-error (cl-cuda::compile-function '(foo 1 1 1) nil def :statement-p t)
             simple-error))
 
+(is (cl-cuda::compile-function '(float3 1.0 1.0 1.0) nil nil)
+    "make_float3 (1.0, 1.0, 1.0)")
+
 
 ;;; test built-in arithmetic functions
 
