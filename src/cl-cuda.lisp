@@ -1566,9 +1566,7 @@
 (defun compile-scalar-variable-reference (var type-env)
   (let ((type (lookup-type-environment var type-env)))
     (unless type
-      (error (format nil "unbound variable: ~A" var)))
-    (unless (non-pointer-type-p type)
-      (error (format nil "invalid variable: ~A" var))))
+      (error (format nil "unbound variable: ~A" var))))
   (compile-identifier var))
 
 (defun compile-vector-selector (selector)
@@ -1630,8 +1628,6 @@
   (let ((type (lookup-type-environment var type-env)))
     (unless type
       (error (format nil "unbound variable: ~A" var)))
-    (unless (non-pointer-type-p type)
-      (error (format nil "invalid variable: ~A" var)))
     type))
 
 (defun type-of-vector-variable-reference (exp type-env)

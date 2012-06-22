@@ -827,13 +827,13 @@
             simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int*)))
-  (is-error (cl-cuda::compile-variable-reference 'x type-env nil) simple-error)
+  (is (cl-cuda::compile-variable-reference 'x type-env nil) "x")
   (is (cl-cuda::compile-variable-reference '(aref x 0) type-env nil) "x[0]")
   (is-error (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
             simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int**)))
-  (is-error (cl-cuda::compile-variable-reference 'x type-env nil) simple-error)
+  (is (cl-cuda::compile-variable-reference 'x type-env nil) "x")
   (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil)
             simple-error)
   (is (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
@@ -893,13 +893,13 @@
             simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int*)))
-  (is-error (cl-cuda::type-of-variable-reference 'x type-env) simple-error)
+  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int*)
   (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'int)
   (is-error (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env)
             simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int**)))
-  (is-error (cl-cuda::type-of-variable-reference 'x type-env) simple-error)
+  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int**)
   (is-error (cl-cuda::type-of-variable-reference '(aref x 0) type-env)
             simple-error)
   (is (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) 'int))
