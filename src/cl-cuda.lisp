@@ -1415,6 +1415,8 @@
           ((float float) bool "<")))
     <= (t (((int int) bool "<=")
            ((float float) bool "<=")))
+    >= (t (((int int) bool ">=")
+           ((float float) bool ">=")))
     expt (nil (((float float) float "powf")))
     rsqrtf (nil (((float) float "rsqrtf")))
     float3 (nil (((float float float) float3 "make_float3")))
