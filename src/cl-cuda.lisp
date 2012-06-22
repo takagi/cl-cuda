@@ -1379,7 +1379,7 @@
     (let ((func (kernel-function-c-name operator def)))
       (unless (equal (kernel-function-arg-types operator def)
                      (type-of-operands operands type-env def))
-        (error (format nil "invalid arguments: ~A" (cons operands operands))))
+        (error (format nil "invalid arguments: ~A" (cons operator operands))))
       (format nil "~A (~A)" func (compile-operands operands type-env def)))))
 
 (defun type-of-operands (operands type-env def)
