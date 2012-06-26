@@ -18,5 +18,7 @@
                 :serial t
                 :components
                 ((:file "diffuse0")
+                 (:file "diffuse1")
+                 (:file "shared-memory")
                  (:file "vector-add"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
