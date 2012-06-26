@@ -13,12 +13,16 @@
   :license "LLGPL"
   :depends-on (:cl-cuda
                :imago
-               :cl-stopwatch)
+               :cl-stopwatch
+               :cl-opengl
+               :cl-glu
+               :cl-glut)
   :components ((:module "examples"
                 :serial t
                 :components
                 ((:file "diffuse0")
                  (:file "diffuse1")
+                 (:file "nbody")
                  (:file "shared-memory")
                  (:file "vector-add"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
