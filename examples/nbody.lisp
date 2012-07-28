@@ -152,21 +152,6 @@
 (defun update (new-pos old-pos vel delta-time damping num-bodies p)
   (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
 
-#|
-(defun run-benchmark (new-pos old-pos vel delta-time damping num-bodies p iterations)
-  (update new-pos old-pos vel delta-time damping num-bodies p)
-  ;; create-timer
-  ;; start-timer
-  (loop repeat iterations
-     do (update new-pos old-pos vel delta-time damping new-pos p))
-  ;; stop-timer
-  ;; get elapsed time
-  ;; delete-timer
-  ;; compute-perf-stats
-  ;; show-log
-  )
-|#
-
 (defclass nbody-window (glut:window)
   ((new-pos :initform nil)
    (old-pos :initform nil)
@@ -174,9 +159,7 @@
    (delta-time :initform 0)
    (damping :initform 0)
    (num-bodies :initform 0)
-   (p :initform 0)
-   (start-event :initform nil)
-   (stop-event :initform nil))
+   (p :initform 0))
   (:default-initargs :width 640 :height 480 :pos-x 100 :pos-y 100
                      :mode '(:double :rgb) :title "nbody"))
 
@@ -184,6 +167,7 @@
   (gl:clear-color 0 0 0 0))
 
 (defmethod glut:display ((w nbody-window))
+  ;; clear buffers
   (gl:clear :color-buffer :depth-buffer-bit)
   ;; view transform
   (gl:matrix-mode :modelview)
@@ -201,10 +185,10 @@
       (let ((p (mem-aref old-pos i)))
         (gl:vertex (float4-x p) (float4-y p) (float4-z p)))))
   (gl:end)
+  ;; swap buffers
   (glut:swap-buffers)
-  (display-frame-rate (slot-value w 'num-bodies)
-                      (slot-value w 'start-event)
-                      (slot-value w 'stop-event)))
+  ;; display frame rate
+  (display-frame-rate (slot-value w 'num-bodies)))
 
 (defvar *flops-per-interaction* 20)
 
@@ -218,47 +202,68 @@
 (let ((fps-count 0)
       (fps-limit 5)
       (template "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"))
-  (defun display-frame-rate (num-bodies start-event stop-event)
+  (defun display-frame-rate (num-bodies)
     (incf fps-count)
     (when (>= fps-count fps-limit)
-      (cffi:with-foreign-object (pmilliseconds :float)
-        (cu-event-record (cffi:mem-ref stop-event 'cu-event)
-                         (cffi:null-pointer))
-        (cu-event-synchronize (cffi:mem-ref stop-event 'cu-event))
-        (cu-event-elapsed-time pmilliseconds
-                               (cffi:mem-ref start-event 'cu-event)
-                               (cffi:mem-ref stop-event 'cu-event))
-        (let* ((milliseconds (/ (cffi:mem-ref pmilliseconds :float)
-                                fps-count))
-               (ifps (/ 1.0 (/ milliseconds 1000.0))))
-          (multiple-value-bind (interactions-per-second gflops)
-              (compute-perf-stats num-bodies milliseconds 1)
-            (glut:set-window-title (format nil template 
-                                           num-bodies ifps
-                                           interactions-per-second gflops)))
+      (let* ((milliseconds (/ (get-elapsed-time) fps-count))
+             (ifps (/ 1.0 (/ milliseconds 1000.0))))
+        (multiple-value-bind (interactions-per-second gflops)
+            (compute-perf-stats num-bodies milliseconds 1)
+          (glut:set-window-title (format nil template 
+                                         num-bodies ifps
+                                         interactions-per-second gflops))
           (setf fps-count 0)
-          (setf fps-limit (if (> ifps 1.0) ifps 1.0)))
-        (cu-event-record (cffi:mem-ref start-event 'cu-event)
-                         (cffi:null-pointer))))))
+          (setf fps-limit (if (> ifps 1.0) ifps 1.0)))))))
 
 (defmethod glut:reshape ((w nbody-window) width height)
+  ;; configure on projection mode
   (gl:matrix-mode :projection)
   (gl:load-identity)
   (glu:perspective 60.0 (/ width height) 0.1 1000.0)
-  
+  ;; configure on model-view mode
   (gl:matrix-mode :modelview)
   (gl:viewport 0 0 width height))
 
 (defmethod glut:idle ((w nbody-window))
-  (update (slot-value w 'new-pos)
-          (slot-value w 'old-pos)
-          (slot-value w 'vel)
-          (slot-value w 'delta-time)
-          (slot-value w 'damping)
-          (slot-value w 'num-bodies)
-          (slot-value w 'p))
-  (rotatef (slot-value w 'new-pos) (slot-value w 'old-pos))
-  (glut:post-redisplay))
+  (with-slots (new-pos old-pos vel delta-time damping num-bodies p) w
+    (update new-pos old-pos vel delta-time damping num-bodies p)
+    (rotatef new-pos old-pos)
+    (glut:post-redisplay)))
+
+(let (start-event stop-event)
+  (defmacro with-cuda-timer (&body body)
+    `(unwind-protect
+          (progn
+            (create-timer-events)
+            ,@body)
+       (destroy-timer-events)))
+  (defun create-timer-events ()
+    (setf start-event (cffi:foreign-alloc 'cu-event)
+          stop-event (cffi:foreign-alloc 'cu-event))
+    (cu-event-create start-event cu-event-default)
+    (cu-event-create stop-event cu-event-default))
+  (defun destroy-timer-events ()
+    (cu-event-destroy (cffi:mem-ref start-event 'cu-event))
+    (cu-event-destroy (cffi:mem-ref stop-event 'cu-event))
+    (cffi:foreign-free start-event)
+    (cffi:foreign-free stop-event))
+  (defun start-timer ()
+    (cu-event-record (cffi:mem-ref start-event 'cu-event)
+                     (cffi:null-pointer)))
+  (defun stop-and-synchronize-timer ()
+    (cu-event-record (cffi:mem-ref stop-event 'cu-event)
+                     (cffi:null-pointer))
+    (cu-event-synchronize (cffi:mem-ref stop-event 'cu-event)))
+  (defun get-elapsed-time ()
+    (let (milliseconds)
+      (cffi:with-foreign-object (pmilliseconds :float)
+        (stop-and-synchronize-timer)
+        (cu-event-elapsed-time pmilliseconds
+                               (cffi:mem-ref start-event 'cu-event)
+                               (cffi:mem-ref stop-event 'cu-event))
+        (start-timer)
+        (setf milliseconds (cffi:mem-ref pmilliseconds :float)))
+      milliseconds)))
 
 (defun main ()
   (let ((dev-id 0)
@@ -267,27 +272,26 @@
         (velocity-scale 2.64)
         (delta-time 0.016)
         (damping 1.0)
-        (p 256))
-      (with-cuda-context (dev-id)
-        (cffi:with-foreign-objects ((start-event 'cu-event)
-                                    (stop-event 'cu-event))
-          (cu-event-create start-event cu-event-default)
-          (cu-event-create stop-event cu-event-default)
-          (with-memory-blocks ((new-pos 'float4 num-bodies)
-                               (old-pos 'float4 num-bodies)
-                               (vel 'float4 num-bodies))
-            (reset old-pos vel cluster-scale velocity-scale num-bodies)
-            (memcpy-host-to-device old-pos vel)
-            (let ((window (make-instance 'nbody-window)))
-              (setf (slot-value window 'new-pos) new-pos)
-              (setf (slot-value window 'old-pos) old-pos)
-              (setf (slot-value window 'vel) vel)
-              (setf (slot-value window 'delta-time) delta-time)
-              (setf (slot-value window 'damping) damping)
-              (setf (slot-value window 'num-bodies) num-bodies)
-              (setf (slot-value window 'p) p)
-              (setf (slot-value window 'start-event) start-event)
-              (setf (slot-value window 'stop-event) stop-event)
-              (cu-event-record (cffi:mem-ref start-event 'cu-event)
-                               (cffi:null-pointer))
-              (glut:display-window window)))))))
+        (p 256)
+        (window (make-instance 'nbody-window)))
+    (with-cuda-context (dev-id)
+      (with-memory-blocks ((new-pos 'float4 num-bodies)
+                           (old-pos 'float4 num-bodies)
+                           (vel 'float4 num-bodies))
+      (with-cuda-timer
+        ;; set values to slots of the nbody window
+        (setf (slot-value window 'new-pos) new-pos
+              (slot-value window 'old-pos) old-pos
+              (slot-value window 'vel) vel
+              (slot-value window 'delta-time) delta-time
+              (slot-value window 'damping) damping
+              (slot-value window 'num-bodies) num-bodies
+              (slot-value window 'p) p)
+        ;; reset position and velocity of bodies
+        (reset old-pos vel cluster-scale velocity-scale num-bodies)
+        ;; copy position and velocity on host memory to device memory
+        (memcpy-host-to-device old-pos vel)
+        ;; start CUDA timer
+        (start-timer)
+        ;; start glut main loop
+        (glut:display-window window))))))
