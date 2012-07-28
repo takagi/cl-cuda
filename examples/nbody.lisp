@@ -207,13 +207,13 @@
     (when (>= fps-count fps-limit)
       (let* ((milliseconds (/ (get-elapsed-time) fps-count))
              (ifps (/ 1.0 (/ milliseconds 1000.0))))
-        (multiple-value-bind (interactions-per-second gflops)
-            (compute-perf-stats num-bodies milliseconds 1)
-          (glut:set-window-title (format nil template 
-                                         num-bodies ifps
-                                         interactions-per-second gflops))
-          (setf fps-count 0)
-          (setf fps-limit (if (> ifps 1.0) ifps 1.0)))))))
+      (multiple-value-bind (interactions-per-second gflops)
+          (compute-perf-stats num-bodies milliseconds 1)
+        (glut:set-window-title (format nil template 
+                                       num-bodies ifps
+                                       interactions-per-second gflops))
+        (setf fps-count 0)
+        (setf fps-limit (if (> ifps 1.0) ifps 1.0)))))))
 
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
