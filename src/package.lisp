@@ -13,6 +13,11 @@
            :cu-function
            :cu-stream
            :cu-device-ptr
+           :cu-event
+           :cu-event-default         ; Enums
+           :cu-event-blocking-sync
+           :cu-event-disable-timing
+           :cu-event-interprocess
            :cu-init                     ; Functions
            :cu-device-get
            :cu-device-get-count
@@ -28,6 +33,12 @@
            :cu-module-load
            :cu-module-get-function
            :cu-launch-kernel
+           :cu-event-create
+           :cu-event-destroy
+           :cu-event-elapsed-time
+           :cu-event-query
+           :cu-event-record
+           :cu-event-synchronize
            :+cuda-success+              ; Constants
            :check-cuda-errors           ; Helpers
            :*show-messages*

@@ -19,6 +19,34 @@
          (cffi:defcfun ,name-and-options% ,return-type ,@args))))
 
 
+;;; defcuenum
+
+(defun enum-keyword (enum-elem)
+  (match (ensure-list enum-elem)
+    ((keyword) keyword)
+    ((keyword _) keyword)
+    (_  (error (format nil "invalid enum element: ~A" enum-elem)))))
+
+(defun enum-value (enum-elem)
+  (match enum-elem
+    ((_ value) value)
+    (_ (error (format nil "invalid enum element: ~A" enum-elem)))))
+
+(defun defconstant-enum-value (name enum-elem)
+  (let ((keyword (enum-keyword enum-elem)))
+    `(defconstant ,(symbolicate keyword)
+                  (cffi:foreign-enum-value ',name ,keyword))))
+
+(defmacro defcuenum (name-and-options &body enum-list)
+  (let ((name name-and-options))
+    `(progn
+       (cffi:defcenum ,name
+         ,@enum-list)
+       ,@(mapcar (lambda (enum-elem)
+                   (defconstant-enum-value name enum-elem))
+                 enum-list))))
+
+
 ;;; load CUDA driver API
 
 (cffi:define-foreign-library libcuda
@@ -35,7 +63,17 @@
 (cffi:defctype cu-function :pointer)
 (cffi:defctype cu-stream :pointer)
 (cffi:defctype cu-device-ptr :unsigned-int)
+(cffi:defctype cu-event :pointer)
 (cffi:defctype size-t :unsigned-int)
+
+
+;;; Enums
+
+(defcuenum cu-event-flags-enum
+  (:cu-event-default #X0)
+  (:cu-event-blocking-sync #X1)
+  (:cu-event-disable-timing #X2)
+  (:cu-event-interprocess #X4))
 
 
 ;;; Functions
@@ -126,6 +164,34 @@
   (hstream cu-stream)
   (kernel-params (:pointer :pointer))
   (extra (:pointer :pointer)))
+
+;; cuEventCreate
+(defcufun (cu-event-create "cuEventCreate") cu-result
+  (phevent (:pointer cu-event))
+  (flags :unsigned-int))
+
+;; cuEventDestroy
+(defcufun (cu-event-destroy "cuEventDestroy") cu-result
+  (h-event cu-event))
+
+;; cuEventElapsedTime
+(defcufun (cu-event-elapsed-time "cuEventElapsedTime") cu-result
+  (pmilliseconds (:pointer :float))
+  (hstart cu-event)
+  (hend cu-event))
+
+;; cuEventQuery
+(defcufun (cu-event-query "cuEventQuery") cu-result
+  (hevent cu-event))
+
+;; cuEventRecord
+(defcufun (cu-event-record "cuEventRecord") cu-result
+  (hevent cu-event)
+  (hstream cu-stream))
+
+;; cuEventSynchronize
+(defcufun (cu-event-synchronize "cuEventSynchronize") cu-result
+  (hevent cu-event))
 
 
 ;;; Built-in Vector Types

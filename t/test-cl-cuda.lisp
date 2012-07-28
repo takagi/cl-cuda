@@ -10,6 +10,44 @@
 (plan nil)
 
 
+;;; test defcuenum
+
+(diag "test defcuenum")
+
+(is (cl-cuda::enum-keyword '(:a 1)) :a)
+(is (cl-cuda::enum-keyword :a) :a)
+(is-error (cl-cuda::enum-keyword nil) simple-error)
+(is-error (cl-cuda::enum-keyword '(:a 1 2)) simple-error)
+
+(is (cl-cuda::enum-value '(:a 1)) 1)
+(is-error (cl-cuda::enum-value '(:a 1 2)) simple-error)
+(is-error (cl-cuda::enum-value :a) simple-error)
+
+(is-expand (cl-cuda::defcuenum cu-event-flags-enum
+             (:cu-event-default #X0)
+             (:cu-event-blocking-sync #X1)
+             (:cu-event-disable-timing #X2)
+             (:cu-event-interprocess #X4))
+           (progn
+             (cffi:defcenum cu-event-flags-enum
+               (:cu-event-default #X0)
+               (:cu-event-blocking-sync #X1)
+               (:cu-event-disable-timing #X2)
+               (:cu-event-interprocess #X4))
+             (defconstant cu-event-default
+               (cffi:foreign-enum-value 'cu-event-flags-enum
+                                        :cu-event-default))
+             (defconstant cu-event-blocking-sync
+               (cffi:foreign-enum-value 'cu-event-flags-enum
+                                        :cu-event-blocking-sync))
+             (defconstant cu-event-disable-timing
+               (cffi:foreign-enum-value 'cu-event-flags-enum
+                                        :cu-event-disable-timing))
+             (defconstant cu-event-interprocess
+               (cffi:foreign-enum-value 'cu-event-flags-enum
+                                        :cu-event-interprocess))))
+
+
 ;;; test cuInit
 (diag "test cuInit")
 (cu-init 0)
@@ -133,6 +171,28 @@
                                     (hfunc 'cu-function))
           (cu-module-load module fname)
           (cu-module-get-function hfunc (cffi:mem-ref module 'cu-module) name))))))
+
+
+;;; test CUDA Event Management functions
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (cffi:with-foreign-objects ((start-event 'cu-event)
+                                (stop-event 'cu-event)
+                                (milliseconds :float))
+      (cu-event-create start-event cu-event-default)
+      (cu-event-create stop-event cu-event-default)
+      (cu-event-record (cffi:mem-ref start-event 'cu-event) (cffi:null-pointer))
+      (cu-event-record (cffi:mem-ref stop-event 'cu-event) (cffi:null-pointer))
+      (cu-event-synchronize (cffi:mem-ref stop-event 'cu-event))
+      (cu-event-query (cffi:mem-ref stop-event 'cu-event))
+      (cu-event-elapsed-time milliseconds
+                             (cffi:mem-ref start-event 'cu-event)
+                             (cffi:mem-ref stop-event 'cu-event))
+      (format t "CUDA Event - elapsed time: ~A~%"
+              (cffi:mem-ref milliseconds :float))
+      (cu-event-destroy (cffi:mem-ref start-event 'cu-event))
+      (cu-event-destroy (cffi:mem-ref stop-event 'cu-event)))))
 
 
 ;;; test memory blocks
