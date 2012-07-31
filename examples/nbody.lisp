@@ -230,30 +230,41 @@
     (rotatef new-pos old-pos)
     (glut:post-redisplay)))
 
+
+;;;
+;;; timeing functions
+;;;
+
 (let (start-event stop-event)
+
   (defmacro with-cuda-timer (&body body)
     `(unwind-protect
           (progn
             (create-timer-events)
             ,@body)
        (destroy-timer-events)))
+
   (defun create-timer-events ()
     (setf start-event (cffi:foreign-alloc 'cu-event)
           stop-event (cffi:foreign-alloc 'cu-event))
     (cu-event-create start-event cu-event-default)
     (cu-event-create stop-event cu-event-default))
+
   (defun destroy-timer-events ()
     (cu-event-destroy (cffi:mem-ref start-event 'cu-event))
     (cu-event-destroy (cffi:mem-ref stop-event 'cu-event))
     (cffi:foreign-free start-event)
     (cffi:foreign-free stop-event))
+
   (defun start-timer ()
     (cu-event-record (cffi:mem-ref start-event 'cu-event)
                      (cffi:null-pointer)))
+
   (defun stop-and-synchronize-timer ()
     (cu-event-record (cffi:mem-ref stop-event 'cu-event)
                      (cffi:null-pointer))
     (cu-event-synchronize (cffi:mem-ref stop-event 'cu-event)))
+
   (defun get-elapsed-time ()
     (let (milliseconds)
       (cffi:with-foreign-object (pmilliseconds :float)
@@ -264,6 +275,11 @@
         (start-timer)
         (setf milliseconds (cffi:mem-ref pmilliseconds :float)))
       milliseconds)))
+
+
+;;;
+;;; main
+;;;
 
 (defun main ()
   (let ((dev-id 0)
