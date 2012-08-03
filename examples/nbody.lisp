@@ -152,6 +152,11 @@
 (defun update (new-pos old-pos vel delta-time damping num-bodies p)
   (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
 
+
+;;;
+;;; cl-glut window subclass
+;;;
+
 (defclass nbody-window (glut:window)
   ((new-pos :initform nil)
    (old-pos :initform nil)
@@ -162,6 +167,11 @@
    (p :initform 0))
   (:default-initargs :width 640 :height 480 :pos-x 100 :pos-y 100
                      :mode '(:double :rgb) :title "nbody"))
+
+
+;;;
+;;; cl-glut event handlers
+;;;
 
 (defmethod glut:display-window :before ((w nbody-window))
   (gl:clear-color 0 0 0 0))
