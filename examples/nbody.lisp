@@ -200,31 +200,6 @@
   ;; display frame rate
   (display-frame-rate (slot-value w 'num-bodies)))
 
-(defvar *flops-per-interaction* 20)
-
-(defun compute-perf-stats (num-bodies milliseconds iterations)
-  (let* ((interactions-per-second (/ (* (* num-bodies num-bodies) iterations)
-                                     (/ milliseconds 1000)
-                                     1.0e9))
-         (gflops (* interactions-per-second *flops-per-interaction*)))
-    (values interactions-per-second gflops)))
-
-(let ((fps-count 0)
-      (fps-limit 5)
-      (template "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"))
-  (defun display-frame-rate (num-bodies)
-    (incf fps-count)
-    (when (>= fps-count fps-limit)
-      (let* ((milliseconds (/ (get-elapsed-time) fps-count))
-             (ifps (/ 1.0 (/ milliseconds 1000.0))))
-      (multiple-value-bind (interactions-per-second gflops)
-          (compute-perf-stats num-bodies milliseconds 1)
-        (glut:set-window-title (format nil template 
-                                       num-bodies ifps
-                                       interactions-per-second gflops))
-        (setf fps-count 0)
-        (setf fps-limit (if (> ifps 1.0) ifps 1.0)))))))
-
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
   (gl:matrix-mode :projection)
@@ -239,6 +214,35 @@
     (update new-pos old-pos vel delta-time damping num-bodies p)
     (rotatef new-pos old-pos)
     (glut:post-redisplay)))
+
+
+;;;
+;;; performance measurement functions
+;;;
+
+(defvar *flops-per-interaction* 20)
+
+(defun compute-perf-stats (num-bodies elapsed-time fps-count iterations)
+  (let ((milliseconds (/ elapsed-time fps-count)))
+    (let* ((ifps (/ 1.0 (/ milliseconds 1000.0)))
+           (interactions-per-second (/ (* num-bodies num-bodies iterations)
+                                       (/ milliseconds 1000)
+                                       (1.0e9)))
+           (gflops (* interactions-per-second *flops-per-interactions*)))
+      (values ifps interactions-per-second gflops))))
+
+(let ((fps-count 0)
+      (fps-limit 5)
+      (template "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"))
+  (defun display-frame-rate (num-bodies)
+    (incf fps-count)
+    (when (>= fps-count fps-limit)
+      (multiple-value-bind (ifps interactions-per-second gflops)
+                           (compute-perf-stats num-bodies (get-elapsed-time) fps-count 1)
+        (glut:set-window-title
+          (format nil template num-bodies ifps interactions-per-second gflops))
+        (setf fps-count 0)
+        (setf fps-limit (max ifps 1.0))))))
 
 
 ;;;
