@@ -227,8 +227,8 @@
     (let* ((ifps (/ 1.0 (/ milliseconds 1000.0)))
            (interactions-per-second (/ (* num-bodies num-bodies iterations)
                                        (/ milliseconds 1000)
-                                       (1.0e9)))
-           (gflops (* interactions-per-second *flops-per-interactions*)))
+                                       1.0e9))
+           (gflops (* interactions-per-second *flops-per-interaction*)))
       (values ifps interactions-per-second gflops))))
 
 (let ((fps-count 0)
@@ -238,7 +238,7 @@
     (incf fps-count)
     (when (>= fps-count fps-limit)
       (multiple-value-bind (ifps interactions-per-second gflops)
-                           (compute-perf-stats num-bodies (get-elapsed-time) fps-count 1)
+          (compute-perf-stats num-bodies (get-elapsed-time) fps-count 1)
         (glut:set-window-title
           (format nil template num-bodies ifps interactions-per-second gflops))
         (setf fps-count 0)
@@ -263,7 +263,7 @@
           stop-event (cffi:foreign-alloc 'cu-event))
     (cu-event-create start-event cu-event-default)
     (cu-event-create stop-event cu-event-default))
-
+  
   (defun destroy-timer-events ()
     (cu-event-destroy (cffi:mem-ref start-event 'cu-event))
     (cu-event-destroy (cffi:mem-ref stop-event 'cu-event))
