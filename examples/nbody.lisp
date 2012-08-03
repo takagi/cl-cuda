@@ -232,7 +232,7 @@
 
 
 ;;;
-;;; timeing functions
+;;; timing functions
 ;;;
 
 (let (start-event stop-event)
