@@ -14,6 +14,11 @@
   (:export :main))
 (in-package :cl-cuda-examples.nbody)
 
+
+;;;
+;;; Kernel functions
+;;;
+
 (defkernel body-body-interaction (float3 ((ai float3) (bi float4) (bj float4)))
   (let ((r (float3 (- (float4-x bj) (float4-x bi))
                    (- (float4-y bj) (float4-y bi))
@@ -87,70 +92,6 @@
       
       (set (aref new-pos index) position)
       (set (aref vel index) velocity))))
-
-(defun integrate-nbody-system (new-pos old-pos vel delta-time damping num-bodies p)
-  (let ((grid-dim (list (ceiling (/ num-bodies p)) 1 1))
-        (block-dim (list p 1 1)))
-    (integrate-bodies new-pos old-pos vel delta-time damping num-bodies
-                      :grid-dim grid-dim
-                      :block-dim block-dim)))
-
-(defun divided-point (inner outer k)
-  (+ inner (* (- outer inner) k)))
-
-(defun norm-float3 (x)
-  (assert (float3-p x))
-  (sqrt (+ (* (float3-x x) (float3-x x))
-           (* (float3-y x) (float3-y x))
-           (* (float3-z x) (float3-z x)))))
-
-(defun normalize-float3 (x)
-  (assert (float3-p x))
-  (let ((r (norm-float3 x)))
-    (if (< 1.0e-6 r)
-        (make-float3 (/ (float3-x x) r)
-                     (/ (float3-y x) r)
-                     (/ (float3-z x) r))
-        x)))
-
-(defun cross (v0 v1)
-  (assert (and (float3-p v0) (float3-p v1)))
-  (make-float3 (- (* (float3-y v0) (float3-z v1))
-                  (* (float3-z v0) (float3-y v1)))
-               (- (* (float3-z v0) (float3-x v1))
-                  (* (float3-x v0) (float3-z v1)))
-               (- (* (float3-x v0) (float3-y v1))
-                  (* (float3-y v0) (float3-x v1)))))
-
-(defun randomize-bodies (pos vel cluster-scale velocity-scale num-bodies)
-  (let* ((scale cluster-scale)
-         (vscale (* scale velocity-scale))
-         (inner (* 2.5 scale))
-         (outer (* 4.0 scale)))
-    (dotimes (i num-bodies)
-      (let ((point (normalize-float3 (make-float3 (- (random 1.0) 0.5)
-                                                  (- (random 1.0) 0.5)
-                                                  (- (random 1.0) 0.5))))
-            (k (divided-point inner outer (random 1.0))))
-        (setf (mem-aref pos i) (make-float4 (* (float3-x point) k)
-                                            (* (float3-y point) k)
-                                            (* (float3-z point) k)
-                                            1.0)))
-      (let* ((axis (make-float3 0.0 0.0 1.0))
-             (vv (cross (make-float3 (float4-x (mem-aref pos i))
-                                     (float4-y (mem-aref pos i))
-                                     (float4-z (mem-aref pos i)))
-                        axis)))
-        (setf (mem-aref vel i) (make-float4 (* (float3-x vv) vscale)
-                                            (* (float3-y vv) vscale)
-                                            (* (float3-z vv) vscale)
-                                            1.0))))))
-
-(defun reset (pos vel cluster-scale velocity-scale num-bodies)
-  (randomize-bodies pos vel cluster-scale velocity-scale num-bodies))
-
-(defun update (new-pos old-pos vel delta-time damping num-bodies p)
-  (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
 
 
 ;;;
@@ -294,6 +235,70 @@
 ;;;
 ;;; main
 ;;;
+
+(defun integrate-nbody-system (new-pos old-pos vel delta-time damping num-bodies p)
+  (let ((grid-dim (list (ceiling (/ num-bodies p)) 1 1))
+        (block-dim (list p 1 1)))
+    (integrate-bodies new-pos old-pos vel delta-time damping num-bodies
+                      :grid-dim grid-dim
+                      :block-dim block-dim)))
+
+(defun divided-point (inner outer k)
+  (+ inner (* (- outer inner) k)))
+
+(defun norm-float3 (x)
+  (assert (float3-p x))
+  (sqrt (+ (* (float3-x x) (float3-x x))
+           (* (float3-y x) (float3-y x))
+           (* (float3-z x) (float3-z x)))))
+
+(defun normalize-float3 (x)
+  (assert (float3-p x))
+  (let ((r (norm-float3 x)))
+    (if (< 1.0e-6 r)
+        (make-float3 (/ (float3-x x) r)
+                     (/ (float3-y x) r)
+                     (/ (float3-z x) r))
+        x)))
+
+(defun cross (v0 v1)
+  (assert (and (float3-p v0) (float3-p v1)))
+  (make-float3 (- (* (float3-y v0) (float3-z v1))
+                  (* (float3-z v0) (float3-y v1)))
+               (- (* (float3-z v0) (float3-x v1))
+                  (* (float3-x v0) (float3-z v1)))
+               (- (* (float3-x v0) (float3-y v1))
+                  (* (float3-y v0) (float3-x v1)))))
+
+(defun randomize-bodies (pos vel cluster-scale velocity-scale num-bodies)
+  (let* ((scale cluster-scale)
+         (vscale (* scale velocity-scale))
+         (inner (* 2.5 scale))
+         (outer (* 4.0 scale)))
+    (dotimes (i num-bodies)
+      (let ((point (normalize-float3 (make-float3 (- (random 1.0) 0.5)
+                                                  (- (random 1.0) 0.5)
+                                                  (- (random 1.0) 0.5))))
+            (k (divided-point inner outer (random 1.0))))
+        (setf (mem-aref pos i) (make-float4 (* (float3-x point) k)
+                                            (* (float3-y point) k)
+                                            (* (float3-z point) k)
+                                            1.0)))
+      (let* ((axis (make-float3 0.0 0.0 1.0))
+             (vv (cross (make-float3 (float4-x (mem-aref pos i))
+                                     (float4-y (mem-aref pos i))
+                                     (float4-z (mem-aref pos i)))
+                        axis)))
+        (setf (mem-aref vel i) (make-float4 (* (float3-x vv) vscale)
+                                            (* (float3-y vv) vscale)
+                                            (* (float3-z vv) vscale)
+                                            1.0))))))
+
+(defun reset (pos vel cluster-scale velocity-scale num-bodies)
+  (randomize-bodies pos vel cluster-scale velocity-scale num-bodies))
+
+(defun update (new-pos old-pos vel delta-time damping num-bodies p)
+  (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
 
 (defun main ()
   (let ((dev-id 0)
