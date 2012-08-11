@@ -67,15 +67,6 @@
 (cffi:defctype size-t :unsigned-int)
 
 
-;;; Enums
-
-(defcuenum cu-event-flags-enum
-  (:cu-event-default #X0)
-  (:cu-event-blocking-sync #X1)
-  (:cu-event-disable-timing #X2)
-  (:cu-event-interprocess #X4))
-
-
 ;;; Functions
 
 ;; cuInit
