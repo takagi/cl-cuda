@@ -530,11 +530,11 @@
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::kernel-function-name         'foo def) 'foo       )
-  (is (cl-cuda::kernel-function-c-name       'foo def) "foo"      )
-  (is (cl-cuda::kernel-function-return-type  'foo def) 'void      )
-  (is (cl-cuda::kernel-function-arg-bindings 'foo def) '()        )
-  (is (cl-cuda::kernel-function-body         'foo def) '((return))))
+  (is (cl-cuda::kernel-function-name         'foo def) 'foo              )
+  (is (cl-cuda::kernel-function-c-name       'foo def) "cl_cuda_test_foo")
+  (is (cl-cuda::kernel-function-return-type  'foo def) 'void             )
+  (is (cl-cuda::kernel-function-arg-bindings 'foo def) '()               )
+  (is (cl-cuda::kernel-function-body         'foo def) '((return)))      )
 
 (let ((def (cl-cuda::empty-kernel-definition)))
   (is-error (cl-cuda::kernel-function-name 'foo def) simple-error))
@@ -556,9 +556,9 @@
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
-      (c-code (cl-cuda::unlines "extern \"C\" __global__ void foo ();"
+      (c-code (cl-cuda::unlines "extern \"C\" __global__ void cl_cuda_test_foo ();"
                                 ""
-                                "__global__ void foo ()"
+                                "__global__ void cl_cuda_test_foo ()"
                                 "{"
                                 "  return;"
                                 "}"
@@ -574,7 +574,7 @@
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
-      (c-code (cl-cuda::unlines "extern \"C\" __global__ void foo ();")))
+      (c-code (cl-cuda::unlines "extern \"C\" __global__ void cl_cuda_test_foo ();")))
   (is (cl-cuda::compile-kernel-function-prototype 'foo def) c-code))
 
 
@@ -586,7 +586,7 @@
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
-      (c-code (cl-cuda::unlines "__global__ void foo ()"
+      (c-code (cl-cuda::unlines "__global__ void cl_cuda_test_foo ()"
                                 "{"
                                 "  return;"
                                 "}"
@@ -893,13 +893,13 @@
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
              (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::compile-function '(foo) nil def :statement-p t) "foo ();"))
+  (is (cl-cuda::compile-function '(foo) nil def :statement-p t) "cl_cuda_test_foo ();"))
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '((x int) (y int)) '()
              (cl-cuda::empty-kernel-definition))))
-  (is-error (cl-cuda::compile-function '(foo 1 1)   nil nil               ) simple-error )
-  (is       (cl-cuda::compile-function '(foo 1 1)   nil def :statement-p t) "foo (1, 1);")
-  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil def :statement-p t) simple-error ))
+  (is-error (cl-cuda::compile-function '(foo 1 1)   nil nil               ) simple-error              )
+  (is       (cl-cuda::compile-function '(foo 1 1)   nil def :statement-p t) "cl_cuda_test_foo (1, 1);")
+  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil def :statement-p t) simple-error              ))
 
 (is (cl-cuda::compile-function '(float3 1.0 1.0 1.0)     nil nil) "make_float3 (1.0, 1.0, 1.0)"     )
 (is (cl-cuda::compile-function '(float4 1.0 1.0 1.0 1.0) nil nil) "make_float4 (1.0, 1.0, 1.0, 1.0)")

@@ -746,7 +746,10 @@
   (function-name (function-info name def)))
 
 (defun kernel-function-c-name (name def)
-  (compile-identifier (kernel-function-name name def)))
+  (let ((name (kernel-function-name name def)))
+    (let ((package-name (compile-identifier (package-name (symbol-package name))))
+          (symbol-name (compile-identifier name)))
+      (concatenate 'string package-name "_" symbol-name))))
 
 (defun kernel-function-return-type (name def)
   (function-return-type (function-info name def)))
@@ -1024,7 +1027,7 @@
     (format nil "~A ~A" (compile-type type) (compile-identifier var))))
 
 (defun compile-identifier (idt)
-  (substitute #\_ #\- (string-downcase idt)))
+  (substitute #\_ #\. (substitute #\_ #\- (string-downcase idt))))
   
 
 ;;; compile statement
