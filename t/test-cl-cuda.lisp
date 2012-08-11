@@ -10,19 +10,24 @@
 (plan nil)
 
 
+;;;
 ;;; test defcuenum
+;;;
 
 (diag "test defcuenum")
 
-(is (cl-cuda::enum-keyword '(:a 1)) :a)
-(is (cl-cuda::enum-keyword :a) :a)
-(is-error (cl-cuda::enum-keyword nil) simple-error)
+;; test enum-keyword
+(is       (cl-cuda::enum-keyword '(:a 1)  ) :a          )
+(is       (cl-cuda::enum-keyword :a       ) :a          )
+(is-error (cl-cuda::enum-keyword nil      ) simple-error)
 (is-error (cl-cuda::enum-keyword '(:a 1 2)) simple-error)
 
-(is (cl-cuda::enum-value '(:a 1)) 1)
+;; test enum-value
+(is       (cl-cuda::enum-value '(:a 1)  ) 1           )
 (is-error (cl-cuda::enum-value '(:a 1 2)) simple-error)
-(is-error (cl-cuda::enum-value :a) simple-error)
+(is-error (cl-cuda::enum-value :a       ) simple-error)
 
+;; test expansion of defcuenum macro
 (is-expand (cl-cuda::defcuenum cu-event-flags-enum
              (:cu-event-default #X0)
              (:cu-event-blocking-sync #X1)
@@ -48,12 +53,15 @@
                                         :cu-event-interprocess))))
 
 
-;;; test cuInit
+;;;
+;;; test CUDA driver API
+;;;
+
+;; test cuInit
 (diag "test cuInit")
 (cu-init 0)
 
-
-;;; test cuDeviceGet
+;; test cuDeviceGet
 (diag "test cuDeviceGet")
 (let ((dev-id 0))
   (cffi:with-foreign-object (device 'cu-device)
@@ -61,15 +69,13 @@
     (cu-device-get device dev-id)
     (format t "CUDA device handle: ~A~%" (cffi:mem-ref device 'cu-device))))
 
-
-;;; test cuDeviceGetCount
+;; test cuDeviceGetCount
 (diag "test cuDeviceGetCount")
 (cffi:with-foreign-object (count :int)
   (cu-device-get-count count)
   (format t "CUDA device count: ~A~%" (cffi:mem-ref count :int)))
 
-
-;;; test cuDeviceComputeCapability
+;; test cuDeviceComputeCapability
 (diag "test cuDeviceComputeCapability")
 (let ((dev-id 0))
   (cffi:with-foreign-objects ((major :int)
@@ -80,8 +86,7 @@
     (format t "CUDA device compute capability: ~A.~A~%"
               (cffi:mem-ref major :int) (cffi:mem-ref minor :int))))
 
-
-;;; test cuDeviceGetName
+;; test cuDeviceGetName
 (diag "test cuDeviceGetName")
 (let ((dev-id 0))
   (cffi:with-foreign-object (device 'cu-device)
@@ -90,8 +95,7 @@
     (cu-device-get-name name size (cffi:mem-ref device 'cu-device))
     (format t "CUDA device name: ~A~%" (cffi:foreign-string-to-lisp name)))))
 
-
-;;; test cuCtxCreate/cuCtxDestroy
+;; test cuCtxCreate/cuCtxDestroy
 (diag "test cuCtxCreate/cuCtxDestroy")
 (let ((flags 0)
       (dev-id 0))
@@ -101,8 +105,7 @@
     (cu-ctx-create pctx flags (cffi:mem-ref device 'cu-device))
     (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context))))
 
-
-;;; test cuMemAlloc/cuMemFree
+;; test cuMemAlloc/cuMemFree
 (diag "test cuMemAlloc/cuMemFree")
 (let ((flags 0)
       (dev-id 0))
@@ -115,8 +118,7 @@
     (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr))
     (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context))))
 
-
-;;; test cuMemAlloc/cuMemFree using with-cuda-context
+;; test cuMemAlloc/cuMemFree using with-cuda-context
 (diag "test cuMemAlloc/cuMemFree using with-cuda-context")
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
@@ -124,23 +126,20 @@
       (cu-mem-alloc dptr 1024)
       (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr)))))
 
-
-;;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block
+;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block
 (diag "test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block")
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
     (cl-cuda::with-cuda-memory-block (dptr 1024))))
 
-
-;;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-blocks
+;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-blocks
 (diag "test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-blocks")
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
     (cl-cuda::with-cuda-memory-blocks ((dptr1 1024)
                                        (dptr2 1024)))))
 
-
-;;; test cuMemcpyHtoD/cuMemcpyDtoH
+;; test cuMemcpyHtoD/cuMemcpyDtoH
 (diag "test cuMemcpyHtoD/cuMemcpyDtoH")
 (let ((dev-id 0)
       (size 1024))
@@ -150,8 +149,7 @@
         (cu-memcpy-host-to-device (cffi:mem-ref dptr 'cu-device-ptr) hptr size)
         (cu-memcpy-device-to-host hptr (cffi:mem-ref dptr 'cu-device-ptr) size)))))
 
-
-;;; test cuModuleLoad
+;; test cuModuleLoad
 (diag "test cuModuleLoad")
 (let ((dev-id 0))
   (cffi:with-foreign-string (fname "/Developer/GPU Computing/C/src/vectorAddDrv/data/vectorAdd_kernel.ptx")
@@ -160,8 +158,7 @@
         (cu-module-load module fname)
         (format t "CUDA module \"vectorAdd_kernel.ptx\" is loaded.~%")))))
 
-
-;;; test cuModuleGetFunction
+;; test cuModuleGetFunction
 (diag "test cuModuleGetFunction")
 (let ((dev-id 0))
   (cffi:with-foreign-string (fname "/Developer/GPU Computing/C/src/vectorAddDrv/data/vectorAdd_kernel.ptx")
@@ -173,7 +170,9 @@
           (cu-module-get-function hfunc (cffi:mem-ref module 'cu-module) name))))))
 
 
+;;;
 ;;; test CUDA Event Management functions
+;;;
 
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
@@ -189,28 +188,30 @@
       (cu-event-elapsed-time milliseconds
                              (cffi:mem-ref start-event 'cu-event)
                              (cffi:mem-ref stop-event 'cu-event))
-      (format t "CUDA Event - elapsed time: ~A~%"
-              (cffi:mem-ref milliseconds :float))
+      (format t "CUDA Event - elapsed time: ~A~%" (cffi:mem-ref milliseconds :float))
       (cu-event-destroy (cffi:mem-ref start-event 'cu-event))
       (cu-event-destroy (cffi:mem-ref stop-event 'cu-event)))))
 
 
+;;;
 ;;; test memory blocks
+;;;
 
 (diag "test memory blocks")
 
+;; test alloc-memory-block
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
     (let (blk)
       (ok (setf blk (cl-cuda::alloc-memory-block 'int 1024)))
       (cl-cuda::free-memory-block blk))
-    (is-error (cl-cuda::alloc-memory-block 'void 1024) simple-error)
-    (is-error (cl-cuda::alloc-memory-block 'int* 1024) simple-error)
-    (is-error (cl-cuda::alloc-memory-block 'int (* 1024 1024 256))
-              simple-error)
-    (is-error (cl-cuda::alloc-memory-block 'int 0) simple-error)
-    (is-error (cl-cuda::alloc-memory-block 'int -1) type-error)))
+    (is-error (cl-cuda::alloc-memory-block 'void 1024             ) simple-error)
+    (is-error (cl-cuda::alloc-memory-block 'int* 1024             ) simple-error)
+    (is-error (cl-cuda::alloc-memory-block 'int  (* 1024 1024 256)) simple-error)
+    (is-error (cl-cuda::alloc-memory-block 'int  0                ) simple-error)
+    (is-error (cl-cuda::alloc-memory-block 'int  -1               ) type-error)))
 
+;; test selectors of memory-block
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
     (with-memory-blocks ((blk 'int 1024))
@@ -222,6 +223,7 @@
       (is (cl-cuda::memory-block-bytes blk) (* 1024 4))
       (is (cl-cuda::memory-block-element-bytes blk) 4))))
 
+;; test setf functions of memory-block
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
     ;; int array
@@ -247,6 +249,7 @@
       (is-error (mem-aref x 1) simple-error)
       (is-error (setf (mem-aref x 1) 0) simple-error))))
 
+;; test set statement on memory-block
 (defkernel test-memcpy (void ((x int*) (y float*)))
   (set (aref x 0) (+ (aref x 0) 1))
   (set (aref y 0) (+ (aref y 0) 1.0)))
@@ -265,34 +268,40 @@
       (is (mem-aref y 0) 2.0))))
 
 
+;;;
 ;;; test kernel-defun
+;;;
 
 (diag "test kernel-defun")
 
-(is (cl-cuda::vector-type-length 'float3) 3)
-(is-error (cl-cuda::vector-type-length 'float) simple-error)
+;; test vector-type-length
+(is       (cl-cuda::vector-type-length 'float3 ) 3           )
+(is-error (cl-cuda::vector-type-length 'float  ) simple-error)
 (is-error (cl-cuda::vector-type-length 'float3*) simple-error)
 
-(is (cl-cuda::vector-type-base-type 'float3) 'float)
-(is-error (cl-cuda::vector-type-base-type 'float) simple-error)
+;; test vector-type-base-type
+(is       (cl-cuda::vector-type-base-type 'float3 ) 'float      )
+(is-error (cl-cuda::vector-type-base-type 'float  ) simple-error)
 (is-error (cl-cuda::vector-type-base-type 'float3*) simple-error)
 
-(is (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::x) 'float3-x)
-(is-error (cl-cuda::vector-type-selector-symbol 'float 'cl-cuda::x)
-          simple-error)
-(is-error (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::a)
-          simple-error)
+;; test vector-type-selector-symbol
+(is       (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::x) 'float3-x   )
+(is-error (cl-cuda::vector-type-selector-symbol 'float  'cl-cuda::x) simple-error)
+(is-error (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::a) simple-error)
 
+;; test vector-type-selector-symbols
 (is (cl-cuda::vector-type-selector-symbols)
     '(float3-x float3-y float3-z
       float4-x float4-y float4-z float4-w))
 
+;; test foreign-pointer-setf-vector-type
 (is (cl-cuda::foreign-pointer-setf-vector-type 'x 'x-ptr 'float3)
     '(progn
       (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::x) (float3-x x))
       (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::y) (float3-y x))
       (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::z) (float3-z x))))
 
+;; test expansion of with-non-pointer-arguments macro
 (is-expand
   (cl-cuda::with-non-pointer-arguments ((n n-ptr :int)
                                         (x x-ptr :float)
@@ -309,6 +318,7 @@
       (setf (cffi:foreign-slot-value a-ptr 'float3 'cl-cuda::z) (float3-z a)))
     nil))
 
+;; test expansion of with-kernel-arguments macro
 (is-expand
  (cl-cuda::with-kernel-arguments (args
                                   (cl-cuda::memory-block-device-ptr a)
@@ -323,10 +333,12 @@
    (setf (cffi:mem-aref args :pointer 3) n-ptr)
    nil))
 
+;; test kernel-arg-names
 (is (cl-cuda::kernel-arg-names
       '((a float*) (b float*) (c float*) (n int) (x float3)))
     '(a b c n x))
 
+;; test kernel-arg-names-as-pointer
 (is (cl-cuda::kernel-arg-names-as-pointer
       '((a float*) (b float*) (c float*) (n int) (x float3)))
     '((cl-cuda::memory-block-device-ptr a)
@@ -334,13 +346,17 @@
       (cl-cuda::memory-block-device-ptr c)
       n-ptr x-ptr))
 
+;; test kernel-arg-foreign-pointer-bindings
 (is (cl-cuda::kernel-arg-foreign-pointer-bindings
       '((a float*) (b float*) (c float*) (n int) (x float3)))
     '((n n-ptr :int) (x x-ptr float3)))
 
 
-;;; test defkernel
+;;;
+;;; test kernel functions
+;;;
 
+;; test "let1" kernel
 (defkernel let1 (void ())
   (let ((i 0))
     (return))
@@ -352,6 +368,7 @@
       (let1 :grid-dim (list 1 1 1)
             :block-dim (list 1 1 1)))))
 
+;; test "use-one" kernel
 (defkernel use-one (void ())
   (let ((i (one)))
     (return)))
@@ -365,6 +382,7 @@
       (use-one :grid-dim (list 1 1 1)
                :block-dim (list 1 1 1)))))
 
+;; test "argument" kernel
 (defkernel argument (void ((i int)))
   (let ((j i))
     (return)))
@@ -375,6 +393,7 @@
       (argument 1 :grid-dim (list 1 1 1)
                   :block-dim (list 1 1 1)))))
 
+;; test "kernel-float3" kernel
 (defkernel kernel-float3 (void ((ary float*) (x float3)))
   (set (aref ary 0) (+ (float3-x x) (float3-y x) (float3-z x))))
 
@@ -390,74 +409,87 @@
       (is (mem-aref a 0) 6.0))))
 
 
+;;;
 ;;; test valid-type-p
+;;;
 
 (diag "test valid-type-p")
 
-(is (cl-cuda::basic-type-p 'void) t)
-(is (cl-cuda::basic-type-p 'int) t)
+;; test basic-type-p
+(is (cl-cuda::basic-type-p 'void ) t)
+(is (cl-cuda::basic-type-p 'int  ) t)
 (is (cl-cuda::basic-type-p 'float) t)
 
-(is (cl-cuda::vector-type-p 'float3) t)
-(is (cl-cuda::vector-type-p 'float4) t)
+;; test vector-type-p
+(is (cl-cuda::vector-type-p 'float3) t  )
+(is (cl-cuda::vector-type-p 'float4) t  )
 (is (cl-cuda::vector-type-p 'float5) nil)
 
-(is (cl-cuda::valid-type-p 'void) t)
-(is (cl-cuda::valid-type-p 'int) t)
-(is (cl-cuda::valid-type-p 'float) t)
-(is (cl-cuda::valid-type-p 'double) nil)
-(is (cl-cuda::valid-type-p 'float3) t)
-(is (cl-cuda::valid-type-p 'float4) t)
-(is (cl-cuda::valid-type-p 'float*) t)
-(is (cl-cuda::valid-type-p 'float**) t)
+;; test valid-type-p
+(is (cl-cuda::valid-type-p 'void    ) t  )
+(is (cl-cuda::valid-type-p 'int     ) t  )
+(is (cl-cuda::valid-type-p 'float   ) t  )
+(is (cl-cuda::valid-type-p 'double  ) nil)
+(is (cl-cuda::valid-type-p 'float3  ) t  )
+(is (cl-cuda::valid-type-p 'float4  ) t  )
+(is (cl-cuda::valid-type-p 'float*  ) t  )
+(is (cl-cuda::valid-type-p 'float** ) t  )
 (is (cl-cuda::valid-type-p '*float**) nil)
 
-(is (cl-cuda::pointer-type-p 'int) nil)
-(is (cl-cuda::pointer-type-p 'float*) t)
-(is (cl-cuda::pointer-type-p 'float3*) t)
-(is (cl-cuda::pointer-type-p 'float4*) t)
+;; test pointer-type-p
+(is (cl-cuda::pointer-type-p 'int    ) nil)
+(is (cl-cuda::pointer-type-p 'float* ) t  )
+(is (cl-cuda::pointer-type-p 'float3*) t  )
+(is (cl-cuda::pointer-type-p 'float4*) t  )
 (is (cl-cuda::pointer-type-p '*float*) nil)
 
-(is (cl-cuda::non-pointer-type-p 'int) t)
-(is (cl-cuda::non-pointer-type-p 'float*) nil)
-(is (cl-cuda::non-pointer-type-p 'float3*) nil)
-(is (cl-cuda::non-pointer-type-p 'float4*) nil)
+;; test non-pointer-type-p
+(is (cl-cuda::non-pointer-type-p 'int     ) t  )
+(is (cl-cuda::non-pointer-type-p 'float*  ) nil)
+(is (cl-cuda::non-pointer-type-p 'float3* ) nil)
+(is (cl-cuda::non-pointer-type-p 'float4* ) nil)
 (is (cl-cuda::non-pointer-type-p '*float3*) nil)
 
-(is (cl-cuda::add-star 'int -1) 'int)
-(is (cl-cuda::add-star 'int 0) 'int)
-(is (cl-cuda::add-star 'int 1) 'int*)
-(is (cl-cuda::add-star 'int 2) 'cl-cuda::int**)
+;; test add-star
+(is (cl-cuda::add-star 'int -1) 'int           )
+(is (cl-cuda::add-star 'int 0 ) 'int           )
+(is (cl-cuda::add-star 'int 1 ) 'int*          )
+(is (cl-cuda::add-star 'int 2 ) 'cl-cuda::int**)
 
-(is (cl-cuda::remove-star 'int) 'int)
-(is (cl-cuda::remove-star 'int*) 'int)
+;; test remove-star
+(is (cl-cuda::remove-star 'int  ) 'int)
+(is (cl-cuda::remove-star 'int* ) 'int)
 (is (cl-cuda::remove-star 'int**) 'int)
 
-(is (cl-cuda::type-dimension 'int) 0)
-(is (cl-cuda::type-dimension 'int*) 1)
-(is (cl-cuda::type-dimension 'int**) 2)
+;; test type-dimension
+(is (cl-cuda::type-dimension 'int   ) 0)
+(is (cl-cuda::type-dimension 'int*  ) 1)
+(is (cl-cuda::type-dimension 'int** ) 2)
 (is (cl-cuda::type-dimension 'int***) 3)
 
-(is-error (cl-cuda::cffi-type 'void) simple-error)
-(is (cl-cuda::cffi-type 'int) :int)
-(is (cl-cuda::cffi-type 'float) :float)
-(is (cl-cuda::cffi-type 'float3) 'float3)
-(is (cl-cuda::cffi-type 'float4) 'float4)
-(is (cl-cuda::cffi-type 'float*) 'cu-device-ptr)
-(is (cl-cuda::cffi-type 'float3*) 'cu-device-ptr)
-(is (cl-cuda::cffi-type 'float4*) 'cu-device-ptr)
+;; test cffi-type
+(is-error (cl-cuda::cffi-type 'void   ) simple-error  )
+(is       (cl-cuda::cffi-type 'int    ) :int          )
+(is       (cl-cuda::cffi-type 'float  ) :float        )
+(is       (cl-cuda::cffi-type 'float3 ) 'float3       )
+(is       (cl-cuda::cffi-type 'float4 ) 'float4       )
+(is       (cl-cuda::cffi-type 'float* ) 'cu-device-ptr)
+(is       (cl-cuda::cffi-type 'float3*) 'cu-device-ptr)
+(is       (cl-cuda::cffi-type 'float4*) 'cu-device-ptr)
 
-(is (cl-cuda::size-of 'void) 0)
-(is (cl-cuda::size-of 'int) 4)
-(is (cl-cuda::size-of 'float) 4)
+(is (cl-cuda::size-of 'void  ) 0 )
+(is (cl-cuda::size-of 'int   ) 4 )
+(is (cl-cuda::size-of 'float ) 4 )
 (is (cl-cuda::size-of 'float3) 12)
 (is (cl-cuda::size-of 'float4) 16)
-(is (cl-cuda::size-of 'int*) 4)
-(is (cl-cuda::size-of 'int**) 4)
-(is (cl-cuda::size-of 'int***) 4)
+(is (cl-cuda::size-of 'int*  ) 4 )
+(is (cl-cuda::size-of 'int** ) 4 )
+(is (cl-cuda::size-of 'int***) 4 )
 
 
+;;;
 ;;; test kernel definition
+;;;
 
 (diag "test kernel definition")
 
@@ -498,11 +530,11 @@
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::kernel-function-name 'foo def) 'foo)
-  (is (cl-cuda::kernel-function-c-name 'foo def) "foo")
-  (is (cl-cuda::kernel-function-return-type 'foo def) 'void)
-  (is (cl-cuda::kernel-function-arg-bindings 'foo def) '())
-  (is (cl-cuda::kernel-function-body 'foo def) '((return))))
+  (is (cl-cuda::kernel-function-name         'foo def) 'foo       )
+  (is (cl-cuda::kernel-function-c-name       'foo def) "foo"      )
+  (is (cl-cuda::kernel-function-return-type  'foo def) 'void      )
+  (is (cl-cuda::kernel-function-arg-bindings 'foo def) '()        )
+  (is (cl-cuda::kernel-function-body         'foo def) '((return))))
 
 (let ((def (cl-cuda::empty-kernel-definition)))
   (is-error (cl-cuda::kernel-function-name 'foo def) simple-error))
@@ -516,7 +548,9 @@
   (is (cl-cuda::kernel-function-names def) '(foo bar)))
 
 
+;;;
 ;;; test compile-kernel-definition
+;;;
 
 (diag "test compile-kernel-definition")
 
@@ -532,7 +566,9 @@
   (is (cl-cuda::compile-kernel-definition def) c-code))
 
 
+;;;
 ;;; test compile-kernel-function-prototype
+;;;
 
 (diag "test compile-kernel-function-prototype")
 
@@ -542,7 +578,9 @@
   (is (cl-cuda::compile-kernel-function-prototype 'foo def) c-code))
 
 
+;;;
 ;;; test compile-kernel-function
+;;;
 
 (diag "test compile-kernel-function")
 
@@ -556,24 +594,33 @@
   (is (cl-cuda::compile-kernel-function 'foo def) c-code))
 
 
+;;;
 ;;; test compile-function-specifier (not implemented)
+;;;
 
 
 
+;;;
 ;;; test compile-type (not implemented)
+;;;
 
 
 
+;;;
 ;;; test compile-identifier
+;;;
 
 (diag "test compile-identifier")
 
-(is (cl-cuda::compile-identifier 'x) "x")
+;; test compile-identifier
+(is (cl-cuda::compile-identifier 'x             ) "x"             )
 (is (cl-cuda::compile-identifier 'vec-add-kernel) "vec_add_kernel")
-(is (cl-cuda::compile-identifier 'VecAdd_kernel) "vecadd_kernel")
+(is (cl-cuda::compile-identifier 'VecAdd_kernel ) "vecadd_kernel" )
 
 
+;;;
 ;;; test compile-if
+;;;
 
 (diag "test compile-if")
 
@@ -598,7 +645,9 @@
   (is (cl-cuda::compile-if lisp-code nil nil) c-code))
 
 
+;;;
 ;;; test compile-let  
+;;;
 
 (diag "test compile-let")
 
@@ -613,25 +662,41 @@
   (is (cl-cuda::compile-let lisp-code nil nil) c-code))
 
 
+;;;
 ;;; test compile-for
+;;;
 
 (diag "test compile-for")
 
+;; test for-p
 (is (cl-cuda::for-p '(for ((a 0 15 1)
                            (b 0 15 1)))) t)
+
+;; test for-bindings
 (is (cl-cuda::for-bindings '(for ((a 0 15 1)
                                   (b 0 15 1)))) '((a 0 15 1) (b 0 15 1)))
+
+;; test for-vars
 (is (cl-cuda::for-vars '(for ((a 0 15 1)
                               (b 0 15 1)))) '(a b))
+
+;; test for-begins
 (is (cl-cuda::for-begins '(for ((a 0 15 1)
                                (b 0 15 1)))) '(0 0))
+
+;; test for-ends
 (is (cl-cuda::for-ends '(for ((a 0 15 1)
                               (b 0 15 1)))) '(15 15))
+
+;; test for-steps
 (is (cl-cuda::for-steps '(for ((a 0 15 1)
                                (b 0 15))) nil nil) '(1 1))
+
+;; test for-statements
 (is (cl-cuda::for-statements '(for ((a 0 15))
                                 (return))) '((return)))
 
+;; test compile-for
 (let ((lisp-code '(for ((a 0 15 1)
                         (b 0 15))
                     (+ a b)))
@@ -647,8 +712,8 @@
       "a += 1, b += 1")
   (is (cl-cuda::compile-for lisp-code nil nil) c-code))
 
-(is-error (cl-cuda::compile-for '(for (())) nil nil) simple-error)
-(is-error (cl-cuda::compile-for '(for ((a))) nil nil) simple-error)
+(is-error (cl-cuda::compile-for '(for (())   ) nil nil) simple-error)
+(is-error (cl-cuda::compile-for '(for ((a))  ) nil nil) simple-error)
 (is-error (cl-cuda::compile-for '(for ((a 0))) nil nil) simple-error)
 
 (let ((lisp-code '(for ((a 0.0 15.0))))
@@ -659,17 +724,21 @@
   (is (cl-cuda::compile-for lisp-code nil nil) c-code))
 
 
+;;;
 ;;; test compile-with-shared-memory
+;;;
 
 (diag "test compile-with-shared-memory")
 
+;; test with-shared-memory-p
 (is (cl-cuda::with-shared-memory-p '(with-shared-memory ((a float 16))
                                       (return)))
     t)
 (is (cl-cuda::with-shared-memory-p '(with-shared-memory () (return))) t)
-(is (cl-cuda::with-shared-memory-p '(with-shared-memory ())) t)
-(is (cl-cuda::with-shared-memory-p '(with-shared-memory)) t)
+(is (cl-cuda::with-shared-memory-p '(with-shared-memory ())         ) t)
+(is (cl-cuda::with-shared-memory-p '(with-shared-memory)            ) t)
 
+;; test compile-with-shared-memory
 (let ((lisp-code '(with-shared-memory ((a int 16)
                                        (b float 16 16))
                    (return)))
@@ -692,8 +761,7 @@
                                 "}")))
   (is (cl-cuda::compile-with-shared-memory lisp-code nil nil) c-code))
 
-(is-error (cl-cuda::compile-with-shared-memory '(with-shared-memory) nil nil)
-          simple-error)
+(is-error (cl-cuda::compile-with-shared-memory '(with-shared-memory) nil nil) simple-error)
 
 (let ((lisp-code '(with-shared-memory ((a float))
                     (return)))
@@ -705,8 +773,7 @@
 
 (let ((lisp-code '(with-shared-memory (a float)
                     (return))))
-  (is-error (cl-cuda::compile-with-shared-memory lisp-code nil nil)
-            simple-error))
+  (is-error (cl-cuda::compile-with-shared-memory lisp-code nil nil) simple-error))
 
 (let ((lisp-code '(with-shared-memory ((a float 16 16))
                     (set (aref a 0 0) 1.0)))
@@ -718,17 +785,20 @@
 
 (let ((lisp-code '(with-shared-memory ((a float 16 16))
                     (set (aref a 0) 1.0))))
-  (is-error (cl-cuda::compile-with-shared-memory lisp-code nil nil)
-            simple-error))
+  (is-error (cl-cuda::compile-with-shared-memory lisp-code nil nil) simple-error))
 
 
+;;;
 ;;; test compile-set
+;;;
 
 (diag "test compile-set")
 
-(is (cl-cuda::set-p '(set x 1)) t)
+;; test set-p
+(is (cl-cuda::set-p '(set x          1)) t)
 (is (cl-cuda::set-p '(set (aref x i) 1)) t)
 
+;; compile-set
 (cl-cuda::with-type-environment (type-env ((x int)))
   (is (cl-cuda::compile-set '(set x 1) type-env nil) "x = 1;"))
 
@@ -739,165 +809,181 @@
   (is (cl-cuda::compile-set '(set (float3-x x) 1.0) type-env nil) "x.x = 1.0;"))
 
 
+;;;
 ;;; test compile-place (not implemented)
+;;;
 
  
 
+;;;
 ;;; test compile-progn (not implemented)
+;;;
 
 
 
+;;;
 ;;; test compile-return (not implemented)
+;;;
 
 
 
+;;;
 ;;; test compile-syncthreads
+;;;
 
 (diag "test compile-syncthreads")
 
+;; test syncthreads-p
 (is (cl-cuda::syncthreads-p '(syncthreads)) t)
 
+;; test compile-syncthreads
 (is (cl-cuda::compile-syncthreads '(syncthreads)) "__syncthreads();")
 
 
+;;;
 ;;; test compile-function
+;;;
 
 (diag "test compile-function")
 
-(is (cl-cuda::built-in-function-p '(+ 1 1)) t)
-(is (cl-cuda::built-in-function-p '(- 1 1)) t)
+;; test built-in-function-p
+(is (cl-cuda::built-in-function-p '(+ 1 1)  ) t  )
+(is (cl-cuda::built-in-function-p '(- 1 1)  ) t  )
 (is (cl-cuda::built-in-function-p '(foo 1 1)) nil)
 
-(is (cl-cuda::function-candidates '+)
-    '(((int int) int "+")
-      ((float float) float "+")))
-(is-error (cl-cuda::function-candidates 'foo)
-          simple-error)
+;; test function-candidates
+(is       (cl-cuda::function-candidates '+  ) '(((int int) int "+")
+                                                ((float float) float "+")))
+(is-error (cl-cuda::function-candidates 'foo) simple-error)
 
-(is (cl-cuda::built-in-function-infix-p '+) t)
-(is (cl-cuda::built-in-function-infix-p 'expt) nil)
-(is-error (cl-cuda::built-in-function-infix-p 'foo) simple-error)
+;; test built-in-function-infix-p
+(is       (cl-cuda::built-in-function-infix-p '+   ) t           )
+(is       (cl-cuda::built-in-function-infix-p 'expt) nil         )
+(is-error (cl-cuda::built-in-function-infix-p 'foo ) simple-error)
 
-(is (cl-cuda::built-in-function-prefix-p '+) nil)
-(is (cl-cuda::built-in-function-prefix-p 'expt) t)
-(is-error (cl-cuda::built-in-function-prefix-p 'foo) simple-error)
+;; test built-in-function-prefix-p
+(is       (cl-cuda::built-in-function-prefix-p '+   ) nil         )
+(is       (cl-cuda::built-in-function-prefix-p 'expt) t           )
+(is-error (cl-cuda::built-in-function-prefix-p 'foo ) simple-error)
 
-(is (cl-cuda::function-p 'a) nil)
-(is (cl-cuda::function-p '()) nil)
-(is (cl-cuda::function-p '1) nil)
-(is (cl-cuda::function-p '(foo)) t)
-(is (cl-cuda::function-p '(+ 1 1)) t)
-(is (cl-cuda::function-p '(foo 1 1)) t)
+;; test function-p
+(is (cl-cuda::function-p 'a        ) nil)
+(is (cl-cuda::function-p '()       ) nil)
+(is (cl-cuda::function-p '1        ) nil)
+(is (cl-cuda::function-p '(foo)    ) t  )
+(is (cl-cuda::function-p '(+ 1 1)  ) t  )
+(is (cl-cuda::function-p '(foo 1 1)) t  )
 
-(is-error (cl-cuda::function-operator 'a) simple-error)
-(is (cl-cuda::function-operator '(foo)) 'foo)
-(is (cl-cuda::function-operator '(+ 1 1)) '+)
-(is (cl-cuda::function-operator '(foo 1 1)) 'foo)
+;; test function-operator
+(is-error (cl-cuda::function-operator 'a        ) simple-error)
+(is       (cl-cuda::function-operator '(foo)    ) 'foo        )
+(is       (cl-cuda::function-operator '(+ 1 1)  ) '+          )
+(is       (cl-cuda::function-operator '(foo 1 1)) 'foo        )
 
-(is-error (cl-cuda::function-operands 'a) simple-error)
-(is (cl-cuda::function-operands '(foo)) '())
-(is (cl-cuda::function-operands '(+ 1 1)) '(1 1))
-(is (cl-cuda::function-operands '(foo 1 1)) '(1 1))
+;; test function-operands
+(is-error (cl-cuda::function-operands 'a        ) simple-error)
+(is       (cl-cuda::function-operands '(foo)    ) '()         )
+(is       (cl-cuda::function-operands '(+ 1 1)  ) '(1 1)      )
+(is       (cl-cuda::function-operands '(foo 1 1)) '(1 1)      )
 
-(is-error (cl-cuda::compile-function 'a nil nil) simple-error)
+;; test compile-function
+(is-error (cl-cuda::compile-function 'a         nil nil) simple-error   )
+(is       (cl-cuda::compile-function '(+ 1 1)   nil nil) "(1 + 1)"      )
+(is       (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
+
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
              (cl-cuda::empty-kernel-definition))))
   (is (cl-cuda::compile-function '(foo) nil def :statement-p t) "foo ();"))
-(is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
-(is (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
-(is-error (cl-cuda::compile-function '(foo 1 1) nil nil) simple-error)
+
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '((x int) (y int)) '()
              (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::compile-function '(foo 1 1) nil def :statement-p t)
-      "foo (1, 1);")
-  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil def :statement-p t)
-            simple-error))
+  (is-error (cl-cuda::compile-function '(foo 1 1)   nil nil               ) simple-error )
+  (is       (cl-cuda::compile-function '(foo 1 1)   nil def :statement-p t) "foo (1, 1);")
+  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil def :statement-p t) simple-error ))
 
-(is (cl-cuda::compile-function '(float3 1.0 1.0 1.0) nil nil)
-    "make_float3 (1.0, 1.0, 1.0)")
-(is (cl-cuda::compile-function '(float4 1.0 1.0 1.0 1.0) nil nil)
-    "make_float4 (1.0, 1.0, 1.0, 1.0)")
+(is (cl-cuda::compile-function '(float3 1.0 1.0 1.0)     nil nil) "make_float3 (1.0, 1.0, 1.0)"     )
+(is (cl-cuda::compile-function '(float4 1.0 1.0 1.0 1.0) nil nil) "make_float4 (1.0, 1.0, 1.0, 1.0)")
 
 
+;;;
 ;;; test built-in arithmetic functions
+;;;
 
 (diag "test built-in arithmetic functions")
 
-(is (cl-cuda::compile-function '(+ 1 1) nil nil) "(1 + 1)")
-(is (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
-(is (cl-cuda::compile-function '(+ 1.0 1.0 1.0) nil nil) "((1.0 + 1.0) + 1.0)")
-(is-error (cl-cuda::compile-function '(+ 1 1 1.0) nil nil) simple-error)
-(is-error (cl-cuda::compile-function '(+) nil nil) simple-error)
-(is-error (cl-cuda::compile-function '(+ 1) nil nil) simple-error)
+;; test compile-function
+(is       (cl-cuda::compile-function '(+ 1 1)         nil nil) "(1 + 1)"            )
+(is       (cl-cuda::compile-function '(+ 1 1 1)       nil nil) "((1 + 1) + 1)"      )
+(is       (cl-cuda::compile-function '(+ 1.0 1.0 1.0) nil nil) "((1.0 + 1.0) + 1.0)")
+(is-error (cl-cuda::compile-function '(+ 1 1 1.0)     nil nil) simple-error         )
+(is-error (cl-cuda::compile-function '(+)             nil nil) simple-error         )
+(is-error (cl-cuda::compile-function '(+ 1)           nil nil) simple-error         )
 
-(is (cl-cuda::built-in-arithmetic-function-valid-type-p '+ '() nil nil) nil)
-(is (cl-cuda::built-in-arithmetic-function-valid-type-p '+ '(1 1) nil nil) t)
-(is (cl-cuda::built-in-arithmetic-function-valid-type-p '+ '(1.0 1.0) nil nil)
-    t)
-(is (cl-cuda::built-in-arithmetic-function-valid-type-p '+ '(1 1.0) nil nil)
-    nil)
-(is-error (cl-cuda::built-in-arithmetic-function-valid-type-p 'foo '() nil nil)
-          simple-error)
+;; test built-in-arithmetic-function-valid-type-p
+(is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '()        nil nil) nil         )
+(is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '(1 1)     nil nil) t           )
+(is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '(1.0 1.0) nil nil) t           )
+(is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '(1 1.0)   nil nil) nil         )
+(is-error (cl-cuda::built-in-arithmetic-function-valid-type-p 'foo '()        nil nil) simple-error)
 
-(is-error (cl-cuda::built-in-arithmetic-function-return-type '+ '() nil nil)
-          simple-error)
-(is (cl-cuda::built-in-arithmetic-function-return-type '+ '(1 1) nil nil) 'int)
-(is (cl-cuda::built-in-arithmetic-function-return-type '+ '(1.0 1.0) nil nil)
-    'float)
-(is-error
- (cl-cuda::built-in-arithmetic-function-return-type '+ '(1 1.0) nil nil)
- simple-error)
-(is-error (cl-cuda::built-in-arithmetic-function-return-type 'foo '() nil nil)
-          simple-error)
+;; test built-in-arithmetic-functino-return-type
+(is-error (cl-cuda::built-in-arithmetic-function-return-type '+   '()        nil nil) simple-error)
+(is       (cl-cuda::built-in-arithmetic-function-return-type '+   '(1 1)     nil nil) 'int        )
+(is       (cl-cuda::built-in-arithmetic-function-return-type '+   '(1.0 1.0) nil nil) 'float      )
+(is-error (cl-cuda::built-in-arithmetic-function-return-type '+   '(1 1.0)   nil nil) simple-error)
+(is-error (cl-cuda::built-in-arithmetic-function-return-type 'foo '()        nil nil) simple-error)
 
 
+;;;
 ;;; test compile-literal (not implemented)
+;;;
 
 
 
+;;;
 ;;; test compile-cuda-dimension (not implemented)
+;;;
 
 
 
+;;;
 ;;; test compile-variable-reference
+;;;
 
 (diag "test compile-variable-reference")
 
-(is (cl-cuda::variable-reference-p 'x) t)
-(is (cl-cuda::variable-reference-p 1) nil)
-(is (cl-cuda::variable-reference-p '(aref x)) t)
-(is (cl-cuda::variable-reference-p '(aref x i)) t)
-(is (cl-cuda::variable-reference-p '(aref x i i)) t)
-(is (cl-cuda::variable-reference-p '(aref x i i i)) t)
-(is (cl-cuda::variable-reference-p '(float3-x x)) t)
-(is (cl-cuda::variable-reference-p '(float3-y x)) t)
-(is (cl-cuda::variable-reference-p '(float3-z x)) t)
-(is (cl-cuda::variable-reference-p '(float4-x x)) t)
-(is (cl-cuda::variable-reference-p '(float4-y x)) t)
-(is (cl-cuda::variable-reference-p '(float4-z x)) t)
-(is (cl-cuda::variable-reference-p '(float4-w x)) t)
+;; test variable-reference-p
+(is (cl-cuda::variable-reference-p 'x)              t  )
+(is (cl-cuda::variable-reference-p 1)               nil)
+(is (cl-cuda::variable-reference-p '(aref x))       t  )
+(is (cl-cuda::variable-reference-p '(aref x i))     t  )
+(is (cl-cuda::variable-reference-p '(aref x i i))   t  )
+(is (cl-cuda::variable-reference-p '(aref x i i i)) t  )
+(is (cl-cuda::variable-reference-p '(float3-x x))   t  )
+(is (cl-cuda::variable-reference-p '(float3-y x))   t  )
+(is (cl-cuda::variable-reference-p '(float3-z x))   t  )
+(is (cl-cuda::variable-reference-p '(float4-x x))   t  )
+(is (cl-cuda::variable-reference-p '(float4-y x))   t  )
+(is (cl-cuda::variable-reference-p '(float4-z x))   t  )
+(is (cl-cuda::variable-reference-p '(float4-w x))   t  )
 
+;; test compile-variable-reference
 (is-error (cl-cuda::compile-variable-reference 'x nil nil) simple-error)
 
 (cl-cuda::with-type-environment (type-env ((x int)))
-  (is (cl-cuda::compile-variable-reference 'x type-env nil) "x")
-  (is-error (cl-cuda::compile-variable-reference '(aref x) type-env nil)
-            simple-error)
-  (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil)
-            simple-error))
+  (is       (cl-cuda::compile-variable-reference 'x          type-env nil) "x"         )
+  (is-error (cl-cuda::compile-variable-reference '(aref x)   type-env nil) simple-error)
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil) simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int*)))
-  (is (cl-cuda::compile-variable-reference 'x type-env nil) "x")
-  (is (cl-cuda::compile-variable-reference '(aref x 0) type-env nil) "x[0]")
-  (is-error (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
-            simple-error))
+  (is       (cl-cuda::compile-variable-reference 'x            type-env nil) "x"         )
+  (is       (cl-cuda::compile-variable-reference '(aref x 0)   type-env nil) "x[0]"      )
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil) simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int**)))
-  (is (cl-cuda::compile-variable-reference 'x type-env nil) "x")
-  (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil)
-            simple-error)
-  (is (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil)
-      "x[0][0]"))
+  (is       (cl-cuda::compile-variable-reference 'x            type-env nil) "x"         )
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0)   type-env nil) simple-error)
+  (is       (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil) "x[0][0]"   ))
 
 (cl-cuda::with-type-environment (type-env ((x float3)))
   (is (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) "x.x")
@@ -911,58 +997,62 @@
   (is (cl-cuda::compile-variable-reference '(float4-w x) type-env nil) "x.w"))
 
 
+;;;
 ;;; test type-of-expression
+;;;
 
 (diag "test type-of-expression")
 
-(is (cl-cuda::type-of-expression '1 nil nil) 'int)
+;; test type-of-expression
+(is (cl-cuda::type-of-expression '1   nil nil) 'int  )
 (is (cl-cuda::type-of-expression '1.0 nil nil) 'float)
 
-(is (cl-cuda::type-of-literal '1) 'int)
-(is (cl-cuda::type-of-literal '1.0) 'float)
+;; test type-of-literal
+(is       (cl-cuda::type-of-literal '1    ) 'int        )
+(is       (cl-cuda::type-of-literal '1.0  ) 'float      )
 (is-error (cl-cuda::type-of-literal '1.0d0) simple-error)
 
-(is (cl-cuda::type-of-function '(+ 1 1) nil nil) 'int)
+;; test type-of-function
 (let ((def (cl-cuda::define-kernel-function 'foo 'int '((x int) (y int)) '()
              (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::type-of-function '(+ 1 1)   nil nil) 'int)
   (is (cl-cuda::type-of-function '(foo 1 1) nil def) 'int))
 
-(is (cl-cuda::type-of-function '(+ 1 1 1) nil nil) 'int)
-(is (cl-cuda::type-of-function '(+ 1.0 1.0 1.0) nil nil) 'float)
-(is-error (cl-cuda::type-of-function '(+ 1 1 1.0) nil nil) simple-error)
-(is (cl-cuda::type-of-function '(expt 1.0 1.0) nil nil) 'float)
+;; test type-of-function
+(is       (cl-cuda::type-of-function '(+ 1 1 1)       nil nil) 'int        )
+(is       (cl-cuda::type-of-function '(+ 1.0 1.0 1.0) nil nil) 'float      )
+(is-error (cl-cuda::type-of-function '(+ 1 1 1.0)     nil nil) simple-error)
+(is       (cl-cuda::type-of-function '(expt 1.0 1.0)  nil nil) 'float      )
 
-(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-y nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-z nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-x nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-y nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-z nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-x nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-y nil nil) 'int)
-(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-z nil nil) 'int)
+;; test type-of-expression
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x   nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-y   nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-z   nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-x  nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-y  nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-idx-z  nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-x  nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-y  nil nil) 'int)
+(is (cl-cuda::type-of-expression 'cl-cuda::block-dim-z  nil nil) 'int)
 (is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-x nil nil) 'int)
 (is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-y nil nil) 'int)
 (is (cl-cuda::type-of-expression 'cl-cuda::thread-idx-z nil nil) 'int)
 
-(is-error (cl-cuda::type-of-variable-reference 'x nil) simple-error)
-
+;; test type-of-variable-reference
 (cl-cuda::with-type-environment (type-env ((x int)))
-  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int)
-  (is-error (cl-cuda::type-of-variable-reference '(aref x) type-env)
-            simple-error))
+  (is-error (cl-cuda::type-of-variable-reference 'x        nil     ) simple-error)
+  (is       (cl-cuda::type-of-variable-reference 'x        type-env) 'int        )
+  (is-error (cl-cuda::type-of-variable-reference '(aref x) type-env) simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int*)))
-  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int*)
-  (is (cl-cuda::type-of-variable-reference '(aref x 0) type-env) 'int)
-  (is-error (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env)
-            simple-error))
+  (is       (cl-cuda::type-of-variable-reference 'x            type-env) 'int*       )
+  (is       (cl-cuda::type-of-variable-reference '(aref x 0)   type-env) 'int        )
+  (is-error (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int**)))
-  (is (cl-cuda::type-of-variable-reference 'x type-env) 'int**)
-  (is-error (cl-cuda::type-of-variable-reference '(aref x 0) type-env)
-            simple-error)
-  (is (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) 'int))
+  (is       (cl-cuda::type-of-variable-reference 'x            type-env) 'int**      )
+  (is-error (cl-cuda::type-of-variable-reference '(aref x 0)   type-env) simple-error)
+  (is       (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) 'int        ))
 
 (cl-cuda::with-type-environment (type-env ((x float3)))
   (is (cl-cuda::type-of-variable-reference '(float3-x x) type-env) 'float)
@@ -976,9 +1066,12 @@
   (is (cl-cuda::type-of-variable-reference '(float4-w x) type-env) 'float))
 
 
+;;;
 ;;; test utilities
+;;;
 
-(is (cl-cuda::cl-cuda-symbolicate 'a) 'cl-cuda::a)
+;; test cl-cuda-symbolicate
+(is (cl-cuda::cl-cuda-symbolicate 'a   ) 'cl-cuda::a )
 (is (cl-cuda::cl-cuda-symbolicate 'a 'b) 'cl-cuda::ab)
 
 
