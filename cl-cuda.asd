@@ -21,8 +21,7 @@
                 :serial t
                 :components
                 ((:file "package")
-                 (:file "cl-cuda")
-                 (:file "cl-cuda-enum"))))
+                 (:file "cl-cuda"))))
   :description ""
   :long-description
   #.(with-open-file (stream (merge-pathnames

@@ -21,21 +21,24 @@
 
 ;;; defcuenum
 
-(defun enum-keyword (enum-elem)
-  (match (ensure-list enum-elem)
-    ((keyword) keyword)
-    ((keyword _) keyword)
-    (_  (error (format nil "invalid enum element: ~A" enum-elem)))))
+(eval-when (:compile-toplevel)
+  (defun enum-keyword (enum-elem)
+    (match (ensure-list enum-elem)
+      ((keyword) keyword)
+      ((keyword _) keyword)
+      (_  (error (format nil "invalid enum element: ~A" enum-elem))))))
 
-(defun enum-value (enum-elem)
-  (match enum-elem
-    ((_ value) value)
-    (_ (error (format nil "invalid enum element: ~A" enum-elem)))))
-
-(defun defconstant-enum-value (name enum-elem)
-  (let ((keyword (enum-keyword enum-elem)))
-    `(defconstant ,(symbolicate keyword)
-                  (cffi:foreign-enum-value ',name ,keyword))))
+(eval-when (:compile-toplevel)
+  (defun enum-value (enum-elem)
+    (match enum-elem
+      ((_ value) value)
+      (_ (error (format nil "invalid enum element: ~A" enum-elem))))))
+  
+(eval-when (:compile-toplevel)
+  (defun defconstant-enum-value (name enum-elem)
+    (let ((keyword (enum-keyword enum-elem)))
+      `(defconstant ,(symbolicate keyword)
+         (cffi:foreign-enum-value ',name ,keyword)))))
 
 (defmacro defcuenum (name-and-options &body enum-list)
   (let ((name name-and-options))
@@ -65,6 +68,15 @@
 (cffi:defctype cu-device-ptr :unsigned-int)
 (cffi:defctype cu-event :pointer)
 (cffi:defctype size-t :unsigned-int)
+
+
+;;; Enums
+
+(defcuenum cu-event-flags-enum
+  (:cu-event-default #X0)
+  (:cu-event-blocking-sync #X1)
+  (:cu-event-disable-timing #X2)
+  (:cu-event-interprocess #X4))
 
 
 ;;; Functions
