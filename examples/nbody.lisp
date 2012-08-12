@@ -192,13 +192,6 @@
 
 (let (start-event stop-event)
 
-  (defmacro with-cuda-timer (&body body)
-    `(unwind-protect
-          (progn
-            (create-timer-events)
-            ,@body)
-       (destroy-timer-events)))
-
   (defun create-timer-events ()
     (setf start-event (cffi:foreign-alloc 'cu-event)
           stop-event (cffi:foreign-alloc 'cu-event))
@@ -230,6 +223,13 @@
         (start-timer)
         (setf milliseconds (cffi:mem-ref pmilliseconds :float)))
       milliseconds)))
+
+(defmacro with-cuda-timer (&body body)
+  `(unwind-protect
+        (progn
+          (create-timer-events)
+          ,@body)
+     (destroy-timer-events)))
 
 
 ;;;
