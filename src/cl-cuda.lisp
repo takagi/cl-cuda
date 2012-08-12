@@ -21,20 +21,20 @@
 
 ;;; defcuenum
 
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :load-toplevel)
   (defun enum-keyword (enum-elem)
     (match (ensure-list enum-elem)
       ((keyword) keyword)
       ((keyword _) keyword)
       (_  (error (format nil "invalid enum element: ~A" enum-elem))))))
 
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :load-toplevel)
   (defun enum-value (enum-elem)
     (match enum-elem
       ((_ value) value)
       (_ (error (format nil "invalid enum element: ~A" enum-elem))))))
   
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :load-toplevel)
   (defun defconstant-enum-value (name enum-elem)
     (let ((keyword (enum-keyword enum-elem)))
       `(defconstant ,(symbolicate keyword)
