@@ -492,28 +492,26 @@
             collect `(setf (cffi:mem-aref ,var :pointer ,i) ,ptr))
        ,@body)))
 
-(defun kernel-defun (mgr mgr-symbol name)
-  (let ((kargs (kernel-manager-function-arg-bindings mgr name)))
-    (with-gensyms (hfunc args)
-      `(defun ,name (,@(kernel-arg-names kargs) &key grid-dim block-dim)
-         (let ((,hfunc (ensure-kernel-function-loaded ,mgr-symbol ',name)))
-           (with-non-pointer-arguments
-               ,(kernel-arg-foreign-pointer-bindings kargs)
-             (with-kernel-arguments
-                 (,args ,@(kernel-arg-names-as-pointer kargs))
-               (destructuring-bind
-                     (grid-dim-x grid-dim-y grid-dim-z) grid-dim
-               (destructuring-bind
-                     (block-dim-x block-dim-y block-dim-z) block-dim
-                 (cu-launch-kernel (cffi:mem-ref ,hfunc 'cu-function)
-                                   grid-dim-x grid-dim-y grid-dim-z
-                                   block-dim-x block-dim-y block-dim-z
-                                   0 (cffi:null-pointer)
-                                   ,args (cffi:null-pointer)))))))))))
-
-(defmacro defkernel (name arg-bindings &rest body)
-  (kernel-manager-define-function *kernel-manager* name arg-bindings body)
-  (kernel-defun *kernel-manager* '*kernel-manager* name))
+(defmacro defkernel (name args &body body)
+  (destructuring-bind (return-type arg-bindings) args
+    (with-gensyms (hfunc kargs)
+      `(progn
+         (kernel-manager-define-function *kernel-manager* ',name ',return-type ',arg-bindings ',body)
+         (defun ,name (,@(kernel-arg-names arg-bindings) &key grid-dim block-dim)
+           (let ((,hfunc (ensure-kernel-function-loaded *kernel-manager* ',name)))
+             (with-non-pointer-arguments
+                 ,(kernel-arg-foreign-pointer-bindings arg-bindings)
+               (with-kernel-arguments
+                   (,kargs ,@(kernel-arg-names-as-pointer arg-bindings))
+                 (destructuring-bind
+                       (grid-dim-x grid-dim-y grid-dim-z) grid-dim
+                 (destructuring-bind
+                       (block-dim-x block-dim-y block-dim-z) block-dim
+                   (cu-launch-kernel (cffi:mem-ref ,hfunc 'cu-function)
+                                     grid-dim-x grid-dim-y grid-dim-z
+                                     block-dim-x block-dim-y block-dim-z
+                                     0 (cffi:null-pointer)
+                                     ,kargs (cffi:null-pointer))))))))))))
 
 
 ;;; cl-cuda types
@@ -817,14 +815,13 @@
 (defun kernel-manager-kernel-code (mgr)
   (compile-kernel-definition (kernel-definition mgr)))
 
-(defun kernel-manager-define-function (mgr name args body)
-  (destructuring-bind (return-type arg-bindings) args
-    (let ((def (kernel-definition mgr)))
-      (when (or (not (kernel-manager-function-exists-p mgr name))
-                (function-modified-p name def return-type arg-bindings body))
-        (setf (kernel-definition mgr)
-              (define-kernel-function name return-type arg-bindings body def))
-        (setf (kernel-manager-module-compilation-needed mgr) t)))))
+(defun kernel-manager-define-function (mgr name return-type arg-bindings body)
+  (let ((def (kernel-definition mgr)))
+    (when (or (not (kernel-manager-function-exists-p mgr name))
+              (function-modified-p name def return-type arg-bindings body))
+      (setf (kernel-definition mgr)
+            (define-kernel-function name return-type arg-bindings body def))
+      (setf (kernel-manager-module-compilation-needed mgr) t))))
 
 (defun function-modified-p (name def return-type arg-bindings body)
   (or (nequal return-type (kernel-function-return-type name def))
