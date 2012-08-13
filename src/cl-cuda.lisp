@@ -6,7 +6,19 @@
 (in-package :cl-cuda)
 
 
-;;; defcufun
+;;;
+;;; Load CUDA library
+;;;
+
+(cffi:define-foreign-library libcuda
+  (t (:default "/usr/local/cuda/lib/libcuda")))
+(cffi:use-foreign-library libcuda)
+
+
+
+;;;
+;;; Definition of defcufun macro
+;;;
 
 (defmacro defcufun (name-and-options return-type &body args)
   (let* ((name (car name-and-options))
@@ -19,7 +31,9 @@
          (cffi:defcfun ,name-and-options% ,return-type ,@args))))
 
 
-;;; defcuenum
+;;;
+;;; Definition of defcuenum macro
+;;;
 
 (eval-when (:compile-toplevel :load-toplevel)
   (defun enum-keyword (enum-elem)
@@ -50,14 +64,9 @@
                  enum-list))))
 
 
-;;; load CUDA driver API
-
-(cffi:define-foreign-library libcuda
-  (t (:default "/usr/local/cuda/lib/libcuda")))
-(cffi:use-foreign-library libcuda)
-
-
-;;; Types
+;;;
+;;; Definition of CUDA driver API types
+;;;
 
 (cffi:defctype cu-result :unsigned-int)
 (cffi:defctype cu-device :int)
@@ -70,7 +79,9 @@
 (cffi:defctype size-t :unsigned-int)
 
 
-;;; Enums
+;;;
+;;; Definition of CUDA driver API enums
+;;;
 
 (defcuenum cu-event-flags-enum
   (:cu-event-default #X0)
@@ -79,7 +90,9 @@
   (:cu-event-interprocess #X4))
 
 
-;;; Functions
+;;;
+;;; Definition of CUDA driver API functions
+;;;
 
 ;; cuInit
 (defcufun (cu-init "cuInit") cu-result (flags :unsigned-int))
@@ -196,8 +209,59 @@
 (defcufun (cu-event-synchronize "cuEventSynchronize") cu-result
   (hevent cu-event))
 
+;; check-cuda-errors function
+(defvar +cuda-success+ 0)
+(defvar *show-messages* t)
 
-;;; Built-in Vector Types
+(defun check-cuda-errors (name return-code)
+  (unless (= return-code +cuda-success+)
+    (error (format nil "~A failed with driver API error No. ~A.~%"
+                       name return-code)))
+  (when *show-messages*
+    (format t "~A succeeded.~%" name))
+  (values))
+
+
+;;;
+;;; Definition of with- macro for CUDA driver API
+;;;
+
+(defmacro with-cuda-context (args &body body)
+  (destructuring-bind (dev-id) args
+    (let ((flags 0))
+      (with-gensyms (device ctx)
+        `(cffi:with-foreign-objects ((,device 'cu-device)
+                                     (,ctx 'cu-context))
+           (cu-init 0)
+           (cu-device-get ,device ,dev-id)
+           (cu-ctx-create ,ctx ,flags (cffi:mem-ref ,device 'cu-device))
+           (unwind-protect
+             (progn
+               (ensure-kernel-module-loaded *kernel-manager*)
+               ,@body)
+             (progn
+               (kernel-manager-unload *kernel-manager*)
+               (cu-ctx-destroy (cffi:mem-ref ,ctx 'cu-context)))))))))
+
+(defmacro with-cuda-memory-block (args &body body)
+  (destructuring-bind (dptr size) args
+    `(cffi:with-foreign-object (,dptr 'cu-device-ptr)
+       (cu-mem-alloc ,dptr ,size)
+       (unwind-protect
+            (progn ,@body)
+         (cu-mem-free (cffi:mem-ref ,dptr 'cu-device-ptr))))))
+
+(defmacro with-cuda-memory-blocks (bindings &body body)
+  (if bindings
+      `(with-cuda-memory-block ,(car bindings)
+         (with-cuda-memory-blocks ,(cdr bindings)
+           ,@body))
+      `(progn ,@body)))
+
+
+;;;
+;;; Definition of Built-in Vector Types
+;;;
 
 (defstruct (float3 (:constructor make-float3 (x y z)))
   (x 0.0 :type single-float)
@@ -233,12 +297,123 @@
   (w :float))
 
 
-;;; Constants
+;;;
+;;; Definition of cl-cuda types
+;;;
 
-(defvar +cuda-success+ 0)
+(defvar +basic-types+ '(void 0
+                        int 4
+                        float 4))
+
+(defvar +vector-type-table+ '(float3 float4))
+
+(defvar +vector-type-elements+ '(x y z w))
+
+(defun basic-type-p (type)
+  (and (getf +basic-types+ type)
+       t))
+
+(defun vector-type-p (type)
+  (and (find type +vector-type-table+)
+       t))
+
+(defun vector-type-length (type)
+  ;; e.g. float3 => 3
+  (unless (vector-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (let ((str (symbol-name type)))
+    (parse-integer (subseq str (1- (length str))))))
+
+(defun vector-type-base-type (type)
+  ;; e.g. float3 => float
+  (unless (vector-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (cl-cuda-symbolicate (reverse (subseq (reverse (princ-to-string type)) 1))))
+
+(defun vector-type-selector-symbol (type elm)
+  ;; e.g. float3 x => float3-x
+  (unless (vector-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (unless (find elm +vector-type-elements+)
+    (error (format nil "invalid element: ~A" elm)))
+  (cl-cuda-symbolicate (princ-to-string type) "-" (princ-to-string elm)))
+
+(defun vector-type-selector-return-type (selector)
+  ;; e.g. float3-x => float
+  (unless (find selector (vector-type-selector-symbols))
+    (error (format nil "invalid selector: ~A" selector)))
+  (cl-cuda-symbolicate
+    (reverse (subseq (reverse (princ-to-string selector)) 3))))
+
+(defun vector-type-selector-symbols ()
+  (labels ((aux (type)
+             (loop repeat (vector-type-length type)
+                   for elm in +vector-type-elements+
+                collect (vector-type-selector-symbol type elm))))
+    (flatten
+      (mapcar #'aux +vector-type-table+))))
+
+(defun non-pointer-type-p (type)
+  (or (basic-type-p type)
+      (vector-type-p type)))
+
+(defun pointer-type-p (type)
+  (let ((type-str (symbol-name type)))
+    (let ((last (aref type-str (1- (length type-str)))))
+      (and (eq last #\*)
+           (non-pointer-type-p (remove-star type))
+           t))))
+
+(defun valid-type-p (type)
+  (or (pointer-type-p type)
+      (non-pointer-type-p type)))
+
+(defun add-star (type n)
+  (labels ((aux (str n2)
+             (if (< n2 1)
+                 str
+                 (aux (concatenate 'string str "*") (1- n2)))))
+    (cl-cuda-symbolicate (aux (princ-to-string type) n))))
+
+(defun remove-star (type)
+  (let ((rev (reverse (princ-to-string type))))
+    (if (string= (subseq rev 0 1) "*")
+        (remove-star (cl-cuda-symbolicate (reverse (subseq rev 1))))
+        type)))
+
+(defun type-dimension (type)
+  (unless (valid-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (count #\* (princ-to-string type)))
+
+(defvar +cffi-type-table+ '(int :int
+                            float :float))
+
+(defun cffi-type (type)
+  (acond
+    ((pointer-type-p type) 'cu-device-ptr)
+    ((getf +cffi-type-table+ type) it)
+    ((vector-type-p type) type)
+    (t (error (format nil "invalid type: ~A" type)))))
+
+(defun basic-type-size (type)
+  (getf +basic-types+ type))
+
+(defun vector-type-size (type)
+  (* (vector-type-length type)
+     (size-of (vector-type-base-type type))))
+
+(defun size-of (type)
+  (cond
+    ((pointer-type-p type) 4)
+    ((basic-type-p type) (basic-type-size type))
+    ((vector-type-p type) (vector-type-size type))
+    (t (error (format nil "invalid type: ~A" type)))))
 
 
-;;; Memory Blocks
+;;;
+;;; Definition of Memory Block
+;;;
 
 (defun alloc-memory-block (type n)
   (unless (non-pointer-type-p type)
@@ -406,52 +581,9 @@
                                 bytes))))
 
 
-;;; Helpers
-
-(defvar *show-messages* t)
-
-(defun check-cuda-errors (name return-code)
-  (unless (= return-code +cuda-success+)
-    (error (format nil "~A failed with driver API error No. ~A.~%"
-                       name return-code)))
-  (when *show-messages*
-    (format t "~A succeeded.~%" name))
-  (values))
-
-(defmacro with-cuda-context (args &body body)
-  (destructuring-bind (dev-id) args
-    (let ((flags 0))
-      (with-gensyms (device ctx)
-        `(cffi:with-foreign-objects ((,device 'cu-device)
-                                     (,ctx 'cu-context))
-           (cu-init 0)
-           (cu-device-get ,device ,dev-id)
-           (cu-ctx-create ,ctx ,flags (cffi:mem-ref ,device 'cu-device))
-           (unwind-protect
-             (progn
-               (ensure-kernel-module-loaded *kernel-manager*)
-               ,@body)
-             (progn
-               (kernel-manager-unload *kernel-manager*)
-               (cu-ctx-destroy (cffi:mem-ref ,ctx 'cu-context)))))))))
-
-(defmacro with-cuda-memory-block (args &body body)
-  (destructuring-bind (dptr size) args
-    `(cffi:with-foreign-object (,dptr 'cu-device-ptr)
-       (cu-mem-alloc ,dptr ,size)
-       (unwind-protect
-            (progn ,@body)
-         (cu-mem-free (cffi:mem-ref ,dptr 'cu-device-ptr))))))
-
-(defmacro with-cuda-memory-blocks (bindings &body body)
-  (if bindings
-      `(with-cuda-memory-block ,(car bindings)
-         (with-cuda-memory-blocks ,(cdr bindings)
-           ,@body))
-      `(progn ,@body)))
-
-
-;;; defkernel
+;;;
+;;; Definition of defkernel macro
+;;;
 
 (defmacro with-module-and-function (args &body body)
   (destructuring-bind (hfunc module function) args
@@ -526,118 +658,6 @@
                                      ,kargs (cffi:null-pointer))))))))))))
 
 
-;;; cl-cuda types
-
-(defvar +basic-types+ '(void 0
-                        int 4
-                        float 4))
-
-(defvar +vector-type-table+ '(float3 float4))
-
-(defvar +vector-type-elements+ '(x y z w))
-
-(defun basic-type-p (type)
-  (and (getf +basic-types+ type)
-       t))
-
-(defun vector-type-p (type)
-  (and (find type +vector-type-table+)
-       t))
-
-(defun vector-type-length (type)
-  ;; e.g. float3 => 3
-  (unless (vector-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (let ((str (symbol-name type)))
-    (parse-integer (subseq str (1- (length str))))))
-
-(defun vector-type-base-type (type)
-  ;; e.g. float3 => float
-  (unless (vector-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (cl-cuda-symbolicate (reverse (subseq (reverse (princ-to-string type)) 1))))
-
-(defun vector-type-selector-symbol (type elm)
-  ;; e.g. float3 x => float3-x
-  (unless (vector-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (unless (find elm +vector-type-elements+)
-    (error (format nil "invalid element: ~A" elm)))
-  (cl-cuda-symbolicate (princ-to-string type) "-" (princ-to-string elm)))
-
-(defun vector-type-selector-return-type (selector)
-  ;; e.g. float3-x => float
-  (unless (find selector (vector-type-selector-symbols))
-    (error (format nil "invalid selector: ~A" selector)))
-  (cl-cuda-symbolicate
-    (reverse (subseq (reverse (princ-to-string selector)) 3))))
-
-(defun vector-type-selector-symbols ()
-  (labels ((aux (type)
-             (loop repeat (vector-type-length type)
-                   for elm in +vector-type-elements+
-                collect (vector-type-selector-symbol type elm))))
-    (flatten
-      (mapcar #'aux +vector-type-table+))))
-
-(defun non-pointer-type-p (type)
-  (or (basic-type-p type)
-      (vector-type-p type)))
-
-(defun pointer-type-p (type)
-  (let ((type-str (symbol-name type)))
-    (let ((last (aref type-str (1- (length type-str)))))
-      (and (eq last #\*)
-           (non-pointer-type-p (remove-star type))
-           t))))
-
-(defun valid-type-p (type)
-  (or (pointer-type-p type)
-      (non-pointer-type-p type)))
-
-(defun add-star (type n)
-  (labels ((aux (str n2)
-             (if (< n2 1)
-                 str
-                 (aux (concatenate 'string str "*") (1- n2)))))
-    (cl-cuda-symbolicate (aux (princ-to-string type) n))))
-
-(defun remove-star (type)
-  (let ((rev (reverse (princ-to-string type))))
-    (if (string= (subseq rev 0 1) "*")
-        (remove-star (cl-cuda-symbolicate (reverse (subseq rev 1))))
-        type)))
-
-(defun type-dimension (type)
-  (unless (valid-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (count #\* (princ-to-string type)))
-
-(defvar +cffi-type-table+ '(int :int
-                            float :float))
-
-(defun cffi-type (type)
-  (acond
-    ((pointer-type-p type) 'cu-device-ptr)
-    ((getf +cffi-type-table+ type) it)
-    ((vector-type-p type) type)
-    (t (error (format nil "invalid type: ~A" type)))))
-
-(defun basic-type-size (type)
-  (getf +basic-types+ type))
-
-(defun vector-type-size (type)
-  (* (vector-type-length type)
-     (size-of (vector-type-base-type type))))
-
-(defun size-of (type)
-  (cond
-    ((pointer-type-p type) 4)
-    ((basic-type-p type) (basic-type-size type))
-    ((vector-type-p type) (vector-type-size type))
-    (t (error (format nil "invalid type: ~A" type)))))
-
-
 ;;; kernel-arg
 
 (defun kernel-arg-names (arg-bindings)
@@ -676,7 +696,12 @@
   (symbolicate var "-PTR"))
 
 
-;;; module-info
+;;;
+;;; Definition of Kernel Manager
+;;;
+
+;;; module info
+;;; <module-info> ::= (<module-handle> <module-path> <module-compilation-needed)
 
 (defun make-module-info ()
   (list nil nil t))
@@ -765,6 +790,7 @@
   (function-body (function-info name def)))
 
 
+;;; function info
 ;;; <function-info> ::= (<name> <return-type> <arg-bindings> <body>)
 
 (defun make-function-info (name return-type arg-bindings body)
@@ -784,6 +810,7 @@
 
 
 ;;; kernel-manager
+;;; <kernel-manager> ::= (<module-info> <function-handles> <kernel-definition>)
 
 (defun make-kernel-manager ()
   (list (make-module-info) (make-function-handles) (empty-kernel-definition)))
@@ -922,7 +949,9 @@
   (values))
 
 
-;;; ensuring kernel manager
+;;;
+;;; Definition of kernel manager's ensure- functions
+;;;
 
 (defun ensure-kernel-function-loaded (mgr name)
   (ensure-kernel-module-loaded mgr)
@@ -940,7 +969,9 @@
   (values))
 
 
-;;; *kernel-manager*
+;;;
+;;; Definition of default kernel manager
+;;;
 
 (defvar *kernel-manager*
   (make-kernel-manager))
@@ -955,7 +986,9 @@
         (kernel-definition *kernel-manager*)))
 
 
-;;; compile kernel definition
+;;;
+;;; Compiling
+;;;
 
 (defun compile-kernel-definition (def)
   (unlines `(,@(mapcar #'(lambda (name)
