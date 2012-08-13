@@ -118,28 +118,10 @@
   (gl:clear-color 0 0 0 0))
 
 (defmethod glut:display ((w nbody-window))
-  ;; clear buffers
-  (gl:clear :color-buffer :depth-buffer-bit)
-  ;; view transform
-  (gl:matrix-mode :modelview)
-  (gl:load-identity)
-  (gl:translate 0.0 0.0 -100.0)
-  (gl:rotate 0.0 1.0 0.0 0.0)
-  (gl:rotate 0.0 0.0 1.0 0.0)
-  ;; draw points
-  (gl:color 1.0 1.0 1.0)
-  (gl:point-size 1.0)
-  (gl:begin :points)
-  (with-slots (old-pos num-bodies) w
-    (memcpy-device-to-host old-pos)
-    (dotimes (i num-bodies)
-      (let ((p (mem-aref old-pos i)))
-        (gl:vertex (float4-x p) (float4-y p) (float4-z p)))))
-  (gl:end)
-  ;; swap buffers
-  (glut:swap-buffers)
-  ;; display frame rate
-  (display-frame-rate (slot-value w 'num-bodies)))
+  (with-slots (new-pos old-pos vel delta-time damping num-bodies p) w
+    (update new-pos old-pos vel delta-time damping num-bodies p)
+    (display old-pos num-bodies)
+    (rotatef new-pos old-pos)))
 
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
@@ -151,10 +133,7 @@
   (gl:viewport 0 0 width height))
 
 (defmethod glut:idle ((w nbody-window))
-  (with-slots (new-pos old-pos vel delta-time damping num-bodies p) w
-    (update new-pos old-pos vel delta-time damping num-bodies p)
-    (rotatef new-pos old-pos)
-    (glut:post-redisplay)))
+  (glut:post-redisplay))
 
 
 ;;;
@@ -236,13 +215,6 @@
 ;;; main
 ;;;
 
-(defun integrate-nbody-system (new-pos old-pos vel delta-time damping num-bodies p)
-  (let ((grid-dim (list (ceiling (/ num-bodies p)) 1 1))
-        (block-dim (list p 1 1)))
-    (integrate-bodies new-pos old-pos vel delta-time damping num-bodies
-                      :grid-dim grid-dim
-                      :block-dim block-dim)))
-
 (defun divided-point (inner outer k)
   (+ inner (* (- outer inner) k)))
 
@@ -297,8 +269,38 @@
 (defun reset (pos vel cluster-scale velocity-scale num-bodies)
   (randomize-bodies pos vel cluster-scale velocity-scale num-bodies))
 
+(defun integrate-nbody-system (new-pos old-pos vel delta-time damping num-bodies p)
+  (let ((grid-dim (list (ceiling (/ num-bodies p)) 1 1))
+        (block-dim (list p 1 1)))
+    (integrate-bodies new-pos old-pos vel delta-time damping num-bodies
+                      :grid-dim grid-dim
+                      :block-dim block-dim)))
+
 (defun update (new-pos old-pos vel delta-time damping num-bodies p)
   (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
+
+(defun display (pos num-bodies)
+  ;; clear buffers
+  (gl:clear :color-buffer :depth-buffer-bit)
+  ;; view transform
+  (gl:matrix-mode :modelview)
+  (gl:load-identity)
+  (gl:translate 0.0 0.0 -100.0)
+  (gl:rotate 0.0 1.0 0.0 0.0)
+  (gl:rotate 0.0 0.0 1.0 0.0)
+  ;; draw points
+  (gl:color 1.0 1.0 1.0)
+  (gl:point-size 1.0)
+  (gl:begin :points)
+  (memcpy-device-to-host pos)
+  (dotimes (i num-bodies)
+    (let ((p (mem-aref pos i)))
+      (gl:vertex (float4-x p) (float4-y p) (float4-z p))))
+  (gl:end)
+  ;; swap buffers
+  (glut:swap-buffers)
+  ;; display frame rate
+  (display-frame-rate num-bodies))
 
 (defun main ()
   (let ((dev-id 0)
