@@ -926,7 +926,7 @@
 (is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '(1 1.0)   nil nil) nil         )
 (is-error (cl-cuda::built-in-arithmetic-function-valid-type-p 'foo '()        nil nil) simple-error)
 
-;; test built-in-arithmetic-functino-return-type
+;; test built-in-arithmetic-function-return-type
 (is-error (cl-cuda::built-in-arithmetic-function-return-type '+   '()        nil nil) simple-error)
 (is       (cl-cuda::built-in-arithmetic-function-return-type '+   '(1 1)     nil nil) 'int        )
 (is       (cl-cuda::built-in-arithmetic-function-return-type '+   '(1.0 1.0) nil nil) 'float      )
