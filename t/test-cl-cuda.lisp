@@ -919,19 +919,12 @@
 (is-error (cl-cuda::compile-function '(+)             nil nil) simple-error         )
 (is-error (cl-cuda::compile-function '(+ 1)           nil nil) simple-error         )
 
-;; test built-in-arithmetic-function-valid-type-p
-(is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '()        nil nil) nil         )
-(is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '(1 1)     nil nil) t           )
-(is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '(1.0 1.0) nil nil) t           )
-(is       (cl-cuda::built-in-arithmetic-function-valid-type-p '+   '(1 1.0)   nil nil) nil         )
-(is-error (cl-cuda::built-in-arithmetic-function-valid-type-p 'foo '()        nil nil) simple-error)
-
 ;; test built-in-arithmetic-function-return-type
-(is-error (cl-cuda::built-in-arithmetic-function-return-type '+   '()        nil nil) simple-error)
-(is       (cl-cuda::built-in-arithmetic-function-return-type '+   '(1 1)     nil nil) 'int        )
-(is       (cl-cuda::built-in-arithmetic-function-return-type '+   '(1.0 1.0) nil nil) 'float      )
-(is-error (cl-cuda::built-in-arithmetic-function-return-type '+   '(1 1.0)   nil nil) simple-error)
-(is-error (cl-cuda::built-in-arithmetic-function-return-type 'foo '()        nil nil) simple-error)
+(is-error (cl-cuda::built-in-arithmetic-function-return-type '(+)         nil nil) simple-error)
+(is       (cl-cuda::built-in-arithmetic-function-return-type '(+ 1 1)     nil nil) 'int        )
+(is       (cl-cuda::built-in-arithmetic-function-return-type '(+ 1.0 1.0) nil nil) 'float      )
+(is-error (cl-cuda::built-in-arithmetic-function-return-type '(+ 1 1.0)   nil nil) simple-error)
+(is-error (cl-cuda::built-in-arithmetic-function-return-type '(foo)       nil nil) simple-error)
 
 
 ;;;

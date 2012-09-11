@@ -1441,39 +1441,29 @@
       (t (error (format nil "invalid built-in function: ~A" op))))))
 
 (defun compile-built-in-arithmetic-function (form type-env def)
-  (let ((operator (function-operator form))
-        (operands (function-operands form)))
-    (unless (built-in-arithmetic-function-valid-type-p operator operands
-                                                       type-env def)
-      (error (format nil "invalid arguments: ~A" (cons operator operands))))
-    (compile-built-in-infix-function (binarize-1 form) type-env def)))
+  (compile-built-in-infix-function (binarize-1 form) type-env def))
 
 (defun binarize-1 (form)
   (if (atom form)
       form
       (if (and (nthcdr 3 form)
-               (member (car form) '(+ - * /)))
+               (member (car form) +built-in-arithmetic-functions+))
           (destructuring-bind (op a1 a2 . rest) form
             (binarize-1 `(,op (,op ,a1 ,a2) ,@rest)))
           form)))
 
 (defun compile-built-in-infix-function (form type-env def)
-  (let ((operator (function-operator form))
-        (operands (function-operands form)))
-    (let ((lhe (car operands))
-          (op (built-in-function-inferred-operator operator operands
-                                                   type-env def))
-          (rhe (cadr operands)))
-      (format nil "(~A ~A ~A)" (compile-expression lhe type-env def)
-                               op
-                               (compile-expression rhe type-env def)))))
+  (let ((operands (function-operands form)))
+    (let ((op (built-in-function-inferred-operator form type-env def))
+          (lhe (compile-expression (car operands) type-env def))
+          (rhe (compile-expression (cadr operands) type-env def)))
+      (format nil "(~A ~A ~A)" lhe op rhe))))
 
 (defun compile-built-in-prefix-function (form type-env def)
-  (let ((operator (function-operator form))
-        (operands (function-operands form)))
-    (format nil "~A (~A)" (built-in-function-inferred-operator operator operands
-                                                               type-env def)
-                          (compile-operands operands type-env def))))
+  (let ((operands (function-operands form)))
+    (format nil "~A (~A)"
+            (built-in-function-inferred-operator form type-env def)
+            (compile-operands operands type-env def))))
 
 (defun compile-user-function (form type-env def)
   (let ((operator (function-operator form))
@@ -1502,6 +1492,9 @@
 ;;;   <function-candidate>  ::= (<arg-types> <return-type> <function-c-name>)
 ;;;   <arg-types>           ::= (<arg-type>*)
 
+(defvar +built-in-arithmetic-functions+
+  '(+ - * /))
+
 (defvar +built-in-functions+
   '(+ (t (((int int) int "+")
           ((float float) float "+")))
@@ -1525,6 +1518,10 @@
     float4 (nil (((float float float float) float4 "make_float4")))
     ))
 
+(defun built-in-function-arithmetic-p (op)
+  (and (getf +built-in-arithmetic-functions+ op)
+       t))
+
 (defun built-in-function-infix-p (op)
   (aif (getf +built-in-functions+ op)
        (and (car it)
@@ -1536,51 +1533,26 @@
        (not (car it))
        (error (format nil "invalid built-in function: ~A" op))))
 
-(defun built-in-function-inferred-operator (operator operands type-env def)
-  (caddr (inferred-function operator operands type-env def)))
+(defun built-in-function-inferred-operator (form type-env def)
+  (caddr (inferred-function form type-env def)))
 
-(defun built-in-function-inferred-return-type (operator operands type-env def)
-  (cadr (inferred-function operator operands type-env def)))
+(defun built-in-function-inferred-return-type (form type-env def)
+  (cadr (inferred-function form type-env def)))
 
-(defun inferred-function (operator operands type-env def)
-  (let ((candidates (function-candidates operator))
-        (types (type-of-operands operands type-env def)))
-    (or (find types candidates :key #'car :test #'equal)
-        (error (format nil "invalid function application: ~A"
-                       (cons operator operands))))))
+(defun inferred-function (form type-env def)
+  (let ((operator (function-operator form))
+        (operands (function-operands form)))
+    (let ((candidates (function-candidates operator))
+          (types (type-of-operands operands type-env def)))
+      (or (find types candidates :key #'car :test #'equal)
+          (error (format nil "invalid function application: ~A" form))))))
 
 (defun function-candidates (op)
   (or (cadr (getf +built-in-functions+ op))
       (error (format nil "invalid operator: ~A" op))))
 
-(defvar +built-in-arithmetic-functions+
-  '(+ (int float)
-    - (int float)
-    * (int float)
-    / (int float)))
-
-(defun built-in-function-arithmetic-p (op)
-  (and (getf +built-in-arithmetic-functions+ op)
-       t))
-
-(defun built-in-arithmetic-function-valid-type-p (operator operands
-                                                  type-env def)
-  (and (%arithmetic-function-return-type operator operands type-env def)
-       t))
-
-(defun built-in-arithmetic-function-return-type (operator operands type-env def)
-  (or (%arithmetic-function-return-type operator operands type-env def)
-      (error (format nil "invalid arguments: ~A" (cons operator operands)))))
-
-(defun %arithmetic-function-return-type (operator operands type-env def)
-  (let ((candidates (arithmetic-function-type-candidates operator))
-        (arg-type (remove-duplicates (type-of-operands operands type-env def))))
-    (and (= (length arg-type) 1)
-         (find (car arg-type) candidates))))
-
-(defun arithmetic-function-type-candidates (op)
-  (or (getf +built-in-arithmetic-functions+ op)
-      (error (format nil "invalid operator: ~A" op))))
+(defun built-in-arithmetic-function-return-type (form type-env def)
+  (built-in-function-inferred-return-type (binarize-1 form) type-env def))
 
 
 ;;; compile expression
@@ -1761,13 +1733,10 @@
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun type-of-built-in-function (exp type-env def)
-  (let ((operator (function-operator exp))
-        (operands (function-operands exp)))
-    (if (built-in-function-arithmetic-p operator)
-        (built-in-arithmetic-function-return-type
-          operator operands type-env def)
-        (built-in-function-inferred-return-type
-          operator operands type-env def))))
+  (let ((op (function-operator exp)))
+    (if (built-in-function-arithmetic-p op)
+        (built-in-arithmetic-function-return-type exp type-env def)
+        (built-in-function-inferred-return-type exp type-env def))))
 
 (defun type-of-user-function (exp def)
   (let ((operator (function-operator exp)))
