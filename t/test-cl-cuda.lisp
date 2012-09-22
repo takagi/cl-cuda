@@ -522,30 +522,30 @@
           simple-error)
 
 (let ((def (cl-cuda::empty-kernel-definition)))
-  (is (cl-cuda::kernel-function-exists-p 'foo def) nil))
+  (is (cl-cuda::kernel-definition-function-exists-p 'foo def) nil))
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
              (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::kernel-function-exists-p 'foo def) t))
+  (is (cl-cuda::kernel-definition-function-exists-p 'foo def) t))
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::kernel-function-name         'foo def) 'foo              )
-  (is (cl-cuda::kernel-function-c-name       'foo def) "cl_cuda_test_foo")
-  (is (cl-cuda::kernel-function-return-type  'foo def) 'void             )
-  (is (cl-cuda::kernel-function-arg-bindings 'foo def) '()               )
-  (is (cl-cuda::kernel-function-body         'foo def) '((return)))      )
+  (is (cl-cuda::kernel-definition-function-name        'foo def) 'foo              )
+  (is (cl-cuda::kernel-definition-function-c-name      'foo def) "cl_cuda_test_foo")
+  (is (cl-cuda::kernel-definition-function-return-type 'foo def) 'void             )
+  (is (cl-cuda::kernel-definition-function-arguments   'foo def) '()               )
+  (is (cl-cuda::kernel-definition-function-body        'foo def) '((return)))      )
 
 (let ((def (cl-cuda::empty-kernel-definition)))
-  (is-error (cl-cuda::kernel-function-name 'foo def) simple-error))
+  (is-error (cl-cuda::kernel-definition-function-name 'foo def) simple-error))
 
 (let ((def (cl-cuda::empty-kernel-definition)))
-  (is (cl-cuda::kernel-function-names def) nil))
+  (is (cl-cuda::kernel-definition-function-names def) nil))
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::define-kernel-function 'bar 'int '() '((return 1))
                (cl-cuda::empty-kernel-definition)))))
-  (is (cl-cuda::kernel-function-names def) '(foo bar)))
+  (is (cl-cuda::kernel-definition-function-names def) '(foo bar)))
 
 
 ;;;

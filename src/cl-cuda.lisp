@@ -700,29 +700,41 @@
 ;;; Definition of Kernel Manager
 ;;;
 
-;;; module info
-;;; <module-info> ::= (<module-handle> <module-path> <module-compilation-needed)
+;;; function-info
+;;; <function-info> ::= (<name> <return-type> <arguments> <body>)
 
-(defun make-module-info ()
-  (list nil nil t))
+(defun make-function-info (name return-type args body)
+  (list name return-type args body))
 
-(defmacro module-handle (info)
-  `(car ,info))
+(defun function-name (info)
+  (car info))
 
-(defmacro module-path (info)
-  `(cadr ,info))
+(defun function-c-name (info)
+  (let ((name (function-name info)))
+    (let ((package-name (compile-identifier (package-name (symbol-package name))))
+          (function-name (compile-identifier name)))
+      (concatenate 'string package-name "_" function-name))))
 
-(defmacro module-compilation-needed (info)
-  `(caddr ,info))
+(defun function-return-type (info)
+  (cadr info))
+
+(defun function-arguments (info)
+  (caddr info))
+
+(defun function-argument-types (info)
+  (mapcar #'cadr (function-arguments info)))
+
+(defun function-body (info)
+  (cadddr info))
 
 
-;;; kernel definition
-;;; <kernel-definition> ::= (<kernel-function-table> <kernel-constant-table>)
+;;; kernel-definition
+;;; <kernel-definition>     ::= (<kernel-function-table> <kernel-constant-table>)
 ;;; <kernel-function-table> ::= alist { <function-name> => <function-info> }
 ;;; <kernel-constant-table> ::= alist { <constant-name> => <constant-info> }
 
 (defun empty-kernel-definition ()
-  '(nil nil))
+  (list nil nil))
 
 (defun function-table (def)
   (car def))
@@ -738,134 +750,164 @@
   (or (assoc name (constant-table def))
       (error (format nil "undefined kernel constant: ~A" name))))
 
-(defun define-kernel-function (name return-type arg-bindings body def)
+(defun define-kernel-function (name return-type args body def)
   (let ((func-table (function-table def))
         (const-table (constant-table def)))
-    (let ((func (make-function-info name return-type arg-bindings body)))
-      (list (cons func (remove name func-table :key #'car))
-            const-table))))
-
-(defun define-kernel-constant (name value def)
-  (declare (ignorable name value def))
-  (undefined))
+    (let ((func (make-function-info name return-type args body))
+          (rest (remove name func-table :key #'car)))
+      (list (cons func rest) const-table))))
 
 (defun undefine-kernel-function (name def)
-  (unless (kernel-function-exists-p name def)
+  (unless (kernel-definition-function-exists-p name def)
     (error (format nil "undefined kernel function: ~A" name)))
   (let ((func-table (function-table def))
         (const-table (constant-table def)))
     (list (remove name func-table :key #'car)
           const-table)))
 
+(defun define-kernel-constant (name value def)
+  (declare (ignorable name value def))
+  (undefined))
+
 (defun undefine-kernel-constant (name def)
   (declare (ignorable name def))
   (undefined))
 
-(defun kernel-function-exists-p (name def)
+(defun kernel-definition-function-exists-p (name def)
   (and (assoc name (function-table def))
        t))
 
-(defun kernel-function-names (def)
+(defun kernel-definition-function-names (def)
   (mapcar #'car (function-table def)))
 
-(defun kernel-function-name (name def)
+(defun kernel-definition-function-name (name def)
   (function-name (function-info name def)))
 
-(defun kernel-function-c-name (name def)
-  (let ((name (kernel-function-name name def)))
-    (let ((package-name (compile-identifier (package-name (symbol-package name))))
-          (symbol-name (compile-identifier name)))
-      (concatenate 'string package-name "_" symbol-name))))
+(defun kernel-definition-function-c-name (name def)
+  (function-c-name (function-info name def)))
 
-(defun kernel-function-return-type (name def)
+(defun kernel-definition-function-return-type (name def)
   (function-return-type (function-info name def)))
 
-(defun kernel-function-arg-bindings (name def)
-  (function-arg-bindings (function-info name def)))
+(defun kernel-definition-function-arguments (name def)
+  (function-arguments (function-info name def)))
 
-(defun kernel-function-arg-types (name def)
-  (mapcar #'cadr (kernel-function-arg-bindings name def)))
+(defun kernel-definition-function-argument-types (name def)
+  (function-argument-types (function-info name def)))
 
-(defun kernel-function-body (name def)
+(defun kernel-definition-function-body (name def)
   (function-body (function-info name def)))
 
 
-;;; function info
-;;; <function-info> ::= (<name> <return-type> <arg-bindings> <body>)
+;;; module-info
+;;; <module-info> ::= (<module-handle> <module-path> <module-compilation-needed> <function-handles>)
+;;; <function-handles> ::= hashtable { <function-name> => <function-handle> }
 
-(defun make-function-info (name return-type arg-bindings body)
-  (list name return-type arg-bindings body))
+(defun make-module-info ()
+  (list nil nil t (make-hash-table)))
 
-(defun function-name (info)
+(defun module-handle (info)
   (car info))
 
-(defun function-return-type (info)
+(defun (setf module-handle) (val info)
+  (setf (car info) val))
+
+(defun module-path (info)
   (cadr info))
 
-(defun function-arg-bindings (info)
+(defun (setf module-path) (val info)
+  (setf (cadr info) val))
+
+(defun module-compilation-needed (info)
   (caddr info))
 
-(defun function-body (info)
+(defun (setf module-compilation-needed) (val info)
+  (setf (caddr info) val))
+
+(defun function-handles (info)
   (cadddr info))
+
+(defun function-handle (info name)
+  (gethash name (function-handles info)))
+
+(defun (setf function-handle) (handle info name)
+  (setf (gethash name (function-handles info)) handle))
 
 
 ;;; kernel-manager
-;;; <kernel-manager> ::= (<module-info> <function-handles> <kernel-definition>)
+;;; <kernel-manager> ::= (<module-info> <kernel-definition>)
 
-(defun make-kernel-manager ()
-  (list (make-module-info) (make-function-handles) (empty-kernel-definition)))
+(defun make-kernel-manager()
+  (list (make-module-info) (empty-kernel-definition)))
 
-(defun make-function-handles ()
-  (make-hash-table))
+(defun module-info (mgr)
+  (car mgr))
 
-(defmacro module-info (mgr)
-  `(car ,mgr))
+(defun kernel-definition (mgr)
+  (cadr mgr))
 
-(defmacro function-handles (mgr)
-  `(cadr ,mgr))
+(defun (setf kernel-definition) (val mgr)
+  (setf (cadr mgr) val))
 
-(defmacro kernel-definition (mgr)
-  `(caddr ,mgr))
+(defun kernel-manager-module-handle (mgr)
+  (module-handle (module-info mgr)))
 
-(defmacro kernel-manager-module-handle (mgr)
-  `(module-handle (module-info ,mgr)))
+(defun (setf kernel-manager-module-handle) (handle mgr)
+  (setf (module-handle (module-info mgr)) handle))
 
-(defmacro kernel-manager-module-path (mgr)
-  `(module-path (module-info ,mgr)))
+(defun kernel-manager-module-path (mgr)
+  (module-path (module-info mgr)))
 
-(defmacro kernel-manager-module-compilation-needed (mgr)
-  `(module-compilation-needed (module-info ,mgr)))
+(defun (setf kernel-manager-module-path) (val mgr)
+  (setf (module-path (module-info mgr)) val))
 
-(defmacro kernel-manager-function-handle (mgr name)
-  `(gethash ,name (function-handles ,mgr)))
+(defun kernel-manager-module-compilation-needed (mgr)
+  (module-compilation-needed (module-info mgr)))
+
+(defun (setf kernel-manager-module-compilation-needed) (val mgr)
+  (setf (module-compilation-needed (module-info mgr)) val))
+
+(defun kernel-manager-function-handle (mgr name)
+  (function-handle (module-info mgr) name))
+
+(defun (setf kernel-manager-function-handle) (val mgr name)
+  (setf (function-handle (module-info mgr) name) val))
 
 (defun kernel-manager-function-exists-p (mgr name)
-  (kernel-function-exists-p name (kernel-definition mgr)))
+  (kernel-definition-function-exists-p name (kernel-definition mgr)))
 
 (defun kernel-manager-function-names (mgr)
-  (kernel-function-names (kernel-definition mgr)))
+  (kernel-definition-function-names (kernel-definition mgr)))
+
+(defun kernel-manager-function-name (mgr name)
+  (kernel-definition-function-name name (kernel-definition mgr)))
 
 (defun kernel-manager-function-c-name (mgr name)
-  (kernel-function-c-name name (kernel-definition mgr)))
+  (kernel-definition-function-c-name name (kernel-definition mgr)))
 
-(defun kernel-manager-function-arg-bindings (mgr name)
-  (kernel-function-arg-bindings name (kernel-definition mgr)))
+(defun kernel-manager-function-return-type (mgr name)
+  (kernel-definition-function-return-type name (kernel-definition mgr)))
 
-(defun kernel-manager-kernel-code (mgr)
-  (compile-kernel-definition (kernel-definition mgr)))
+(defun kernel-manager-function-arguments (mgr name)
+  (kernel-definition-function-arguments name (kernel-definition mgr)))
 
-(defun kernel-manager-define-function (mgr name return-type arg-bindings body)
-  (let ((def (kernel-definition mgr)))
-    (when (or (not (kernel-manager-function-exists-p mgr name))
-              (function-modified-p name def return-type arg-bindings body))
-      (setf (kernel-definition mgr)
-            (define-kernel-function name return-type arg-bindings body def))
-      (setf (kernel-manager-module-compilation-needed mgr) t))))
+(defun kernel-manager-function-argument-types (mgr name)
+  (kernel-definition-function-argument-types name (kernel-definition mgr)))
 
-(defun function-modified-p (name def return-type arg-bindings body)
-  (or (nequal return-type (kernel-function-return-type name def))
-      (nequal arg-bindings (kernel-function-arg-bindings name def))
-      (nequal body (kernel-function-body name def))))
+(defun kernel-manager-function-body (mgr name)
+  (kernel-definition-function-body name (kernel-definition mgr)))
+
+(defun kernel-manager-define-function (mgr name return-type args body)
+  (when (or (not (kernel-manager-function-exists-p mgr name))
+            (function-modified-p mgr name return-type args body))
+    (setf (kernel-definition mgr)
+          (define-kernel-function name return-type args body (kernel-definition mgr)))
+    (setf (kernel-manager-module-compilation-needed mgr) t)))
+
+(defun function-modified-p (mgr name return-type args body)
+  (not (and (equal return-type (kernel-manager-function-return-type mgr name))
+            (equal args (kernel-manager-function-arguments mgr name))
+            (equal body (kernel-manager-function-body mgr name)))))
 
 (defun kernel-manager-load-function (mgr name)
   (unless (kernel-manager-module-handle mgr)
@@ -875,8 +917,8 @@
   (let ((hmodule (kernel-manager-module-handle mgr))
         (hfunc (cffi:foreign-alloc 'cu-function))
         (fname (kernel-manager-function-c-name mgr name)))
-    (cu-module-get-function hfunc (cffi:mem-ref hmodule 'cu-module) fname)
-    (setf (kernel-manager-function-handle mgr name) hfunc)))
+      (cu-module-get-function hfunc (cffi:mem-ref hmodule 'cu-module) fname)
+      (setf (kernel-manager-function-handle mgr name) hfunc)))
 
 (defun kernel-manager-load-module (mgr)
   (when (kernel-manager-module-handle mgr)
@@ -889,9 +931,8 @@
     (setf (kernel-manager-module-handle mgr) hmodule)))
 
 (defun no-kernel-functions-loaded-p (mgr)
-  "return t if no kernel functions are loaded."
-  (notany #'(lambda (key)
-              (kernel-manager-function-handle mgr key))
+  (notany #'(lambda (name)
+              (kernel-manager-function-handle mgr name))
           (kernel-manager-function-names mgr)))
 
 (defun kernel-manager-unload (mgr)
@@ -906,16 +947,17 @@
     (setf it nil)))
 
 (defun free-function-handles (mgr)
-  (let ((handles (function-handles mgr)))
-    (maphash-keys #'(lambda (key)
-                      (swhen (gethash key handles)
-                        (cffi:foreign-free it)
-                        (setf it nil))) handles)))
+  (mapcar #'(lambda (name)
+              (swhen (kernel-manager-function-handle mgr name)
+                (cffi:foreign-free it)
+                (setf it nil)))
+          (kernel-manager-function-names mgr)))
 
 (defvar +temporary-path-template+ "/tmp/cl-cuda-")
+
 (defvar +nvcc-path+ "/usr/local/cuda/bin/nvcc")
 
-(defun kernel-manager-compile (mgr)
+(defun kernel-manager-generate-and-compile (mgr)
   (when (kernel-manager-module-handle mgr)
     (error "kernel module is already loaded."))
   (unless (no-kernel-functions-loaded-p mgr)
@@ -923,13 +965,21 @@
   (let* ((temp-path (osicat-posix:mktemp +temporary-path-template+))
          (cu-path (concatenate 'string temp-path ".cu"))
          (ptx-path (concatenate 'string temp-path ".ptx")))
-    (kernel-manager-output-kernel-code mgr cu-path)
-    (compile-kernel-module cu-path ptx-path)
+    (output-cu-code mgr cu-path)
+    (compile-cu-code cu-path ptx-path)
     (setf (kernel-manager-module-path mgr) ptx-path)
     (setf (kernel-manager-module-compilation-needed mgr) nil)
     (values)))
 
-(defun compile-kernel-module (cu-path ptx-path)
+(defun output-cu-code (mgr path)
+  (with-open-file (out path :direction :output :if-exists :supersede)
+    (princ (compile-kernel-definition (kernel-definition mgr)) out))
+  (values))
+
+(defun output-nvcc-command (cu-path ptx-path)
+  (format t "nvcc -ptx -o ~A ~A~%" cu-path ptx-path))
+
+(defun compile-cu-code (cu-path ptx-path)
   (output-nvcc-command cu-path ptx-path)
   (with-output-to-string (out)
     (let ((p (sb-ext:run-program +nvcc-path+ `("-ptx" "-o" ,ptx-path ,cu-path)
@@ -938,14 +988,6 @@
         (error (format nil "nvcc exits with code: ~A~%~A"
                        (sb-ext:process-exit-code p)
                        (get-output-stream-string out))))))
-  (values))
-
-(defun output-nvcc-command (cu-path ptx-path)
-  (format t "nvcc -ptx -o ~A ~A~%" cu-path ptx-path))
-
-(defun kernel-manager-output-kernel-code (mgr path)
-  (with-open-file (out path :direction :output :if-exists :supersede)
-    (princ (kernel-manager-kernel-code mgr) out))
   (values))
 
 
@@ -965,7 +1007,7 @@
 
 (defun ensure-kernel-module-compiled (mgr)
   (when (kernel-manager-module-compilation-needed mgr)
-    (kernel-manager-compile mgr))
+    (kernel-manager-generate-and-compile mgr))
   (values))
 
 
@@ -993,19 +1035,19 @@
 (defun compile-kernel-definition (def)
   (unlines `(,@(mapcar #'(lambda (name)
                            (compile-kernel-function-prototype name def))
-                       (kernel-function-names def))
+                       (kernel-definition-function-names def))
              ""
              ,@(mapcar #'(lambda (name)
                            (compile-kernel-function name def))
-                       (kernel-function-names def)))))
+                       (kernel-definition-function-names def)))))
 
 
 ;;; compile kernel function prototype
 
 (defun compile-kernel-function-prototype (name def)
-  (let ((name (kernel-function-c-name name def))
-        (return-type (kernel-function-return-type name def))
-        (arg-bindings (kernel-function-arg-bindings name def)))
+  (let ((name (kernel-definition-function-c-name name def))
+        (return-type (kernel-definition-function-return-type name def))
+        (arg-bindings (kernel-definition-function-arguments name def)))
     (format nil "extern \"C\" ~A;"
             (compile-function-declaration name return-type arg-bindings))))
 
@@ -1013,10 +1055,10 @@
 ;;; compile kernel function
 
 (defun compile-kernel-function (name def)
-  (let ((c-name (kernel-function-c-name name def))
-        (return-type (kernel-function-return-type name def))
-        (arg-bindings (kernel-function-arg-bindings name def))
-        (stmts (kernel-function-body name def)))
+  (let ((c-name (kernel-definition-function-c-name name def))
+        (return-type (kernel-definition-function-return-type name def))
+        (arg-bindings (kernel-definition-function-arguments name def))
+        (stmts (kernel-definition-function-body name def)))
     (let ((type-env (make-type-environment-with-kernel-definition name def)))
       (unlines `(,(compile-function-declaration c-name return-type arg-bindings)
                  "{"
@@ -1027,7 +1069,7 @@
                   "")))))
 
 (defun make-type-environment-with-kernel-definition (name def)
-  (let ((arg-bindings (kernel-function-arg-bindings name def)))
+  (let ((arg-bindings (kernel-definition-function-arguments name def)))
     (reduce #'(lambda (type-env arg-binding)
                 (destructuring-bind (var type) arg-binding
                   (add-type-environment var type type-env)))
@@ -1406,7 +1448,7 @@
 
 (defun user-function-p (form def)
   (match form
-    ((op . _) (kernel-function-exists-p op def))
+    ((op . _) (kernel-definition-function-exists-p op def))
     (_ nil)))
 
 (defun function-operator (form)
@@ -1468,8 +1510,8 @@
 (defun compile-user-function (form type-env def)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
-    (let ((func (kernel-function-c-name operator def)))
-      (unless (equal (kernel-function-arg-types operator def)
+    (let ((func (kernel-definition-function-c-name operator def)))
+      (unless (equal (kernel-definition-function-argument-types operator def)
                      (type-of-operands operands type-env def))
         (error (format nil "invalid arguments: ~A" (cons operator operands))))
       (format nil "~A (~A)" func (compile-operands operands type-env def)))))
@@ -1740,7 +1782,7 @@
 
 (defun type-of-user-function (exp def)
   (let ((operator (function-operator exp)))
-    (kernel-function-return-type operator def)))
+    (kernel-definition-function-return-type operator def)))
 
 
 ;;; type environment
@@ -1772,9 +1814,6 @@
 
 
 ;;; utilities
-
-(defun nequal (&rest args)
-  (not (apply #'equal args)))
 
 (defun join (str xs &key (remove-nil nil))
   (let ((xs2 (if remove-nil (remove-if #'null xs) xs)))
