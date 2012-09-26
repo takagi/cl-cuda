@@ -119,9 +119,23 @@
 
 (defmethod glut:display ((w nbody-window))
   (with-slots (new-pos old-pos vel delta-time damping num-bodies p) w
-    (update new-pos old-pos vel delta-time damping num-bodies p)
-    (display old-pos num-bodies)
-    (rotatef new-pos old-pos)))
+    ;; update simulation
+    (nbody-demo-update-simulation new-pos old-pos vel delta-time damping num-bodies p)
+    (rotatef new-pos old-pos)
+    ;; clear buffers
+    (gl:clear :color-buffer :depth-buffer-bit)
+    ;; view transform
+    (gl:matrix-mode :modelview)
+    (gl:load-identity)
+    (gl:translate 0.0 0.0 -100.0)
+    (gl:rotate 0.0 1.0 0.0 0.0)
+    (gl:rotate 0.0 0.0 1.0 0.0)
+    ;; display bodies
+    (nbody-demo-display new-pos num-bodies)
+    ;; swap buffers
+    (glut:swap-buffers)
+    ;; display frame rate
+    (display-frame-rate num-bodies)))
 
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
@@ -137,7 +151,7 @@
 
 
 ;;;
-;;; performance measurement functions
+;;; Performance measurement functions
 ;;;
 
 (defvar *flops-per-interaction* 20)
@@ -166,7 +180,7 @@
 
 
 ;;;
-;;; timing functions
+;;; Timing functions
 ;;;
 
 (let (start-event stop-event)
@@ -209,6 +223,84 @@
           (create-timer-events)
           ,@body)
      (destroy-timer-events)))
+
+
+;;;
+;;; NBodyDemo
+;;;
+
+(defun nbody-demo-update-simulation (new-pos old-pos vel delta-time damping num-bodies p)
+  (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
+
+(defun nbody-demo-display (pos num-bodies)
+  ; (particle-renderer-set-spirte-size ...)
+  (particle-renderer-set-positions pos num-bodies)
+  (particle-renderer-display))
+
+
+;;;
+;;; Particle Renderer
+;;;
+
+(let ((m-pos           nil)
+      (m-num-particles 0  )
+      (m-point-size    1.0)
+      ;(m-sprite-size   2.0)
+      ;(m-vertex-shader nil)
+      ;(m-pixel-shader  nil)
+      ;(m-program       nil)
+      ;(m-texture       nil)
+      ;(m-pbo           nil)
+      ;(m-vbo-color     nil)
+      ;(m-base-color    nil))
+      )
+  (defun particle-renderer-set-positions (pos num-particles)
+    (setf m-pos pos)
+    (setf m-num-particles num-particles))
+  
+  (defun particle-renderer-set-base-color (color)
+    (declare (ignore color))
+    (not-implemented))
+  
+  (defun particle-renderer-set-colors (color num-particles)
+    (declare (ignore color num-particles))
+    (not-implemented))
+  
+  (defun particle-renderer-set-pbo (pbo num-particles)
+    (declare (ignore pbo num-particles))
+    (not-implemented))
+  
+  (defun particle-renderer-display ()
+    ; mode = PARTICLE_POINTS
+    (gl:color 1.0 1.0 1.0)
+    (gl:point-size m-point-size)
+    (draw-points))
+  
+  (defun particle-renderer-set-point-size (size)
+    (declare (ignore size))
+    (not-implemented))
+  
+  (defun particle-renderer-set-sprite-size (size)
+    (declare (ignore size))
+    (not-implemented))
+  
+  (defun particle-renderer-reset-pbo ()
+    (not-implemented))
+  
+  (defun init-gl ()
+    (not-implemented))
+  
+  (defun create-texture (resolution)
+    (declare (ignore resolution))
+    (not-implemented))
+  
+  (defun draw-points ()
+    (memcpy-device-to-host m-pos)
+    (gl:begin :points)
+    (dotimes (i m-num-particles)
+      (let ((p (mem-aref m-pos i)))
+        (gl:vertex (float4-x p) (float4-y p) (float4-z p))))
+    (gl:end)))
 
 
 ;;;
@@ -276,32 +368,6 @@
                       :grid-dim grid-dim
                       :block-dim block-dim)))
 
-(defun update (new-pos old-pos vel delta-time damping num-bodies p)
-  (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
-
-(defun display (pos num-bodies)
-  ;; clear buffers
-  (gl:clear :color-buffer :depth-buffer-bit)
-  ;; view transform
-  (gl:matrix-mode :modelview)
-  (gl:load-identity)
-  (gl:translate 0.0 0.0 -100.0)
-  (gl:rotate 0.0 1.0 0.0 0.0)
-  (gl:rotate 0.0 0.0 1.0 0.0)
-  ;; draw points
-  (gl:color 1.0 1.0 1.0)
-  (gl:point-size 1.0)
-  (gl:begin :points)
-  (memcpy-device-to-host pos)
-  (dotimes (i num-bodies)
-    (let ((p (mem-aref pos i)))
-      (gl:vertex (float4-x p) (float4-y p) (float4-z p))))
-  (gl:end)
-  ;; swap buffers
-  (glut:swap-buffers)
-  ;; display frame rate
-  (display-frame-rate num-bodies))
-
 (defun main ()
   (let ((dev-id 0)
         (num-bodies 2048)
@@ -332,3 +398,6 @@
         (start-timer)
         ;; start glut main loop
         (glut:display-window window))))))
+
+(defun not-implemented ()
+  (error "not implemented."))
