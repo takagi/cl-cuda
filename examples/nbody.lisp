@@ -254,6 +254,7 @@
       ;(m-vbo-color     nil)
       ;(m-base-color    nil))
       )
+  
   (defun particle-renderer-set-positions (pos num-particles)
     (setf m-pos pos)
     (setf m-num-particles num-particles))
