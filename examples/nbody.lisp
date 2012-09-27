@@ -234,6 +234,7 @@
 
 (defun nbody-demo-display (pos num-bodies)
   ; (particle-renderer-set-spirte-size ...)
+  (memcpy-device-to-host pos)
   (particle-renderer-set-positions pos num-bodies)
   (particle-renderer-display))
 
@@ -296,7 +297,6 @@
     (not-implemented))
   
   (defun draw-points ()
-    (memcpy-device-to-host m-pos)
     (gl:begin :points)
     (dotimes (i m-num-particles)
       (let ((p (mem-aref m-pos i)))
