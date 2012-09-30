@@ -115,7 +115,8 @@
 ;;;
 
 (defmethod glut:display-window :before ((w nbody-window))
-  (gl:clear-color 0 0 0 0))
+  (gl:clear-color 0 0 0 0)
+  (nbody-demo-init))
 
 (defmethod glut:display ((w nbody-window))
   (with-slots (new-pos old-pos vel delta-time damping num-bodies p) w
@@ -229,6 +230,16 @@
 ;;; NBodyDemo
 ;;;
 
+(defun nbody-demo-init ()
+  (particle-renderer-init)
+  (nbody-demo-reset-renderer))
+
+(defun nbody-demo-release ()
+  (particle-renderer-release))
+
+(defun nbody-demo-reset-renderer ()
+  (particle-renderer-set-base-color #(1.0 0.6 0.3 1.0)))
+
 (defun nbody-demo-update-simulation (new-pos old-pos vel delta-time damping num-bodies p)
   (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
 
@@ -243,26 +254,62 @@
 ;;; Particle Renderer
 ;;;
 
+(defun unlines (&rest string-list)
+  "Concatenates a list of strings and puts newlines between the elements."
+  (format nil "~{~A~%~}" string-list))
+
+(defparameter +vertex-shader+
+  (unlines "void main()                                                            "
+           "{                                                                      "
+           "    float pointSize = 500.0 * gl_Point.size;                           "
+           "    vec4 vert = gl_Vertex;                                             "
+           "    vert.w = 1.0;                                                      "
+           "    vec3 pos_eye = vec3 (gl_ModelViewMatrix * vert);                   "
+           "    gl_PointSize = max(1.0, pointSize / (1.0 - pos_eye.z));            "
+           "    gl_TexCoord[0] = gl_MultiTexCoord0;                                "
+           ;"    gl_TexCoord[1] = gl_MultiTexCoord1;                                "
+           "    gl_Position = ftransform();                                        "
+           "    gl_FrontColor = gl_Color;                                          "
+           "    gl_FrontSecondaryColor = gl_SecondaryColor;                        "
+           "}                                                                      "))
+
+(defparameter +pixel-shader+
+  (unlines "uniform sampler2D splatTexture;                                        "
+           "void main()                                                            "
+           "{                                                                      "
+           "    vec4 color2 = gl_SecondaryColor;                                   "
+           "    vec4 color = (0.6 + 0.4 * gl_Color) * texture2D(splatTexture, gl_TexCoord[0].st);"
+           "    gl_FragColor =                                                     "
+           "         color * color2;" ;mix(vec4(0.1, 0.0, 0.0, color.w), color2, color.w);"
+           "}                                                                      "))
+
 (let ((m-pos           nil)
       (m-num-particles 0  )
-      (m-point-size    1.0)
-      ;(m-sprite-size   2.0)
-      ;(m-vertex-shader nil)
-      ;(m-pixel-shader  nil)
-      ;(m-program       nil)
-      ;(m-texture       nil)
+      ;(m-point-size    1.0)
+      (m-sprite-size   2.0)
+      (m-vertex-shader nil)
+      (m-pixel-shader  nil)
+      (m-program       nil)
+      (m-texture       0)
+      (m-texture-data  (cffi:null-pointer))
       ;(m-pbo           nil)
       ;(m-vbo-color     nil)
-      ;(m-base-color    nil))
-      )
+      (m-base-color    #(0.0 0.0 0.0 0.0)))
+  
+  (defun particle-renderer-init ()
+    (init-gl))
+  
+  (defun particle-renderer-release ()
+    (cffi:foreign-free m-texture-data))
   
   (defun particle-renderer-set-positions (pos num-particles)
     (setf m-pos pos)
     (setf m-num-particles num-particles))
   
   (defun particle-renderer-set-base-color (color)
-    (declare (ignore color))
-    (not-implemented))
+    (setf m-base-color (make-array 4))
+    (dotimes (i 4)
+      (setf (aref m-base-color i) (aref color i))))
   
   (defun particle-renderer-set-colors (color num-particles)
     (declare (ignore color num-particles))
@@ -274,9 +321,34 @@
   
   (defun particle-renderer-display ()
     ; mode = PARTICLE_POINTS
+    ;(gl:color 1.0 1.0 1.0)
+    ;(gl:point-size m-point-size)
+    ;(draw-points)
+    ; mode = PARTICLE_SPRITES
+    (gl:enable :point-sprite)
+    (gl:tex-env :point-sprite :coord-replace :true)
+    (gl:enable :vertex-program-point-size-nv)
+    (gl:point-size m-sprite-size)
+    (gl:blend-func :src-alpha :one)
+    (gl:enable :blend)
+    (gl:depth-mask :false)
+    
+    (gl:use-program m-program)
+    (gl:uniformi (gl:get-uniform-location m-program "splatTexture") 0)
+    
+    (gl:active-texture :texture0-arb)
+    (gl:bind-texture :texture-2d m-texture)
+    
     (gl:color 1.0 1.0 1.0)
-    (gl:point-size m-point-size)
-    (draw-points))
+    (gl:secondary-color (aref m-base-color 0) (aref m-base-color 1) (aref m-base-color 2))
+    
+    (draw-points)
+    
+    (gl:use-program 0)
+    
+    (gl:disable :point-sprite-arb)
+    (gl:disable :blend)
+    (gl:depth-mask :true))
   
   (defun particle-renderer-set-point-size (size)
     (declare (ignore size))
@@ -290,11 +362,67 @@
     (not-implemented))
   
   (defun init-gl ()
-    (not-implemented))
+    ;; create shader objects
+    (setf m-vertex-shader (gl:create-shader :vertex-shader))
+    (setf m-pixel-shader (gl:create-shader :fragment-shader))
+    ;; set shader source codes
+    (gl:shader-source m-vertex-shader +vertex-shader+)
+    (gl:shader-source m-pixel-shader +pixel-shader+)
+    ;; compile source codes
+    (gl:compile-shader m-vertex-shader)
+    (gl:compile-shader m-pixel-shader)
+    ;; create an empty program object
+    (setf m-program (gl:create-program))
+    ;; attach shader objects to program object
+    (gl:attach-shader m-program m-vertex-shader)
+    (gl:attach-shader m-program m-pixel-shader)
+    ;; link program object
+    (gl:link-program m-program)
+    ;; create texture
+    (create-texture 32))
+  
+  (defun eval-hermite (pa pb va vb u)
+    (let ((u2 (* u u))
+          (u3 (* u u u)))
+      (let ((b0 (+ (- (* 2 u3) (* 3 u2)) 1))
+            (b1 (+ (* -2 u3) (* 3 u2)))
+            (b2 (+ (- u3 (* 2 u2)) u))
+            (b3 (- u3 u)))
+        (+ (* b0 pa) (* b1 pb) (* b2 va) (* b3 vb)))))
+  
+  (defun create-gaussian-map (b n)
+    (cffi:with-foreign-object (m :float (* 2 n n))
+      (let (xx y2 dist
+            (incr (/ 2.0 n))
+            (i 0)
+            (j 0)
+            (yy -1.0))
+        (dotimes (y n)
+          (incf yy incr)
+          (setf y2 (* yy yy))
+          (setf xx -1.0)
+          (dotimes (x n)
+            (incf xx incr)
+            (incf i  2)
+            (incf j  4)
+            (setf dist (min (sqrt (+ (* xx xx) y2)) 1.0))
+            (setf (cffi:mem-aref m :float i)      (eval-hermite 1.0 0 0 0 dist)
+                  (cffi:mem-aref m :float (1+ i)) (cffi:mem-aref m :float i))
+            (setf (cffi:mem-aref b :unsigned-char j)       (truncate (* (cffi:mem-aref m :float i) 255))
+                  (cffi:mem-aref b :unsigned-char (+ j 1)) (truncate (* (cffi:mem-aref m :float i) 255))
+                  (cffi:mem-aref b :unsigned-char (+ j 2)) (truncate (* (cffi:mem-aref m :float i) 255))
+                  (cffi:mem-aref b :unsigned-char (+ j 3)) (truncate (* (cffi:mem-aref m :float i) 255))))))))
   
   (defun create-texture (resolution)
-    (declare (ignore resolution))
-    (not-implemented))
+    (setf m-texture-data (cffi:foreign-alloc :unsigned-char :count (* 4 resolution resolution)))
+    (create-gaussian-map m-texture-data resolution)
+    (setf m-texture (first (gl:gen-textures 1)))
+    (gl:bind-texture :texture-2d m-texture)
+    (gl:tex-parameter :texture-2d :generate-mipmap :true)
+    (gl:tex-parameter :texture-2d :texture-min-filter :linear-mipmap-linear)
+    (gl:tex-parameter :texture-2d :texture-mag-filter :linear)
+    (gl:tex-image-2d :texture-2d 0 :rgba8 resolution resolution 0
+                     :rgba :unsigned-byte m-texture-data))
   
   (defun draw-points ()
     (gl:begin :points)
@@ -398,7 +526,8 @@
         ;; start CUDA timer
         (start-timer)
         ;; start glut main loop
-        (glut:display-window window))))))
+        (glut:display-window window)
+        (nbody-demo-release))))))
 
 (defun not-implemented ()
   (error "not implemented."))
