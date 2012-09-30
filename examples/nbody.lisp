@@ -118,6 +118,9 @@
   (gl:clear-color 0 0 0 0)
   (nbody-demo-init))
 
+(defmethod glut:display-window :after ((w nbody-window))
+  (nbody-demo-release))
+
 (defmethod glut:display ((w nbody-window))
   (with-slots (new-pos old-pos vel delta-time damping num-bodies p) w
     ;; update simulation
@@ -526,8 +529,7 @@
         ;; start CUDA timer
         (start-timer)
         ;; start glut main loop
-        (glut:display-window window)
-        (nbody-demo-release))))))
+        (glut:display-window window))))))
 
 (defun not-implemented ()
   (error "not implemented."))
