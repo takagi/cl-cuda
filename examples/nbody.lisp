@@ -115,6 +115,7 @@
 ;;;
 
 (defmethod glut:display-window :before ((w nbody-window))
+  (gl:enable :depth-test)
   (gl:clear-color 0 0 0 0)
   (nbody-demo-init))
 
