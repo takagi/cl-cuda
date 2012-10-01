@@ -251,7 +251,7 @@
   ; (particle-renderer-set-spirte-size ...)
   (memcpy-device-to-host pos)
   (particle-renderer-set-positions pos num-bodies)
-  (particle-renderer-display))
+  (particle-renderer-display :particle-sprites))
 
 
 ;;;
@@ -288,8 +288,8 @@
            "}                                                                      "))
 
 (let ((m-pos           nil)
-      (m-num-particles 0  )
-      ;(m-point-size    1.0)
+      (m-num-particles 0)
+      (m-point-size    1.0)
       (m-sprite-size   2.0)
       (m-vertex-shader nil)
       (m-pixel-shader  nil)
@@ -323,36 +323,37 @@
     (declare (ignore pbo num-particles))
     (not-implemented))
   
-  (defun particle-renderer-display ()
-    ; mode = PARTICLE_POINTS
-    ;(gl:color 1.0 1.0 1.0)
-    ;(gl:point-size m-point-size)
-    ;(draw-points)
-    ; mode = PARTICLE_SPRITES
-    (gl:enable :point-sprite)
-    (gl:tex-env :point-sprite :coord-replace :true)
-    (gl:enable :vertex-program-point-size-nv)
-    (gl:point-size m-sprite-size)
-    (gl:blend-func :src-alpha :one)
-    (gl:enable :blend)
-    (gl:depth-mask :false)
-    
-    (gl:use-program m-program)
-    (gl:uniformi (gl:get-uniform-location m-program "splatTexture") 0)
-    
-    (gl:active-texture :texture0-arb)
-    (gl:bind-texture :texture-2d m-texture)
-    
-    (gl:color 1.0 1.0 1.0)
-    (gl:secondary-color (aref m-base-color 0) (aref m-base-color 1) (aref m-base-color 2))
-    
-    (draw-points)
-    
-    (gl:use-program 0)
-    
-    (gl:disable :point-sprite-arb)
-    (gl:disable :blend)
-    (gl:depth-mask :true))
+  (defun particle-renderer-display (mode)
+    (ecase mode
+      (:particle-points
+        (gl:color 1.0 1.0 1.0)
+        (gl:point-size m-point-size)
+        (draw-points))
+      (:particle-sprites
+        (gl:enable :point-sprite)
+        (gl:tex-env :point-sprite :coord-replace :true)
+        (gl:enable :vertex-program-point-size-nv)
+        (gl:point-size m-sprite-size)
+        (gl:blend-func :src-alpha :one)
+        (gl:enable :blend)
+        (gl:depth-mask :false)
+        
+        (gl:use-program m-program)
+        (gl:uniformi (gl:get-uniform-location m-program "splatTexture") 0)
+        
+        (gl:active-texture :texture0-arb)
+        (gl:bind-texture :texture-2d m-texture)
+        
+        (gl:color 1.0 1.0 1.0)
+        (gl:secondary-color (aref m-base-color 0) (aref m-base-color 1) (aref m-base-color 2))
+        
+        (draw-points)
+        
+        (gl:use-program 0)
+        
+        (gl:disable :point-sprite-arb)
+        (gl:disable :blend)
+        (gl:depth-mask :true))))
   
   (defun particle-renderer-set-point-size (size)
     (declare (ignore size))
