@@ -93,19 +93,19 @@
       (set (aref new-pos index) position)
       (set (aref vel index) velocity))))
 
+(defun integrate-nbody-system (new-pos old-pos vel delta-time damping num-bodies p)
+  (let ((grid-dim (list (ceiling (/ num-bodies p)) 1 1))
+        (block-dim (list p 1 1)))
+    (integrate-bodies new-pos old-pos vel delta-time damping num-bodies
+                      :grid-dim grid-dim
+                      :block-dim block-dim)))
+
 
 ;;;
 ;;; cl-glut window subclass
 ;;;
 
-(defclass nbody-window (glut:window)
-  ((new-pos :initform nil)
-   (old-pos :initform nil)
-   (vel :initform nil)
-   (delta-time :initform 0)
-   (damping :initform 0)
-   (num-bodies :initform 0)
-   (p :initform 0))
+(defclass nbody-window (glut:window) ()
   (:default-initargs :width 640 :height 480 :pos-x 100 :pos-y 100
                      :mode '(:double :rgb) :title "nbody"))
 
@@ -115,32 +115,30 @@
 ;;;
 
 (defmethod glut:display-window :before ((w nbody-window))
+  (nbody-init)
   (gl:enable :depth-test)
-  (gl:clear-color 0 0 0 0)
-  (nbody-demo-init))
+  (gl:clear-color 0 0 0 0))
 
-(defmethod glut:display-window :after ((w nbody-window))
-  (nbody-demo-release))
+(defmethod glut:close ((w nbody-window))
+  (nbody-release))
 
 (defmethod glut:display ((w nbody-window))
-  (with-slots (new-pos old-pos vel delta-time damping num-bodies p) w
-    ;; update simulation
-    (nbody-demo-update-simulation new-pos old-pos vel delta-time damping num-bodies p)
-    (rotatef new-pos old-pos)
-    ;; clear buffers
-    (gl:clear :color-buffer :depth-buffer-bit)
-    ;; view transform
-    (gl:matrix-mode :modelview)
-    (gl:load-identity)
-    (gl:translate 0.0 0.0 -100.0)
-    (gl:rotate 0.0 1.0 0.0 0.0)
-    (gl:rotate 0.0 0.0 1.0 0.0)
-    ;; display bodies
-    (nbody-demo-display new-pos num-bodies)
-    ;; swap buffers
-    (glut:swap-buffers)
-    ;; display frame rate
-    (display-frame-rate num-bodies)))
+  ;; update simulation
+  (nbody-update-simulation)
+  ;; clear buffers
+  (gl:clear :color-buffer :depth-buffer-bit)
+  ;; view transform
+  (gl:matrix-mode :modelview)
+  (gl:load-identity)
+  (gl:translate 0.0 0.0 -100.0)
+  (gl:rotate 0.0 1.0 0.0 0.0)
+  (gl:rotate 0.0 0.0 1.0 0.0)
+  ;; display bodies
+  (nbody-display :particle-sprites)
+  ;; swap buffers
+  (glut:swap-buffers)
+  ;; display frame rate
+  (display-frame-rate (nbody-num-bodies) (nbody-get-frame-rate)))
 
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
@@ -156,36 +154,61 @@
 
 
 ;;;
-;;; Performance measurement functions
+;;; Performance displayment functions
 ;;;
 
 (defvar *flops-per-interaction* 20)
 
-(defun compute-perf-stats (num-bodies elapsed-time fps-count iterations)
-  (let ((milliseconds (/ elapsed-time fps-count)))
-    (let* ((ifps (/ 1.0 (/ milliseconds 1000.0)))
-           (interactions-per-second (/ (* num-bodies num-bodies iterations)
-                                       (/ milliseconds 1000)
-                                       1.0e9))
-           (gflops (* interactions-per-second *flops-per-interaction*)))
-      (values ifps interactions-per-second gflops))))
+(defun compute-perf-stats (num-bodies fps iterations)
+  (let* ((interactions-per-second (/ (* num-bodies num-bodies iterations)
+                                     (/ 1.0 fps)
+                                     1.0e9))
+         (gflops                  (* interactions-per-second *flops-per-interaction*)))
+    (values interactions-per-second gflops)))
 
 (let ((fps-count 0)
       (fps-limit 5)
       (template "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"))
-  (defun display-frame-rate (num-bodies)
+  (defun display-frame-rate (num-bodies fps)
     (incf fps-count)
     (when (>= fps-count fps-limit)
-      (multiple-value-bind (ifps interactions-per-second gflops)
-          (compute-perf-stats num-bodies (get-elapsed-time) fps-count 1)
-        (glut:set-window-title
-          (format nil template num-bodies ifps interactions-per-second gflops))
-        (setf fps-count 0)
-        (setf fps-limit (max ifps 1.0))))))
+      (multiple-value-bind (interactions-per-second gflops)
+          (compute-perf-stats num-bodies fps 1)
+        (format t template num-bodies fps interactions-per-second gflops)
+        (glut:set-window-title (format nil template num-bodies fps interactions-per-second gflops)))
+      (setf fps-count 0
+            fps-limit (max fps 1.0)))))
 
 
 ;;;
-;;; Timing functions
+;;; Frame rate counter
+;;;
+
+(let ((fps-count 0)
+      (fps-limit 5)
+      (fps       0))
+  
+  (defun frame-rate-counter-init ()
+    (create-timer-events)
+    (start-timer))
+  
+  (defun frame-rate-counter-release ()
+    (destroy-timer-events))
+  
+  (defun frame-rate-counter-get-frame-rate ()
+    fps)
+  
+  (defun frame-rate-counter-measure ()
+    (incf fps-count)
+    (when (>= fps-count fps-limit)
+      (let ((milliseconds (/ (get-elapsed-time) fps-count)))
+        (setf fps       (/ 1.0 (/ milliseconds 1000.0))
+              fps-count 0
+              fps-limit (max fps 1.0))))))
+
+
+;;;
+;;; Timer functions
 ;;;
 
 (let ((start-event (cffi:null-pointer))
@@ -214,13 +237,13 @@
 
   (defun get-elapsed-time ()
     (let (milliseconds)
+      (stop-and-synchronize-timer)
       (cffi:with-foreign-object (pmilliseconds :float)
-        (stop-and-synchronize-timer)
         (cu-event-elapsed-time pmilliseconds
                                (cffi:mem-ref start-event 'cu-event)
                                (cffi:mem-ref stop-event 'cu-event))
-        (start-timer)
         (setf milliseconds (cffi:mem-ref pmilliseconds :float)))
+      (start-timer)
       milliseconds)))
 
 (defmacro with-cuda-timer (&body body)
@@ -230,32 +253,9 @@
        (destroy-timer-events))))
 
 
-;;;
-;;; NBodyDemo
-;;;
-
-(defun nbody-demo-init ()
-  (particle-renderer-init)
-  (nbody-demo-reset-renderer))
-
-(defun nbody-demo-release ()
-  (particle-renderer-release))
-
-(defun nbody-demo-reset-renderer ()
-  (particle-renderer-set-base-color #(1.0 0.6 0.3 1.0)))
-
-(defun nbody-demo-update-simulation (new-pos old-pos vel delta-time damping num-bodies p)
-  (integrate-nbody-system new-pos old-pos vel delta-time damping num-bodies p))
-
-(defun nbody-demo-display (pos num-bodies)
-  ; (particle-renderer-set-spirte-size ...)
-  (memcpy-device-to-host pos)
-  (particle-renderer-set-positions pos num-bodies)
-  (particle-renderer-display :particle-sprites))
-
 
 ;;;
-;;; Particle Renderer
+;;; NBody
 ;;;
 
 (defun unlines (&rest string-list)
@@ -287,86 +287,41 @@
            "         color * color2;" ;mix(vec4(0.1, 0.0, 0.0, color.w), color2, color.w);"
            "}                                                                      "))
 
-(let ((m-pos           nil)
-      (m-num-particles 0)
-      (m-point-size    1.0)
-      (m-sprite-size   2.0)
-      (m-vertex-shader nil)
-      (m-pixel-shader  nil)
-      (m-program       nil)
-      (m-texture       0)
-      (m-texture-data  (cffi:null-pointer))
-      ;(m-pbo           nil)
-      ;(m-vbo-color     nil)
-      (m-base-color    #(0.0 0.0 0.0 0.0)))
+(let (;; for memory blocks
+      m-new-pos m-old-pos m-vel
+      ;; simulation parameters
+      (m-num-bodies     2048)
+      (m-delta-time     0.016)
+      (m-damping        1.0)
+      (m-p              256)
+      (m-cluster-scale  1.56)
+      (m-velocity-scale 2.64)
+      ;; for rendering
+      (m-point-size     1.0)
+      (m-sprite-size    2.0)
+      (m-base-color     #(1.0 0.6 0.3 1.0))
+      ;; for shaders
+      m-program m-vertex-shader m-pixel-shader
+      ;; for texture
+      (m-texture        0)
+      (m-texture-data   (cffi:null-pointer)))
   
-  (defun particle-renderer-init ()
-    (init-gl))
+  (defun nbody-num-bodies ()
+    m-num-bodies)
   
-  (defun particle-renderer-release ()
-    (cffi:foreign-free m-texture-data))
+  (defun nbody-get-frame-rate ()
+    (frame-rate-counter-get-frame-rate))
   
-  (defun particle-renderer-set-positions (pos num-particles)
-    (setf m-pos pos)
-    (setf m-num-particles num-particles))
+  (defun nbody-init ()
+    (init-shaders)
+    (create-texture 32)
+    (init-cuda-context 0)
+    (init-memory-blocks)
+    (frame-rate-counter-init)
+    (nbody-reset)
+    (memcpy-host-to-device m-old-pos m-vel))
   
-  (defun particle-renderer-set-base-color (color)
-    (setf m-base-color (make-array 4))
-    (dotimes (i 4)
-      (setf (aref m-base-color i) (aref color i))))
-  
-  (defun particle-renderer-set-colors (color num-particles)
-    (declare (ignore color num-particles))
-    (not-implemented))
-  
-  (defun particle-renderer-set-pbo (pbo num-particles)
-    (declare (ignore pbo num-particles))
-    (not-implemented))
-  
-  (defun particle-renderer-display (mode)
-    (ecase mode
-      (:particle-points
-        (gl:color 1.0 1.0 1.0)
-        (gl:point-size m-point-size)
-        (draw-points))
-      (:particle-sprites
-        (gl:enable :point-sprite)
-        (gl:tex-env :point-sprite :coord-replace :true)
-        (gl:enable :vertex-program-point-size-nv)
-        (gl:point-size m-sprite-size)
-        (gl:blend-func :src-alpha :one)
-        (gl:enable :blend)
-        (gl:depth-mask :false)
-        
-        (gl:use-program m-program)
-        (gl:uniformi (gl:get-uniform-location m-program "splatTexture") 0)
-        
-        (gl:active-texture :texture0-arb)
-        (gl:bind-texture :texture-2d m-texture)
-        
-        (gl:color 1.0 1.0 1.0)
-        (gl:secondary-color (aref m-base-color 0) (aref m-base-color 1) (aref m-base-color 2))
-        
-        (draw-points)
-        
-        (gl:use-program 0)
-        
-        (gl:disable :point-sprite-arb)
-        (gl:disable :blend)
-        (gl:depth-mask :true))))
-  
-  (defun particle-renderer-set-point-size (size)
-    (declare (ignore size))
-    (not-implemented))
-  
-  (defun particle-renderer-set-sprite-size (size)
-    (declare (ignore size))
-    (not-implemented))
-  
-  (defun particle-renderer-reset-pbo ()
-    (not-implemented))
-  
-  (defun init-gl ()
+  (defun init-shaders ()
     ;; create shader objects
     (setf m-vertex-shader (gl:create-shader :vertex-shader))
     (setf m-pixel-shader (gl:create-shader :fragment-shader))
@@ -382,36 +337,7 @@
     (gl:attach-shader m-program m-vertex-shader)
     (gl:attach-shader m-program m-pixel-shader)
     ;; link program object
-    (gl:link-program m-program)
-    ;; create texture
-    (create-texture 32))
-  
-  (defun eval-hermite (pa pb va vb u)
-    (let ((u2 (* u u))
-          (u3 (* u u u)))
-      (let ((b0 (+ (- (* 2 u3) (* 3 u2)) 1))
-            (b1 (+ (* -2 u3) (* 3 u2)))
-            (b2 (+ (- u3 (* 2 u2)) u))
-            (b3 (- u3 u)))
-        (+ (* b0 pa) (* b1 pb) (* b2 va) (* b3 vb)))))
-  
-  (defun create-gaussian-map (b n)
-    (let ((incr (/ 2.0 n))
-          (j 0))
-      (do ((y 0 (1+ y))
-           (yy -1.0 (+ yy incr)))
-          ((= y n))
-        (do ((x 0 (1+ x))
-             (xx -1.0 (+ xx incr)))
-            ((= x n))
-          (let* ((dist (min (sqrt (+ (* xx xx) (* yy yy))) 1.0))
-                 (hermite (eval-hermite 1.0 0 0 0 dist))
-                 (value (truncate (* hermite 255))))
-            (setf (cffi:mem-aref b :unsigned-char j)       value
-                  (cffi:mem-aref b :unsigned-char (+ j 1)) value
-                  (cffi:mem-aref b :unsigned-char (+ j 2)) value
-                  (cffi:mem-aref b :unsigned-char (+ j 3)) value)
-            (incf j 4))))))
+    (gl:link-program m-program))
   
   (defun create-texture (resolution)
     (setf m-texture-data (cffi:foreign-alloc :unsigned-char :count (* 4 resolution resolution)))
@@ -424,16 +350,115 @@
     (gl:tex-image-2d :texture-2d 0 :rgba8 resolution resolution 0
                      :rgba :unsigned-byte m-texture-data))
   
+  (defun init-memory-blocks ()
+    (setf m-new-pos (cl-cuda::alloc-memory-block 'float4 m-num-bodies)
+          m-old-pos (cl-cuda::alloc-memory-block 'float4 m-num-bodies)
+          m-vel     (cl-cuda::alloc-memory-block 'float4 m-num-bodies)))
+  
+  (defun nbody-release ()
+    (frame-rate-counter-release)
+    (release-memory-blocks)
+    (release-cuda-context)
+    (destroy-texture)
+    (release-shaders))
+  
+  (defun release-shaders ()
+    (values))
+  
+  (defun destroy-texture ()
+    (cffi:foreign-free m-texture-data))
+  
+  (defun release-memory-blocks ()
+    (cl-cuda::free-memory-block m-vel)
+    (cl-cuda::free-memory-block m-old-pos)
+    (cl-cuda::free-memory-block m-new-pos))
+  
+  (defun nbody-reset ()
+    (randomize-bodies m-old-pos m-vel
+                      m-cluster-scale m-velocity-scale m-num-bodies))
+  
+  (defun nbody-update-simulation ()
+    (integrate-nbody-system m-new-pos m-old-pos m-vel
+                            m-delta-time m-damping m-num-bodies m-p)
+    (rotatef m-new-pos m-old-pos))
+  
+  (defun nbody-display (mode)
+    (memcpy-device-to-host m-new-pos)
+    (ecase mode
+      (:particle-points
+        (gl:color 1.0 1.0 1.0)
+        (gl:point-size m-point-size)
+        (draw-points))
+      (:particle-sprites
+        ;; enable features
+        (gl:enable :point-sprite)
+        (gl:tex-env :point-sprite :coord-replace :true)
+        (gl:enable :vertex-program-point-size-nv)
+        (gl:point-size m-sprite-size)
+        (gl:blend-func :src-alpha :one)
+        (gl:enable :blend)
+        (gl:depth-mask :false)
+        ;; use shader program
+        (gl:use-program m-program)
+        (gl:uniformi (gl:get-uniform-location m-program "splatTexture") 0)
+        ;; bind texture
+        (gl:active-texture :texture0-arb)
+        (gl:bind-texture :texture-2d m-texture)
+        ;; set color
+        (gl:color 1.0 1.0 1.0)
+        (gl:secondary-color (aref m-base-color 0) (aref m-base-color 1) (aref m-base-color 2))
+        ;; draw points
+        (draw-points)
+        ;; dont use shader program
+        (gl:use-program 0)
+        ;; disable features
+        (gl:disable :point-sprite-arb)
+        (gl:disable :blend)
+        (gl:depth-mask :true)))
+    (frame-rate-counter-measure))
+  
   (defun draw-points ()
     (gl:begin :points)
-    (dotimes (i m-num-particles)
-      (let ((p (mem-aref m-pos i)))
+    (dotimes (i m-num-bodies)
+      (let ((p (mem-aref m-new-pos i)))
         (gl:vertex (float4-x p) (float4-y p) (float4-z p))))
     (gl:end)))
 
 
 ;;;
-;;; main
+;;; Functions for texture creation
+;;;
+
+(defun eval-hermite (pa pb va vb u)
+  (let ((u2 (* u u))
+        (u3 (* u u u)))
+    (let ((b0 (+ (- (* 2 u3) (* 3 u2)) 1))
+          (b1 (+ (* -2 u3) (* 3 u2)))
+          (b2 (+ (- u3 (* 2 u2)) u))
+          (b3 (- u3 u)))
+      (+ (* b0 pa) (* b1 pb) (* b2 va) (* b3 vb)))))
+
+(defun create-gaussian-map (b n)
+  (let ((incr (/ 2.0 n))
+        (j 0))
+    (do ((y 0 (1+ y))
+         (yy -1.0 (+ yy incr)))
+        ((= y n))
+      (do ((x 0 (1+ x))
+           (xx -1.0 (+ xx incr)))
+          ((= x n))
+        (let* ((dist (min (sqrt (+ (* xx xx) (* yy yy))) 1.0))
+               (hermite (eval-hermite 1.0 0 0 0 dist))
+               (value (truncate (* hermite 255))))
+          (setf (cffi:mem-aref b :unsigned-char j)       value
+                (cffi:mem-aref b :unsigned-char (+ j 1)) value
+                (cffi:mem-aref b :unsigned-char (+ j 2)) value
+                (cffi:mem-aref b :unsigned-char (+ j 3)) value)
+          (incf j 4))))))
+
+
+;;;
+;;; Functions for initialize body position
 ;;;
 
 (defun divided-point (inner outer k)
@@ -487,46 +512,13 @@
                                             (* (float3-z vv) vscale)
                                             1.0))))))
 
-(defun reset (pos vel cluster-scale velocity-scale num-bodies)
-  (randomize-bodies pos vel cluster-scale velocity-scale num-bodies))
 
-(defun integrate-nbody-system (new-pos old-pos vel delta-time damping num-bodies p)
-  (let ((grid-dim (list (ceiling (/ num-bodies p)) 1 1))
-        (block-dim (list p 1 1)))
-    (integrate-bodies new-pos old-pos vel delta-time damping num-bodies
-                      :grid-dim grid-dim
-                      :block-dim block-dim)))
+;;;
+;;; main
+;;;
 
 (defun main ()
-  (let ((dev-id 0)
-        (num-bodies 2048)
-        (cluster-scale 1.56)
-        (velocity-scale 2.64)
-        (delta-time 0.016)
-        (damping 1.0)
-        (p 256)
-        (window (make-instance 'nbody-window)))
-    (with-cuda-context (dev-id)
-      (with-memory-blocks ((new-pos 'float4 num-bodies)
-                           (old-pos 'float4 num-bodies)
-                           (vel 'float4 num-bodies))
-      (with-cuda-timer
-        ;; set values to slots of the nbody window
-        (setf (slot-value window 'new-pos) new-pos
-              (slot-value window 'old-pos) old-pos
-              (slot-value window 'vel) vel
-              (slot-value window 'delta-time) delta-time
-              (slot-value window 'damping) damping
-              (slot-value window 'num-bodies) num-bodies
-              (slot-value window 'p) p)
-        ;; reset position and velocity of bodies
-        (reset old-pos vel cluster-scale velocity-scale num-bodies)
-        ;; copy position and velocity on host memory to device memory
-        (memcpy-host-to-device old-pos vel)
-        ;; start CUDA timer
-        (start-timer)
-        ;; start glut main loop
-        (glut:display-window window))))))
+  (glut:display-window (make-instance 'nbody-window)))
 
 (defun not-implemented ()
   (error "not implemented."))
