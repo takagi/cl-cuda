@@ -226,22 +226,27 @@
 ;;; Definition of with- macro for CUDA driver API
 ;;;
 
-(defmacro with-cuda-context (args &body body)
-  (destructuring-bind (dev-id) args
+(defmacro with-cuda-context ((dev-id) &body body)
+  `(progn
+     (init-cuda-context ,dev-id)
+     (unwind-protect (progn ,@body)
+       (release-cuda-context))))
+
+(let (device context)
+  
+  (defun init-cuda-context (dev-id)
     (let ((flags 0))
-      (with-gensyms (device ctx)
-        `(cffi:with-foreign-objects ((,device 'cu-device)
-                                     (,ctx 'cu-context))
-           (cu-init 0)
-           (cu-device-get ,device ,dev-id)
-           (cu-ctx-create ,ctx ,flags (cffi:mem-ref ,device 'cu-device))
-           (unwind-protect
-             (progn
-               (ensure-kernel-module-loaded *kernel-manager*)
-               ,@body)
-             (progn
-               (kernel-manager-unload *kernel-manager*)
-               (cu-ctx-destroy (cffi:mem-ref ,ctx 'cu-context)))))))))
+      (setf device  (cffi:foreign-alloc 'cu-device)
+            context (cffi:foreign-alloc 'cu-context))
+      (cu-init 0)
+      (cu-device-get device dev-id)
+      (cu-ctx-create context flags (cffi:mem-ref device 'cu-device))))
+  
+  (defun release-cuda-context ()
+    (kernel-manager-unload *kernel-manager*)
+    (cu-ctx-destroy (cffi:mem-ref context 'cu-context))
+    (cffi:foreign-free context)
+    (cffi:foreign-free device)))
 
 (defmacro with-cuda-memory-block (args &body body)
   (destructuring-bind (dptr size) args

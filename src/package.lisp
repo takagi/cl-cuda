@@ -43,6 +43,8 @@
            :check-cuda-errors           ; Helpers
            :*show-messages*
            :with-cuda-context
+           :init-cuda-context
+           :release-cuda-context
            :with-memory-blocks          ; Memory Block
            :mem-aref
            :memcpy-host-to-device
