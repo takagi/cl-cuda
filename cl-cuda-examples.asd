@@ -18,7 +18,6 @@
                :cl-glu
                :cl-glut)
   :components ((:module "examples"
-                :serial t
                 :components
                 ((:file "diffuse0")
                  (:file "diffuse1")
