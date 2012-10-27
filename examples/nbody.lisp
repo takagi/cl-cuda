@@ -38,8 +38,9 @@
 
 (defkernel gravitation (float3 ((ipos float4) (accel float3) (shared-pos float4*)))
 ;  (with-shared-memory ((shared-pos float4 256))
-    (for ((j 0 (- block-dim-x 1)))
-      (set accel (body-body-interaction accel ipos (aref shared-pos j))));)
+  (do ((j 0 (+ j 1)))
+      ((>= j block-dim-x))
+    (set accel (body-body-interaction accel ipos (aref shared-pos j))))
   (return accel))
 
 (defkernel wrap (int ((x int) (m int)))
@@ -54,7 +55,8 @@
           (p block-dim-x)
           (n num-bodies)
           (num-tiles (/ n p)))
-      (for ((tile 0 (- num-tiles 1)))
+      (do ((tile 0 (+ tile 1)))
+          ((>= tile num-tiles))
         (let ((idx (+ (* (wrap (+ block-idx-x tile) grid-dim-x) p)
                       thread-idx-x)))
           (set (aref shared-pos thread-idx-x) (aref positions idx)))

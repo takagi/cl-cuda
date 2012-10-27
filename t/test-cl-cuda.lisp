@@ -408,6 +408,20 @@
       (memcpy-device-to-host a)
       (is (mem-aref a 0) 6.0))))
 
+(defkernel test-do-kernel (void ((x int*)))
+  (do ((i 0 (+ i 1)))
+      ((> i 15))
+    (set (aref x 0) (+ (aref x 0) 1))))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((x 'int 1))
+      (setf (mem-aref x 0) 0)
+      (memcpy-host-to-device x)
+      (test-do-kernel x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+      (memcpy-device-to-host x)
+      (is (mem-aref x 0) 16))))
+
 
 ;;;
 ;;; test valid-type-p
@@ -663,65 +677,53 @@
 
 
 ;;;
-;;; test compile-for
+;;; test compile-do
 ;;;
 
-(diag "test compile-for")
+(diag "test compile-do")
 
-;; test for-p
-(is (cl-cuda::for-p '(for ((a 0 15 1)
-                           (b 0 15 1)))) t)
+;; test do selectors
+(let* ((code '(do ((a 0 (+ a 1))
+                   (b 0 (+ b 1)))
+                  ((> a 15))
+                (return)))
+       (binding (first (cl-cuda::do-bindings code))))
+  (cl-cuda::with-type-environment (type-env ((a int) (b int)))
+    (is (cl-cuda::do-p code)                    t)
+    (is (cl-cuda::do-bindings code)             '((a 0 (+ a 1))
+                                                  (b 0 (+ b 1))))
+    (is (cl-cuda::do-var-types code nil nil)    '((a int) (b int)))
+    (is (cl-cuda::do-binding-var binding)       'a)
+    (is (cl-cuda::do-binding-type binding type-env nil) 'int)
+    (is (cl-cuda::do-binding-init-form binding) 0)
+    (is (cl-cuda::do-binding-step-form binding) '(+ a 1))
+    (is (cl-cuda::do-test-form code)            '(> a 15))
+    (is (cl-cuda::do-statements code)           '((return)))))
 
-;; test for-bindings
-(is (cl-cuda::for-bindings '(for ((a 0 15 1)
-                                  (b 0 15 1)))) '((a 0 15 1) (b 0 15 1)))
 
-;; test for-vars
-(is (cl-cuda::for-vars '(for ((a 0 15 1)
-                              (b 0 15 1)))) '(a b))
-
-;; test for-begins
-(is (cl-cuda::for-begins '(for ((a 0 15 1)
-                               (b 0 15 1)))) '(0 0))
-
-;; test for-ends
-(is (cl-cuda::for-ends '(for ((a 0 15 1)
-                              (b 0 15 1)))) '(15 15))
-
-;; test for-steps
-(is (cl-cuda::for-steps '(for ((a 0 15 1)
-                               (b 0 15))) nil nil) '(1 1))
-
-;; test for-statements
-(is (cl-cuda::for-statements '(for ((a 0 15))
-                                (return))) '((return)))
-
-;; test compile-for
-(let ((lisp-code '(for ((a 0 15 1)
-                        (b 0 15))
-                    (+ a b)))
-      (c-code (cl-cuda::unlines "for ( int a = 0, int b = 0; a <= 15, b <= 15; a += 1, b += 1 )"
+;; test compile-do
+(let ((lisp-code '(do ((a 0 (+ a 1))
+                       (b 0 (+ b 1)))
+                      ((> a 15))
+                    (return)))
+      (c-code (cl-cuda::unlines "for ( int a = 0, int b = 0; ! (a > 15); a = (a + 1), b = (b + 1) )"
                                 "{"
-                                "  (a + b);"
+                                "  return;"
                                 "}")))
-  (is (cl-cuda::compile-for-begin-part lisp-code nil nil)
-      "int a = 0, int b = 0")
-  (is (cl-cuda::compile-for-end-part lisp-code nil nil)
-      "a <= 15, b <= 15")
-  (is (cl-cuda::compile-for-step-part lisp-code nil nil)
-      "a += 1, b += 1")
-  (is (cl-cuda::compile-for lisp-code nil nil) c-code))
+  (cl-cuda::with-type-environment (type-env ((a int) (b int)))
+    (is (cl-cuda::compile-do-init-part lisp-code nil      nil) "int a = 0, int b = 0")
+    (is (cl-cuda::compile-do-test-part lisp-code type-env nil) "! (a > 15)")
+    (is (cl-cuda::compile-do-step-part lisp-code type-env nil) "a = (a + 1), b = (b + 1)")
+    (is (cl-cuda::compile-do lisp-code nil nil) c-code)))
 
-(is-error (cl-cuda::compile-for '(for (())   ) nil nil) simple-error)
-(is-error (cl-cuda::compile-for '(for ((a))  ) nil nil) simple-error)
-(is-error (cl-cuda::compile-for '(for ((a 0))) nil nil) simple-error)
-
-(let ((lisp-code '(for ((a 0.0 15.0))))
-      (c-code (cl-cuda::unlines "for ( float a = 0.0; a <= 15.0; a += 1.0 )"
+(let ((lisp-code '(do ((a 0.0 (+ a 1.0)))
+                      ((> a 15.0))
+                    (return)))
+      (c-code (cl-cuda::unlines "for ( float a = 0.0; ! (a > 15.0); a = (a + 1.0) )"
                                 "{"
-                                ""
+                                "  return;"
                                 "}")))
-  (is (cl-cuda::compile-for lisp-code nil nil) c-code))
+  (is (cl-cuda::compile-do lisp-code nil nil) c-code))
 
 
 ;;;
