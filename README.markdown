@@ -66,6 +66,143 @@ I will write more about installation later.
 * CUDA Toolkit, CUDA Drivers and CUDA SDK need to be installed
 * SBCL Common Lisp compiler, because cl-cuda uses some sbcl extensions to run nvcc compiler externally. I will fix it later to make it possible to be used on other Common Lisp implementations. For now, if you want to use cl-cuda on those implementations other than SBCL, you can rewrite the related part of src/cl-cuda.lisp to suit your environment. It is only a few lines.
 
+## API
+
+### init-cuda-context
+
+### release-cuda-context
+
+### with-cuda-context
+
+### alloc-memory-block
+
+### free-memory-block
+
+### with-memory-block
+
+### mem-aref, (setf mem-aref)
+
+### memcpy-host-to-device
+
+### memcpy-device-to-host
+
+## Kernel Definition Language
+
+### DEFKERNEL macro
+
+### launching kernel functions
+
+### Types
+
+### IF statement
+
+Syntax:
+
+    IF test-form then-form [else-form]
+
+Example:
+
+    (if (= a 0)
+        (return 0)
+        (return 1))
+
+Compiled:
+
+    if (a == 0) {
+      return 0;
+    } else {
+      return 1;
+    }
+
+### LET statement
+
+### DO statement
+
+Syntax:
+
+    DO ({(var init-form step-form}*) (test-form) statement*
+
+Example:
+
+    (do ((a 0 (+ a 1))
+         (b 0 (+ b 1)))
+        ((> a 15))
+      (do-some-statement))
+
+Compiled:
+
+    for ( int a = 0, int b = 0; ! (a > 15); a = a + 1, b = b + 1 )
+    {
+      do_some_statement ();
+    }
+
+### WITH-SHARED-MEMORY statement
+
+Syntax:
+
+    WITH-SHARED-MEMORY ({(var type size*)}*) statement*
+
+Example:
+
+    (with-shared-memory ((a int 16)
+                         (b float 16 16))
+      (return))
+
+Compiled:
+
+    {
+      __shared__ int a[16];
+      __shared__ float b[16][16];
+      return;
+    }
+
+### SET statement
+
+### PROGN statement
+
+Syntax:
+
+    PROGN statement*
+
+Example:
+
+    (progn
+      (do-some-statement)
+      (do-more-statement))
+
+Compiled:
+
+    do_some_statement ();
+    do_more_statement ();
+
+### RETURN statement
+
+Syntax:
+
+    RETURN [return-form]
+
+Example:
+
+    (return 0)
+
+Compiled:
+
+    return 0;
+
+### SYNCTHREADS statement
+
+Syntax:
+
+    SYNCTHREADS
+
+Example:
+
+    (syncthreads)
+
+Compiled:
+
+    __syncthreads();
+
 ## Author
 
 * Masayuki Takagi (kamonama@gmail.com)
