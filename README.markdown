@@ -138,7 +138,7 @@ Compiled:
 
 Syntax:
 
-    DO ({(var init-form step-form}*) (test-form) statement*
+    DO ({(var init-form step-form)}*) (test-form) statement*
 
 Example:
 
@@ -219,7 +219,7 @@ Example:
 
 Compiled:
 
-    __syncthreads();
+    __syncthreads ();
 
 ## Author
 
