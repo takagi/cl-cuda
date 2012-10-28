@@ -118,6 +118,22 @@ Compiled:
 
 ### LET statement
 
+Syntax:
+
+    LET ({(var init-form)}*) statement*
+
+Example:
+
+    (let ((i 0))
+      (return i))
+
+Compiled:
+
+    {
+      int i = 0;
+      return i;
+    }
+
 ### DO statement
 
 Syntax:
