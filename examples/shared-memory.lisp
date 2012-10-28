@@ -8,7 +8,7 @@
   (:use :cl
         :cl-cuda
         :alexandria)
-  (:export :main))
+  (:export :main-shared-memory :main-global-memory))
 (in-package :cl-cuda-examples.shared-memory)
 
 (setf cl-cuda:*show-messages* nil)
@@ -74,7 +74,7 @@
            (funcall func a
                     :grid-dim (list (/ n 16) 1 1)
                     :block-dim '(16 1 1))
-           (cu-ctx-synchronize)))
+           (synchronize-context)))
         (memcpy-device-to-host a)
         (verify a n expected)))))
 
