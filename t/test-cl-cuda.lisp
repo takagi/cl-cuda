@@ -59,20 +59,20 @@
 
 ;; test cuInit
 (diag "test cuInit")
-(cu-init 0)
+(cl-cuda::cu-init 0)
 
 ;; test cuDeviceGet
 (diag "test cuDeviceGet")
 (let ((dev-id 0))
-  (cffi:with-foreign-object (device 'cu-device)
+  (cffi:with-foreign-object (device 'cl-cuda::cu-device)
     (setf (cffi:mem-ref device :int) 42)
-    (cu-device-get device dev-id)
-    (format t "CUDA device handle: ~A~%" (cffi:mem-ref device 'cu-device))))
+    (cl-cuda::cu-device-get device dev-id)
+    (format t "CUDA device handle: ~A~%" (cffi:mem-ref device 'cl-cuda::cu-device))))
 
 ;; test cuDeviceGetCount
 (diag "test cuDeviceGetCount")
 (cffi:with-foreign-object (count :int)
-  (cu-device-get-count count)
+  (cl-cuda::cu-device-get-count count)
   (format t "CUDA device count: ~A~%" (cffi:mem-ref count :int)))
 
 ;; test cuDeviceComputeCapability
@@ -80,51 +80,51 @@
 (let ((dev-id 0))
   (cffi:with-foreign-objects ((major :int)
                               (minor :int)
-                              (device 'cu-device))
-    (cu-device-get device dev-id)
-    (cu-device-compute-capability major minor (cffi:mem-ref device 'cu-device))
+                              (device 'cl-cuda::cu-device))
+    (cl-cuda::cu-device-get device dev-id)
+    (cl-cuda::cu-device-compute-capability major minor (cffi:mem-ref device 'cl-cuda::cu-device))
     (format t "CUDA device compute capability: ~A.~A~%"
               (cffi:mem-ref major :int) (cffi:mem-ref minor :int))))
 
 ;; test cuDeviceGetName
 (diag "test cuDeviceGetName")
 (let ((dev-id 0))
-  (cffi:with-foreign-object (device 'cu-device)
+  (cffi:with-foreign-object (device 'cl-cuda::cu-device)
   (cffi:with-foreign-pointer-as-string ((name size) 255)
-    (cu-device-get device dev-id)
-    (cu-device-get-name name size (cffi:mem-ref device 'cu-device))
+    (cl-cuda::cu-device-get device dev-id)
+    (cl-cuda::cu-device-get-name name size (cffi:mem-ref device 'cl-cuda::cu-device))
     (format t "CUDA device name: ~A~%" (cffi:foreign-string-to-lisp name)))))
 
 ;; test cuCtxCreate/cuCtxDestroy
 (diag "test cuCtxCreate/cuCtxDestroy")
 (let ((flags 0)
       (dev-id 0))
-  (cffi:with-foreign-objects ((pctx 'cu-context)
-                              (device 'cu-device))
-    (cu-device-get device dev-id)
-    (cu-ctx-create pctx flags (cffi:mem-ref device 'cu-device))
-    (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context))))
+  (cffi:with-foreign-objects ((pctx   'cl-cuda::cu-context)
+                              (device 'cl-cuda::cu-device))
+    (cl-cuda::cu-device-get device dev-id)
+    (cl-cuda::cu-ctx-create pctx flags (cffi:mem-ref device 'cl-cuda::cu-device))
+    (cl-cuda::cu-ctx-destroy (cffi:mem-ref pctx 'cl-cuda::cu-context))))
 
 ;; test cuMemAlloc/cuMemFree
 (diag "test cuMemAlloc/cuMemFree")
 (let ((flags 0)
       (dev-id 0))
-  (cffi:with-foreign-objects ((device 'cu-device)
-                              (pctx 'cu-context)
-                              (dptr 'cu-device-ptr))
-    (cu-device-get device dev-id)
-    (cu-ctx-create pctx flags (cffi:mem-ref device 'cu-device))
-    (cu-mem-alloc dptr 1024)
-    (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr))
-    (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context))))
+  (cffi:with-foreign-objects ((device 'cl-cuda::cu-device)
+                              (pctx   'cl-cuda::cu-context)
+                              (dptr   'cl-cuda::cu-device-ptr))
+    (cl-cuda::cu-device-get device dev-id)
+    (cl-cuda::cu-ctx-create pctx flags (cffi:mem-ref device 'cl-cuda::cu-device))
+    (cl-cuda::cu-mem-alloc dptr 1024)
+    (cl-cuda::cu-mem-free (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr))
+    (cl-cuda::cu-ctx-destroy (cffi:mem-ref pctx 'cl-cuda::cu-context))))
 
 ;; test cuMemAlloc/cuMemFree using with-cuda-context
 (diag "test cuMemAlloc/cuMemFree using with-cuda-context")
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
-    (cffi:with-foreign-object (dptr 'cu-device-ptr)
-      (cu-mem-alloc dptr 1024)
-      (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr)))))
+    (cffi:with-foreign-object (dptr 'cl-cuda::cu-device-ptr)
+      (cl-cuda::cu-mem-alloc dptr 1024)
+      (cl-cuda::cu-mem-free (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr)))))
 
 ;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block
 (diag "test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block")
@@ -146,16 +146,16 @@
   (with-cuda-context (dev-id)
     (cffi:with-foreign-object (hptr :float size)
       (cl-cuda::with-cuda-memory-block (dptr size)
-        (cu-memcpy-host-to-device (cffi:mem-ref dptr 'cu-device-ptr) hptr size)
-        (cu-memcpy-device-to-host hptr (cffi:mem-ref dptr 'cu-device-ptr) size)))))
+        (cl-cuda::cu-memcpy-host-to-device (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr) hptr size)
+        (cl-cuda::cu-memcpy-device-to-host hptr (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr) size)))))
 
 ;; test cuModuleLoad
 (diag "test cuModuleLoad")
 (let ((dev-id 0))
   (cffi:with-foreign-string (fname "/Developer/GPU Computing/C/src/vectorAddDrv/data/vectorAdd_kernel.ptx")
     (with-cuda-context (dev-id)
-      (cffi:with-foreign-object (module 'cu-module)
-        (cu-module-load module fname)
+      (cffi:with-foreign-object (module 'cl-cuda::cu-module)
+        (cl-cuda::cu-module-load module fname)
         (format t "CUDA module \"vectorAdd_kernel.ptx\" is loaded.~%")))))
 
 ;; test cuModuleGetFunction
@@ -164,10 +164,10 @@
   (cffi:with-foreign-string (fname "/Developer/GPU Computing/C/src/vectorAddDrv/data/vectorAdd_kernel.ptx")
     (cffi:with-foreign-string (name "VecAdd_kernel")
       (with-cuda-context (dev-id)
-        (cffi:with-foreign-objects ((module 'cu-module)
-                                    (hfunc 'cu-function))
-          (cu-module-load module fname)
-          (cu-module-get-function hfunc (cffi:mem-ref module 'cu-module) name))))))
+        (cffi:with-foreign-objects ((module 'cl-cuda::cu-module)
+                                    (hfunc  'cl-cuda::cu-function))
+          (cl-cuda::cu-module-load module fname)
+          (cl-cuda::cu-module-get-function hfunc (cffi:mem-ref module 'cl-cuda::cu-module) name))))))
 
 
 ;;;
@@ -176,21 +176,21 @@
 
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
-    (cffi:with-foreign-objects ((start-event 'cu-event)
-                                (stop-event 'cu-event)
+    (cffi:with-foreign-objects ((start-event 'cl-cuda::cu-event)
+                                (stop-event  'cl-cuda::cu-event)
                                 (milliseconds :float))
-      (cu-event-create start-event cu-event-default)
-      (cu-event-create stop-event cu-event-default)
-      (cu-event-record (cffi:mem-ref start-event 'cu-event) (cffi:null-pointer))
-      (cu-event-record (cffi:mem-ref stop-event 'cu-event) (cffi:null-pointer))
-      (cu-event-synchronize (cffi:mem-ref stop-event 'cu-event))
-      (cu-event-query (cffi:mem-ref stop-event 'cu-event))
-      (cu-event-elapsed-time milliseconds
-                             (cffi:mem-ref start-event 'cu-event)
-                             (cffi:mem-ref stop-event 'cu-event))
+      (cl-cuda::cu-event-create start-event cl-cuda::cu-event-default)
+      (cl-cuda::cu-event-create stop-event  cl-cuda::cu-event-default)
+      (cl-cuda::cu-event-record (cffi:mem-ref start-event 'cl-cuda::cu-event) (cffi:null-pointer))
+      (cl-cuda::cu-event-record (cffi:mem-ref stop-event  'cl-cuda::cu-event) (cffi:null-pointer))
+      (cl-cuda::cu-event-synchronize (cffi:mem-ref stop-event 'cl-cuda::cu-event))
+      (cl-cuda::cu-event-query       (cffi:mem-ref stop-event 'cl-cuda::cu-event))
+      (cl-cuda::cu-event-elapsed-time milliseconds
+                                      (cffi:mem-ref start-event 'cl-cuda::cu-event)
+                                      (cffi:mem-ref stop-event  'cl-cuda::cu-event))
       (format t "CUDA Event - elapsed time: ~A~%" (cffi:mem-ref milliseconds :float))
-      (cu-event-destroy (cffi:mem-ref start-event 'cu-event))
-      (cu-event-destroy (cffi:mem-ref stop-event 'cu-event)))))
+      (cl-cuda::cu-event-destroy (cffi:mem-ref start-event 'cl-cuda::cu-event))
+      (cl-cuda::cu-event-destroy (cffi:mem-ref stop-event  'cl-cuda::cu-event)))))
 
 
 ;;;
@@ -487,9 +487,9 @@
 (is       (cl-cuda::cffi-type 'float  ) :float        )
 (is       (cl-cuda::cffi-type 'float3 ) 'float3       )
 (is       (cl-cuda::cffi-type 'float4 ) 'float4       )
-(is       (cl-cuda::cffi-type 'float* ) 'cu-device-ptr)
-(is       (cl-cuda::cffi-type 'float3*) 'cu-device-ptr)
-(is       (cl-cuda::cffi-type 'float4*) 'cu-device-ptr)
+(is       (cl-cuda::cffi-type 'float* ) 'cl-cuda::cu-device-ptr)
+(is       (cl-cuda::cffi-type 'float3*) 'cl-cuda::cu-device-ptr)
+(is       (cl-cuda::cffi-type 'float4*) 'cl-cuda::cu-device-ptr)
 
 (is (cl-cuda::size-of 'void  ) 0 )
 (is (cl-cuda::size-of 'int   ) 4 )

@@ -246,7 +246,10 @@
     (kernel-manager-unload *kernel-manager*)
     (cu-ctx-destroy (cffi:mem-ref context 'cu-context))
     (cffi:foreign-free context)
-    (cffi:foreign-free device)))
+    (cffi:foreign-free device))
+  
+  (defun synchronize-context ()
+    (cu-ctx-synchronize)))
 
 (defmacro with-cuda-memory-block (args &body body)
   (destructuring-bind (dptr size) args
@@ -1818,6 +1821,71 @@
 (defmacro with-type-environment ((var bindings) &body body)
   `(let ((,var (bulk-add-type-environment ',bindings (empty-type-environment))))
      ,@body))
+
+
+;;; Timer
+
+(defun make-timer-object (start-event stop-event)
+  (cons start-event stop-event))
+
+(defun timer-object-start-event (timer-object)
+  (car timer-object))
+
+(defun (setf timer-object-start-event) (val timer-object)
+  (setf (car timer-object) val))
+
+(defun timer-object-stop-event (timer-object)
+  (cdr timer-object))
+
+(defun (setf timer-object-stop-event) (val timer-object)
+  (setf (cdr timer-object) val))
+
+(defun create-timer ()
+  (let ((start-event (cffi:foreign-alloc 'cu-event))
+        (stop-event  (cffi:foreign-alloc 'cu-event)))
+    (cu-event-create start-event cu-event-default)
+    (cu-event-create stop-event  cu-event-default)
+    (make-timer-object start-event stop-event)))
+
+(defun destroy-timer (timer-object)
+  (let ((start-event (timer-object-start-event timer-object))
+        (stop-event  (timer-object-stop-event  timer-object)))
+    (cu-event-destroy (cffi:mem-ref start-event 'cu-event))
+    (cu-event-destroy (cffi:mem-ref stop-event 'cu-event))
+    (cffi:foreign-free start-event)
+    (cffi:foreign-free stop-event)
+    (setf (timer-object-start-event timer-object) (cffi:null-pointer)
+          (timer-object-stop-event  timer-object) (cffi:null-pointer))))
+
+(defmacro with-timer (&body body)
+  (with-gensyms (timer)
+    `(progn
+       (let (,timer)
+         (setf ,timer (create-timer))
+         (unwind-protect (progn ,@body)
+           (destroy-timer ,timer))))))
+
+(defun start-timer (timer-object)
+  (let ((start-event (timer-object-start-event timer-object)))
+    (cu-event-record (cffi:mem-ref start-event 'cu-event) (cffi:null-pointer))))
+
+(defun stop-and-synchronize-timer (timer-object)
+  (let ((stop-event (timer-object-stop-event timer-object)))
+    (cu-event-record (cffi:mem-ref stop-event 'cu-event) (cffi:null-pointer))
+    (cu-event-synchronize (cffi:mem-ref stop-event 'cu-event))))
+
+(defun get-elapsed-time (timer-object)
+  (let (milliseconds
+        (start-event (timer-object-start-event timer-object))
+        (stop-event  (timer-object-stop-event  timer-object)))
+    (stop-and-synchronize-timer timer-object)
+    (cffi:with-foreign-object (pmilliseconds :float)
+      (cu-event-elapsed-time pmilliseconds
+                             (cffi:mem-ref start-event 'cu-event)
+                             (cffi:mem-ref stop-event  'cu-event))
+      (setf milliseconds (cffi:mem-ref pmilliseconds :float)))
+    (start-timer timer-object)
+    milliseconds))
 
 
 ;;; utilities
