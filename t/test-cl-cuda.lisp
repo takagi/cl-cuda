@@ -193,7 +193,9 @@
       (cl-cuda::cu-event-destroy (cffi:mem-ref stop-event  'cl-cuda::cu-event)))))
 
 
+;;;
 ;;; test timer
+;;;
 
 (diag "test timer")
 
@@ -203,7 +205,8 @@
     (start-timer timer)
     (format t "elapsed time: ~A~%" (get-elapsed-time timer))
     (destroy-timer timer)
-    (ok t)))
+    (ok (cffi:null-pointer-p (cl-cuda::timer-object-start-event timer)))
+    (ok (cffi:null-pointer-p (cl-cuda::timer-object-stop-event  timer)))))
 
 
 ;;;
