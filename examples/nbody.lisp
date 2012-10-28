@@ -353,9 +353,9 @@
                      :rgba :unsigned-byte m-texture-data))
   
   (defun init-memory-blocks ()
-    (setf m-new-pos (cl-cuda::alloc-memory-block 'float4 m-num-bodies)
-          m-old-pos (cl-cuda::alloc-memory-block 'float4 m-num-bodies)
-          m-vel     (cl-cuda::alloc-memory-block 'float4 m-num-bodies)))
+    (setf m-new-pos (alloc-memory-block 'float4 m-num-bodies)
+          m-old-pos (alloc-memory-block 'float4 m-num-bodies)
+          m-vel     (alloc-memory-block 'float4 m-num-bodies)))
   
   (defun nbody-release ()
     (frame-rate-counter-release)
@@ -371,9 +371,9 @@
     (cffi:foreign-free m-texture-data))
   
   (defun release-memory-blocks ()
-    (cl-cuda::free-memory-block m-vel)
-    (cl-cuda::free-memory-block m-old-pos)
-    (cl-cuda::free-memory-block m-new-pos))
+    (free-memory-block m-vel)
+    (free-memory-block m-old-pos)
+    (free-memory-block m-new-pos))
   
   (defun nbody-reset ()
     (randomize-bodies m-old-pos m-vel
