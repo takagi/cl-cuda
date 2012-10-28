@@ -193,6 +193,19 @@
       (cl-cuda::cu-event-destroy (cffi:mem-ref stop-event  'cl-cuda::cu-event)))))
 
 
+;;; test timer
+
+(diag "test timer")
+
+(let (timer)
+  (with-cuda-context (0)
+    (setf timer (create-timer))
+    (start-timer timer)
+    (format t "elapsed time: ~A~%" (get-elapsed-time timer))
+    (destroy-timer timer)
+    (ok t)))
+
+
 ;;;
 ;;; test memory blocks
 ;;;
