@@ -641,7 +641,7 @@
 (let ((lisp-code '(if 1
                       (return)
                       (return)))
-      (c-code (cl-cuda::unlines "if (1) {"
+      (c-code (cl-cuda::unlines "if 1 {"
                                 "  return;"
                                 "} else {"
                                 "  return;"
@@ -652,7 +652,7 @@
                       (progn
                         (return 0)
                         (return 0))))
-      (c-code (cl-cuda::unlines "if (1) {"
+      (c-code (cl-cuda::unlines "if 1 {"
                                 "  return 0;"
                                 "  return 0;"
                                 "}")))
