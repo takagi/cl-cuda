@@ -92,6 +92,8 @@ I will write more about installation later.
 
 ### launching kernel functions
 
+### Types
+
 ### IF statement
 
 Syntax:
