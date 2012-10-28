@@ -46,6 +46,8 @@
            :init-cuda-context
            :release-cuda-context
            :with-memory-blocks          ; Memory Block
+           :alloc-memory-block
+           :free-memory-block
            :mem-aref
            :memcpy-host-to-device
            :memcpy-device-to-host
