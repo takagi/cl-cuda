@@ -74,6 +74,8 @@ I will write more about installation later.
 
 ### with-cuda-context
 
+### synchronize-context
+
 ### alloc-memory-block
 
 ### free-memory-block
