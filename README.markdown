@@ -90,6 +90,8 @@ I will write more about installation later.
 
 ### DEFKERNEL macro
 
+### launching kernel functions
+
 ### IF statement
 
 Syntax:
