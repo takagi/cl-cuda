@@ -7,6 +7,8 @@
 (defpackage cl-cuda-examples.diffuse0
   (:use :cl
         :cl-cuda)
+  (:shadow :start-timer
+           :stop-timer)
   (:export :main))
 (in-package :cl-cuda-examples.diffuse0)
 
@@ -117,7 +119,7 @@
                       :grid-dim (list (/ nx +block-dim-x+)
                                       (/ ny +block-dim-y+) 1)
                       :block-dim (list +block-dim-x+ +block-dim-y+ 1))
-    (cu-ctx-synchronize)
+    (synchronize-context)
     (* nx ny 7.0)))
 
 (defmacro swap (a b)
