@@ -1317,6 +1317,7 @@
 
 (defun do-binding-var (binding)
   (match binding
+    ((var _)   var)
     ((var _ _) var)
     (_ (error "invalid binding: ~A" binding))))
 
@@ -1325,11 +1326,13 @@
 
 (defun do-binding-init-form (binding)
   (match binding
+    ((_ init-form)   init-form)
     ((_ init-form _) init-form)
     (_ (error "invalid binding: ~A" binding))))
 
 (defun do-binding-step-form (binding)
   (match binding
+    ((_ _)           nil)
     ((_ _ step-form) step-form)
     (_ (error "invalid binding: ~A" binding))))
 
@@ -1373,7 +1376,7 @@
                    (step-form (do-binding-step-form binding)))
                (format nil "~A = ~A" (compile-identifier var)
                                      (compile-expression step-form type-env def)))))
-    (join ", " (mapcar #'aux (do-bindings stmt)))))
+    (join ", " (mapcar #'aux (remove-if-not #'do-binding-step-form (do-bindings stmt))))))
 
 (defun compile-do-statements (stmt type-env def)
   (compile-progn-statements (do-statements stmt) type-env def))

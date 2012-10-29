@@ -691,6 +691,9 @@
                                 "}")))
   (is (cl-cuda::compile-let lisp-code nil nil) c-code))
 
+(is-error (cl-cuda::compile-let '(let (i) (return)) nil nil) simple-error)
+(is-error (cl-cuda::compile-let '(let ((i)) (return)) nil nil) simple-error)
+
 
 ;;;
 ;;; test compile-do
@@ -736,6 +739,13 @@
                       ((> a 15.0))
                     (return)))
       (c-code (cl-cuda::unlines "for ( float a = 0.0; ! (a > 15.0); a = (a + 1.0) )"
+                                "{"
+                                "  return;"
+                                "}")))
+  (is (cl-cuda::compile-do lisp-code nil nil) c-code))
+
+(let ((lisp-code '(do ((a 0)) ((> a 10)) (return)))
+      (c-code (cl-cuda::unlines "for ( int a = 0; ! (a > 10);  )"
                                 "{"
                                 "  return;"
                                 "}")))
