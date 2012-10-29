@@ -202,8 +202,16 @@
     (setf timer (create-timer))
     (start-timer timer)
     (format t "elapsed time: ~A~%" (get-elapsed-time timer))
+    (stop-timer timer)
     (destroy-timer timer)
     (ok t)))
+
+(with-cuda-context (0)
+  (with-timer (timer)
+    (start-timer timer)
+    (format t "elapsed time: ~A~%" (get-elapsed-time timer))
+    (stop-timer timer))
+  (ok t))
 
 
 ;;;
