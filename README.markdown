@@ -74,6 +74,8 @@ I will write more about installation later.
 
 ### with-cuda-context
 
+### synchronize-context
+
 ### alloc-memory-block
 
 ### free-memory-block
@@ -116,11 +118,27 @@ Compiled:
 
 ### LET statement
 
+Syntax:
+
+    LET ({(var init-form)}*) statement*
+
+Example:
+
+    (let ((i 0))
+      (return i))
+
+Compiled:
+
+    {
+      int i = 0;
+      return i;
+    }
+
 ### DO statement
 
 Syntax:
 
-    DO ({(var init-form step-form}*) (test-form) statement*
+    DO ({(var init-form step-form)}*) (test-form) statement*
 
 Example:
 
@@ -201,7 +219,7 @@ Example:
 
 Compiled:
 
-    __syncthreads();
+    __syncthreads ();
 
 ## Author
 

@@ -1860,13 +1860,12 @@
     (setf (timer-object-start-event timer-object) (cffi:null-pointer)
           (timer-object-stop-event  timer-object) (cffi:null-pointer))))
 
-(defmacro with-timer (&body body)
-  (with-gensyms (timer)
-    `(progn
-       (let (,timer)
-         (setf ,timer (create-timer))
-         (unwind-protect (progn ,@body)
-           (destroy-timer ,timer))))))
+(defmacro with-timer ((timer)&body body)
+  `(progn
+     (let (,timer)
+       (setf ,timer (create-timer))
+       (unwind-protect (progn ,@body)
+         (destroy-timer ,timer)))))
 
 (defun start-timer (timer-object)
   (let ((start-event (timer-object-start-event timer-object)))
