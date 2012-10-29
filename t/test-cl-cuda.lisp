@@ -204,7 +204,7 @@
     (setf timer (create-timer))
     (start-timer timer)
     (format t "elapsed time: ~A~%" (get-elapsed-time timer))
-    (stop-timer timer)
+    (stop-and-synchronize-timer timer)
     (destroy-timer timer)
     (ok (cffi:null-pointer-p (cl-cuda::timer-object-start-event timer)))
     (ok (cffi:null-pointer-p (cl-cuda::timer-object-stop-event  timer)))))
@@ -213,7 +213,7 @@
   (with-timer (timer)
     (start-timer timer)
     (format t "elapsed time: ~A~%" (get-elapsed-time timer))
-    (stop-timer timer))
+    (stop-and-synchronize-timer timer))
   (ok t))
 
 
