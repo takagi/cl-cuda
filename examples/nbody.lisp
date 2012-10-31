@@ -65,6 +65,14 @@
         (syncthreads))
       (return acc))))
 
+(defkernel compute-body-accel-without-shared-memory (float3 ((body-pos float4) (positions float4*) (num-bodies int)))
+  (let ((acc (float3 0.0 0.0 0.0)))
+    (do ((i 0 (+ i 1)))
+        ((>= i num-bodies))
+      (set acc (body-body-interaction acc body-pos (aref positions i))))
+    (syncthreads)
+    (return acc)))
+
 (defkernel integrate-bodies (void ((new-pos float4*) (old-pos float4*) (vel float4*)
                                    (delta-time float) (damping float)
                                    (total-num-bodies int)))
@@ -73,6 +81,7 @@
         (return))
     (let ((position (aref old-pos index))
           (accel (compute-body-accel position old-pos total-num-bodies))
+;          (accel (compute-body-accel-without-shared-memory position old-pos total-num-bodies))
           (velocity (aref vel index)))
       (set (float4-x velocity) (+ (float4-x velocity)
                                   (* (float3-x accel) delta-time)))
