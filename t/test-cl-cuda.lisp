@@ -1025,6 +1025,12 @@
   (is (cl-cuda::compile-variable-reference '(float4-z x) type-env nil) "x.z")
   (is (cl-cuda::compile-variable-reference '(float4-w x) type-env nil) "x.w"))
 
+(cl-cuda::with-type-environment (type-env ((x float)))
+  (is-error (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) simple-error))
+
+(cl-cuda::with-type-environment (type-env ((x float3*)))
+  (is (cl-cuda::compile-vector-variable-reference '(float3-x (aref x 0)) type-env nil) "x[0].x"))
+
 
 ;;;
 ;;; test type-of-expression
