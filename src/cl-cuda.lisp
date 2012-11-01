@@ -309,72 +309,115 @@
 ;;; Definition of cl-cuda types
 ;;;
 
-(defvar +basic-types+ '(void 0
-                        int 4
-                        float 4))
+(defvar +basic-types+ '((void  0 :void)
+                        (int   4 :int)
+                        (float 4 :float)))
 
-(defvar +vector-type-table+ '(float3 float4))
+(defvar +vector-types+ '((float3 float 3 float3-x float3-y float3-z)
+                         (float4 float 4 float4-x float4-y float4-z float4-w)))
 
 (defvar +vector-type-elements+ '(x y z w))
 
-(defun basic-type-p (type)
-  (and (getf +basic-types+ type)
-       t))
+(defun type-size (type)
+  (cond
+    ((basic-type-p type)  (basic-type-size type))
+    ((vector-type-p type) (vector-type-size type))
+    ((array-type-p type)  (array-type-pointer-size type))
+    (t (error "invalid type:~A" type))))
 
-(defun vector-type-p (type)
-  (and (find type +vector-type-table+)
-       t))
+(defun valid-type-p (type)
+  (or (basic-type-p  type)
+      (vector-type-p type)
+      (array-type-p  type)))
 
-(defun vector-type-length (type)
-  ;; e.g. float3 => 3
-  (unless (vector-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (let ((str (symbol-name type)))
-    (parse-integer (subseq str (1- (length str))))))
-
-(defun vector-type-base-type (type)
-  ;; e.g. float3 => float
-  (unless (vector-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (cl-cuda-symbolicate (reverse (subseq (reverse (princ-to-string type)) 1))))
-
-(defun vector-type-selector-symbol (type elm)
-  ;; e.g. float3 x => float3-x
-  (unless (vector-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (unless (find elm +vector-type-elements+)
-    (error (format nil "invalid element: ~A" elm)))
-  (cl-cuda-symbolicate (princ-to-string type) "-" (princ-to-string elm)))
-
-(defun vector-type-selector-return-type (selector)
-  ;; e.g. float3-x => float
-  (unless (find selector (vector-type-selector-symbols))
-    (error (format nil "invalid selector: ~A" selector)))
-  (cl-cuda-symbolicate
-    (reverse (subseq (reverse (princ-to-string selector)) 3))))
-
-(defun vector-type-selector-symbols ()
-  (labels ((aux (type)
-             (loop repeat (vector-type-length type)
-                   for elm in +vector-type-elements+
-                collect (vector-type-selector-symbol type elm))))
-    (flatten
-      (mapcar #'aux +vector-type-table+))))
+(defun cffi-type (type)
+  (acond
+    ((basic-type-p  type) (basic-cffi-type  type))
+    ((vector-type-p type) (vector-cffi-type type))
+    ((array-type-p  type) (array-cffi-type  type))
+    (t (error "invalid type: ~A" type))))
 
 (defun non-pointer-type-p (type)
   (or (basic-type-p type)
       (vector-type-p type)))
 
-(defun pointer-type-p (type)
-  (let ((type-str (symbol-name type)))
-    (let ((last (aref type-str (1- (length type-str)))))
-      (and (eq last #\*)
-           (non-pointer-type-p (remove-star type))
-           t))))
+(defun basic-type-size (type)
+  (or (cadr (assoc type +basic-types+))
+      (error "invalid type: ~A" type)))
 
-(defun valid-type-p (type)
-  (or (pointer-type-p type)
-      (non-pointer-type-p type)))
+(defun basic-type-p (type)
+  (and (assoc type +basic-types+)
+       t))
+
+(defun basic-cffi-type (type)
+  (or (caddr (assoc type +basic-types+))
+      (error "invalid type: ~A" type)))
+
+(defun vector-type-size (type)
+  (* (vector-type-length type)
+     (type-size (vector-type-base-type type))))
+
+(defun vector-type-p (type)
+  (and (assoc type +vector-types+)
+       t))
+
+(defun vector-cffi-type (type)
+  (unless (vector-type-p type)
+    (error "invalid type: ~A" type))
+  type)
+
+(defun vector-types ()
+  (mapcar #'car +vector-types+))
+
+(defun vector-type-base-type (type)
+  (or (cadr (assoc type +vector-types+))
+      (error "invalid type: ~A" type)))
+
+(defun vector-type-length (type)
+  (or (caddr (assoc type +vector-types+))
+      (error "invalid type: ~A" type)))
+
+(defun vector-type-elements (type)
+  (loop repeat (vector-type-length type)
+     for elm in +vector-type-elements+
+     collect elm))
+
+(defun vector-type-selectors (type)
+  (or (cdddr (assoc type +vector-types+))
+      (error "invalid type: ~A" type)))
+
+(defun valid-vector-type-selector-p (selector)
+  (let ((selectors (apply #'append (mapcar #'vector-type-selectors (vector-types)))))
+    (and (find selector selectors)
+         t)))
+
+(defun vector-type-selector-type (selector)
+  (loop for type in (vector-types)
+     when (member selector (vector-type-selectors type))
+     return type
+     finally (error "invalid selector: ~A" selector)))
+
+(defun array-type-p (type)
+  (let ((type-str (symbol-name type)))
+    (let ((last (aref type-str (1- (length type-str))))
+          (rest (remove-star type)))
+      (and (eq last #\*)
+           (or (basic-type-p rest) (vector-type-p rest))))))
+
+(defun array-cffi-type (type)
+  (unless (array-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  'cu-device-ptr)
+
+(defun array-type-pointer-size (type)
+  (unless (array-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  4)
+
+(defun array-type-dimension (type)
+  (unless (array-type-p type)
+    (error (format nil "invalid type: ~A" type)))
+  (count #\* (princ-to-string type)))
 
 (defun add-star (type n)
   (labels ((aux (str n2)
@@ -389,35 +432,6 @@
         (remove-star (cl-cuda-symbolicate (reverse (subseq rev 1))))
         type)))
 
-(defun type-dimension (type)
-  (unless (valid-type-p type)
-    (error (format nil "invalid type: ~A" type)))
-  (count #\* (princ-to-string type)))
-
-(defvar +cffi-type-table+ '(int :int
-                            float :float))
-
-(defun cffi-type (type)
-  (acond
-    ((pointer-type-p type) 'cu-device-ptr)
-    ((getf +cffi-type-table+ type) it)
-    ((vector-type-p type) type)
-    (t (error (format nil "invalid type: ~A" type)))))
-
-(defun basic-type-size (type)
-  (getf +basic-types+ type))
-
-(defun vector-type-size (type)
-  (* (vector-type-length type)
-     (size-of (vector-type-base-type type))))
-
-(defun size-of (type)
-  (cond
-    ((pointer-type-p type) 4)
-    ((basic-type-p type) (basic-type-size type))
-    ((vector-type-p type) (vector-type-size type))
-    (t (error (format nil "invalid type: ~A" type)))))
-
 
 ;;;
 ;;; Definition of Memory Block
@@ -426,9 +440,9 @@
 (defun alloc-memory-block (type n)
   (unless (non-pointer-type-p type)
     (error (format nil "invalid type: ~A" type)))
-  (let ((cffi-ptr (cffi:foreign-alloc (cffi-type type) :count n))
+  (let ((cffi-ptr   (cffi:foreign-alloc (cffi-type type) :count n))
         (device-ptr (cffi:foreign-alloc 'cu-device-ptr)))
-    (cu-mem-alloc device-ptr (* n (size-of type)))
+    (cu-mem-alloc device-ptr (* n (type-size type)))
     (list cffi-ptr device-ptr type n)))
 
 (defun free-memory-block (blk)
@@ -461,7 +475,7 @@
      (memory-block-length blk)))
 
 (defun memory-block-element-bytes (blk)
-  (size-of (memory-block-type blk)))
+  (type-size (memory-block-type blk)))
 
 (defun memory-block-binding-var (binding)
   (match binding
@@ -605,22 +619,22 @@
                                      ,func-name)
              ,@body))))))
 
-(defun foreign-pointer-setf-vector-type (var var-ptr type)
-  (let ((n (vector-type-length type)))
-    `(progn
-       ,@(loop repeat n
-               for elm in +vector-type-elements+
-            collect `(setf (cffi:foreign-slot-value ,var-ptr ',type ',elm)
-                           (,(vector-type-selector-symbol type elm) ,var))))))
+(defun foreign-pointer-setf-basic-type (var var-ptr type)
+  `(setf (cffi:mem-ref ,var-ptr ,(cffi-type type)) ,var))
 
-(defun foreign-pointer-setf-else (var var-ptr type)
-  `(setf (cffi:mem-ref ,var-ptr ,type) ,var))
+(defun foreign-pointer-setf-vector-type (var var-ptr type)
+  `(progn
+     ,@(loop for elm      in (vector-type-elements type)
+             for selector in (vector-type-selectors type)
+          collect `(setf (cffi:foreign-slot-value ,var-ptr ',(cffi-type type) ',elm)
+                         (,selector ,var)))))
 
 (defun foreign-pointer-setf (binding)
   (destructuring-bind (var var-ptr type) binding
-    (if (vector-type-p type)
-        (foreign-pointer-setf-vector-type var var-ptr type)
-        (foreign-pointer-setf-else var var-ptr type))))
+    (cond
+      ((basic-type-p  type) (foreign-pointer-setf-basic-type  var var-ptr type))
+      ((vector-type-p type) (foreign-pointer-setf-vector-type var var-ptr type))
+      (t (error "invalid type: ~A" type)))))
 
 (defmacro with-non-pointer-arguments (bindings &body body)
   (if bindings
@@ -628,8 +642,8 @@
                  (destructuring-bind (_ var-ptr type) binding
                    (declare (ignorable _))
                    (if (vector-type-p type)
-                       `(,var-ptr ',type)
-                       `(,var-ptr ,type)))))
+                       `(,var-ptr ',(cffi-type type))
+                       `(,var-ptr ,(cffi-type type))))))
         `(cffi:with-foreign-objects (,@(mapcar #'ptr-type-pair bindings))
            ,@(mapcar #'foreign-pointer-setf bindings)
            ,@body))
@@ -686,13 +700,13 @@
         `(memory-block-device-ptr ,var))))
 
 (defun kernel-arg-foreign-pointer-bindings (arg-bindings)
-  ; ((a float*) (b float*) (c float*) (n int)) -> ((n n-ptr :int))
+  ; ((a float*) (b float*) (c float*) (n int)) -> ((n n-ptr int))
   (mapcar #'foreign-pointer-binding
     (remove-if-not #'arg-binding-with-non-pointer-type-p arg-bindings)))
 
 (defun foreign-pointer-binding (arg-binding)
   (destructuring-bind (var type) arg-binding
-    (list var (var-ptr var) (cffi-type type))))
+    (list var (var-ptr var) type)))
 
 (defun arg-binding-with-non-pointer-type-p (arg-binding)
   (let ((type (cadr arg-binding)))
@@ -1237,8 +1251,8 @@
 
 (defun compile-place (place type-env def)
   (cond ((scalar-place-p place) (compile-scalar-place place type-env))
-        ((vector-place-p place) (compile-vector-place place type-env))
-        ((array-place-p place) (compile-array-place place type-env def))
+        ((vector-place-p place) (compile-vector-place place type-env def))
+        ((array-place-p place)  (compile-array-place place type-env def))
         (t (error (format nil "invalid place: ~A" place)))))
 
 (defun scalar-place-p (place)
@@ -1253,8 +1267,8 @@
 (defun compile-scalar-place (var type-env)
   (compile-scalar-variable-reference var type-env))
 
-(defun compile-vector-place (place type-env)
-  (compile-vector-variable-reference place type-env))
+(defun compile-vector-place (place type-env def)
+  (compile-vector-variable-reference place type-env def))
 
 (defun compile-array-place (place type-env def)
   (compile-array-variable-reference place type-env def))
@@ -1674,8 +1688,7 @@
 
 (defun vector-variable-reference-p (exp)
   (match exp
-    ((selector _) (and (find selector (vector-type-selector-symbols))
-                       t))
+    ((selector _) (valid-vector-type-selector-p selector))
     (_ nil)))
 
 (defun array-variable-reference-p (exp) 
@@ -1687,7 +1700,7 @@
   (cond ((scalar-variable-reference-p exp)
          (compile-scalar-variable-reference exp type-env))
         ((vector-variable-reference-p exp)
-         (compile-vector-variable-reference exp type-env))
+         (compile-vector-variable-reference exp type-env def))
         ((array-variable-reference-p exp)
          (compile-array-variable-reference exp type-env def))
         (t (error (format nil "invalid expression: ~A" exp)))))
@@ -1699,35 +1712,34 @@
   (compile-identifier var))
 
 (defun compile-vector-selector (selector)
-  (unless (find selector (vector-type-selector-symbols))
+  (unless (valid-vector-type-selector-p selector)
     (error (format nil "invalid selector: ~A" selector)))
   (string-downcase (subseq (reverse (princ-to-string selector)) 0 1)))
 
-(defun compile-vector-variable-reference (form type-env)
+(defun compile-vector-variable-reference (form type-env def)
   (match form
-    ((selector var) (let ((type (lookup-type-environment var type-env)))
-                      (unless type
-                        (error (format nil "unbound variable: ~A" form)))
-                      (format nil "~A.~A"
-                              (compile-identifier var)
-                              (compile-vector-selector selector))))
-    (_ (error (format nil "invalid variable reference: ~A" form)))))
+    ((selector exp)
+     (let ((selector-type (vector-type-selector-type selector))
+           (exp-type      (type-of-expression exp type-env def)))
+       (unless (eq selector-type exp-type)
+         (error "invalid variable reference: ~A" form))
+       (format nil "~A.~A" (compile-expression exp type-env def)
+                           (compile-vector-selector selector))))
+    (_ (error "invalid variable reference: ~A" form))))
 
 (defun compile-array-variable-reference (form type-env def)
   (match form
     (('aref _)
-     (error (format nil "invalid variable reference: ~A" form)))
-    (('aref var . idxs)
-     (let ((type (lookup-type-environment var type-env)))
-       (unless type
-         (error (format nil "unbound variable: ~A" form)))
-       (unless (= (type-dimension type) (length idxs))
-         (error (format nil "invalid dimension: ~A" form)))
+     (error "invalid variable reference: ~A" form))
+    (('aref exp . idxs)
+     (let ((type (type-of-expression exp type-env def)))
+       (unless (= (array-type-dimension type) (length idxs))
+         (error "invalid dimension: ~A" form))
        (format nil "~A~{[~A]~}"
-                   (compile-identifier var)
+                   (compile-expression exp type-env def)
                    (mapcar #'(lambda (idx)
                                (compile-expression idx type-env def)) idxs))))
-    (_ (error (format nil "invalid variable reference: ~A" form)))))
+    (_ (error "invalid variable reference: ~A" form))))
 
 
 ;;; type of expression
@@ -1735,7 +1747,7 @@
 (defun type-of-expression (exp type-env def)
   (cond ((literal-p exp) (type-of-literal exp))
         ((cuda-dimension-p exp) 'int)
-        ((variable-reference-p exp) (type-of-variable-reference exp type-env))
+        ((variable-reference-p exp) (type-of-variable-reference exp type-env def))
         ((function-p exp) (type-of-function exp type-env def))
         (t (error (format nil "invalid expression: ~A" exp)))))
 
@@ -1744,13 +1756,13 @@
         ((float-literal-p exp) 'float)
         (t (error (format nil "invalid expression: ~A" exp)))))
 
-(defun type-of-variable-reference (exp type-env)
+(defun type-of-variable-reference (exp type-env def)
   (cond ((scalar-variable-reference-p exp)
          (type-of-scalar-variable-reference exp type-env))
         ((vector-variable-reference-p exp)
-         (type-of-vector-variable-reference exp type-env))
+         (type-of-vector-variable-reference exp type-env def))
         ((array-variable-reference-p exp)
-         (type-of-array-variable-reference exp type-env))
+         (type-of-array-variable-reference exp type-env def))
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun type-of-scalar-variable-reference (var type-env)
@@ -1759,25 +1771,25 @@
       (error (format nil "unbound variable: ~A" var)))
     type))
 
-(defun type-of-vector-variable-reference (exp type-env)
+(defun type-of-vector-variable-reference (exp type-env def)
   (match exp
-    ((selector var) (let ((type (lookup-type-environment var type-env)))
-                      (unless type
-                        (error (format nil "unbound variable: ~A" exp)))
-                      (vector-type-selector-return-type selector)))
-    (_ (error (format nil "invalid variable reference: ~A" exp)))))
+    ((selector exp2)
+     (let ((selector-type (vector-type-selector-type selector))
+           (exp-type      (type-of-expression exp2 type-env def)))
+       (unless (eq selector-type exp-type)
+         (error "invalid variable reference: ~A" exp))
+       (vector-type-base-type exp-type)))
+    (_ (error "invalid variable reference: ~A" exp))))
 
-(defun type-of-array-variable-reference (exp type-env)
+(defun type-of-array-variable-reference (exp type-env def)
   (match exp
-    (('aref _) (error (format nil "invalid variable reference: ~A" exp)))
-    (('aref var . idxs)
-     (let ((type (lookup-type-environment var type-env)))
-       (unless type
-         (error (format nil "unbound variable: ~A" exp)))
-       (unless (= (type-dimension type) (length idxs))
+    (('aref _) (error "invalid variable reference: ~A" exp))
+    (('aref exp2 . idxs)
+     (let ((type (type-of-expression exp2 type-env def)))
+       (unless (= (array-type-dimension type) (length idxs))
          (error (format nil "invalid dimension: ~A" exp)))
        (remove-star type)))
-    (_ (error (format nil "invalid variable reference: ~A" exp)))))
+    (_ (error "invalid variable reference: ~A" exp))))
 
 
 (defun type-of-function (exp type-env def)

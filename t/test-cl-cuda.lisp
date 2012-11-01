@@ -298,26 +298,6 @@
 
 (diag "test kernel-defun")
 
-;; test vector-type-length
-(is       (cl-cuda::vector-type-length 'float3 ) 3           )
-(is-error (cl-cuda::vector-type-length 'float  ) simple-error)
-(is-error (cl-cuda::vector-type-length 'float3*) simple-error)
-
-;; test vector-type-base-type
-(is       (cl-cuda::vector-type-base-type 'float3 ) 'float      )
-(is-error (cl-cuda::vector-type-base-type 'float  ) simple-error)
-(is-error (cl-cuda::vector-type-base-type 'float3*) simple-error)
-
-;; test vector-type-selector-symbol
-(is       (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::x) 'float3-x   )
-(is-error (cl-cuda::vector-type-selector-symbol 'float  'cl-cuda::x) simple-error)
-(is-error (cl-cuda::vector-type-selector-symbol 'float3 'cl-cuda::a) simple-error)
-
-;; test vector-type-selector-symbols
-(is (cl-cuda::vector-type-selector-symbols)
-    '(float3-x float3-y float3-z
-      float4-x float4-y float4-z float4-w))
-
 ;; test foreign-pointer-setf-vector-type
 (is (cl-cuda::foreign-pointer-setf-vector-type 'x 'x-ptr 'float3)
     '(progn
@@ -327,8 +307,8 @@
 
 ;; test expansion of with-non-pointer-arguments macro
 (is-expand
-  (cl-cuda::with-non-pointer-arguments ((n n-ptr :int)
-                                        (x x-ptr :float)
+  (cl-cuda::with-non-pointer-arguments ((n n-ptr int)
+                                        (x x-ptr float)
                                         (a a-ptr float3))
     nil)
   (cffi:with-foreign-objects ((n-ptr :int)
@@ -373,7 +353,7 @@
 ;; test kernel-arg-foreign-pointer-bindings
 (is (cl-cuda::kernel-arg-foreign-pointer-bindings
       '((a float*) (b float*) (c float*) (n int) (x float3)))
-    '((n n-ptr :int) (x x-ptr float3)))
+    '((n n-ptr int) (x x-ptr float3)))
 
 
 ;;;
@@ -386,11 +366,10 @@
     (return))
   (let ((i 0))))
 
-(defun test-let1 ()
-  (let ((dev-id 0))
-    (with-cuda-context (dev-id)
-      (let1 :grid-dim (list 1 1 1)
-            :block-dim (list 1 1 1)))))
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (let1 :grid-dim (list 1 1 1)
+          :block-dim (list 1 1 1))))
 
 ;; test "use-one" kernel
 (defkernel use-one (void ())
@@ -400,22 +379,19 @@
 (defkernel one (int ())
   (return 1))
 
-(defun test-one ()
-  (let ((dev-id 0))
-    (with-cuda-context (dev-id)
-      (use-one :grid-dim (list 1 1 1)
-               :block-dim (list 1 1 1)))))
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (use-one :grid-dim (list 1 1 1)
+             :block-dim (list 1 1 1))))
 
 ;; test "argument" kernel
-(defkernel argument (void ((i int)))
-  (let ((j i))
-    (return)))
+(defkernel argument (void ((i int) (j float3)))
+  (return))
 
-(defun test-argument ()
-  (let ((dev-id 0))
-    (with-cuda-context (dev-id)
-      (argument 1 :grid-dim (list 1 1 1)
-                  :block-dim (list 1 1 1)))))
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (argument 1 (make-float3 0.0 0.0 0.0) :grid-dim (list 1 1 1)
+                                          :block-dim (list 1 1 1))))
 
 ;; test "kernel-float3" kernel
 (defkernel kernel-float3 (void ((ary float*) (x float3)))
@@ -448,20 +424,20 @@
 
 
 ;;;
-;;; test valid-type-p
+;;; test types
 ;;;
 
-(diag "test valid-type-p")
+(diag "test types")
 
-;; test basic-type-p
-(is (cl-cuda::basic-type-p 'void ) t)
-(is (cl-cuda::basic-type-p 'int  ) t)
-(is (cl-cuda::basic-type-p 'float) t)
-
-;; test vector-type-p
-(is (cl-cuda::vector-type-p 'float3) t  )
-(is (cl-cuda::vector-type-p 'float4) t  )
-(is (cl-cuda::vector-type-p 'float5) nil)
+;; test type-size
+(is (cl-cuda::type-size 'void  ) 0 )
+(is (cl-cuda::type-size 'int   ) 4 )
+(is (cl-cuda::type-size 'float ) 4 )
+(is (cl-cuda::type-size 'float3) 12)
+(is (cl-cuda::type-size 'float4) 16)
+(is (cl-cuda::type-size 'int*  ) 4 )
+(is (cl-cuda::type-size 'int** ) 4 )
+(is (cl-cuda::type-size 'int***) 4 )
 
 ;; test valid-type-p
 (is (cl-cuda::valid-type-p 'void    ) t  )
@@ -474,12 +450,15 @@
 (is (cl-cuda::valid-type-p 'float** ) t  )
 (is (cl-cuda::valid-type-p '*float**) nil)
 
-;; test pointer-type-p
-(is (cl-cuda::pointer-type-p 'int    ) nil)
-(is (cl-cuda::pointer-type-p 'float* ) t  )
-(is (cl-cuda::pointer-type-p 'float3*) t  )
-(is (cl-cuda::pointer-type-p 'float4*) t  )
-(is (cl-cuda::pointer-type-p '*float*) nil)
+;; test cffi-type
+(is (cl-cuda::cffi-type 'void   ) :void                  )
+(is (cl-cuda::cffi-type 'int    ) :int                   )
+(is (cl-cuda::cffi-type 'float  ) :float                 )
+(is (cl-cuda::cffi-type 'float3 ) 'float3                )
+(is (cl-cuda::cffi-type 'float4 ) 'float4                )
+(is (cl-cuda::cffi-type 'float* ) 'cl-cuda::cu-device-ptr)
+(is (cl-cuda::cffi-type 'float3*) 'cl-cuda::cu-device-ptr)
+(is (cl-cuda::cffi-type 'float4*) 'cl-cuda::cu-device-ptr)
 
 ;; test non-pointer-type-p
 (is (cl-cuda::non-pointer-type-p 'int     ) t  )
@@ -488,41 +467,128 @@
 (is (cl-cuda::non-pointer-type-p 'float4* ) nil)
 (is (cl-cuda::non-pointer-type-p '*float3*) nil)
 
+;; test basic-type-size
+(is       (cl-cuda::basic-type-size 'void  ) 0           )
+(is       (cl-cuda::basic-type-size 'int   ) 4           )
+(is       (cl-cuda::basic-type-size 'float ) 4           )
+(is-error (cl-cuda::basic-type-size 'float3) simple-error)
+(is-error (cl-cuda::basic-type-size 'float3) simple-error)
+
+;; test basic-type-p
+(is (cl-cuda::basic-type-p 'void  ) t  )
+(is (cl-cuda::basic-type-p 'int   ) t  )
+(is (cl-cuda::basic-type-p 'float ) t  )
+(is (cl-cuda::basic-type-p 'float3) nil)
+(is (cl-cuda::basic-type-p 'float*) nil)
+
+;; test basic-cffi-type
+(is       (cl-cuda::basic-cffi-type 'void  ) :void       )
+(is       (cl-cuda::basic-cffi-type 'int   ) :int        )
+(is       (cl-cuda::basic-cffi-type 'float ) :float      )
+(is-error (cl-cuda::basic-cffi-type 'float3) simple-error)
+(is-error (cl-cuda::basic-cffi-type 'float*) simple-error)
+
+;; test vector-type-size
+(is       (cl-cuda::vector-type-size 'float3) 12          )
+(is       (cl-cuda::vector-type-size 'float4) 16          )
+(is-error (cl-cuda::vector-type-size 'float ) simple-error)
+(is-error (cl-cuda::vector-type-size 'int*  ) simple-error)
+
+;; test vector-type-p
+(is (cl-cuda::vector-type-p 'float3) t  )
+(is (cl-cuda::vector-type-p 'float4) t  )
+(is (cl-cuda::vector-type-p 'float ) nil)
+(is (cl-cuda::vector-type-p 'float*) nil)
+
+;; test vector-cffi-type
+(is       (cl-cuda::vector-cffi-type 'float3) 'float3     )
+(is       (cl-cuda::vector-cffi-type 'float4) 'float4     )
+(is-error (cl-cuda::vector-cffi-type 'float ) simple-error)
+(is-error (cl-cuda::vector-cffi-type 'float*) simple-error)
+
+;; test vector-types
+(is (cl-cuda::vector-types) '(float3 float4))
+
+;; test vector-type-base-type
+(is       (cl-cuda::vector-type-base-type 'float3 ) 'float      )
+(is-error (cl-cuda::vector-type-base-type 'float  ) simple-error)
+(is-error (cl-cuda::vector-type-base-type 'float3*) simple-error)
+
+;; test vector-type-length
+(is       (cl-cuda::vector-type-length 'float3 ) 3           )
+(is-error (cl-cuda::vector-type-length 'float  ) simple-error)
+(is-error (cl-cuda::vector-type-length 'float3*) simple-error)
+
+;; test vector-type-elements
+(is       (cl-cuda::vector-type-elements 'float3) '(cl-cuda::x cl-cuda::y cl-cuda::z))
+(is       (cl-cuda::vector-type-elements 'float4) '(cl-cuda::x cl-cuda::y cl-cuda::z cl-cuda::w))
+(is-error (cl-cuda::vector-type-elements 'float ) simple-error)
+(is-error (cl-cuda::vector-type-elements 'float*) simple-error)
+
+;; test vector-type-selectors
+(is       (cl-cuda::vector-type-selectors 'float3) '(float3-x float3-y float3-z))
+(is       (cl-cuda::vector-type-selectors 'float4) '(float4-x float4-y float4-z float4-w))
+(is-error (cl-cuda::vector-type-selectors 'float ) simple-error)
+(is-error (cl-cuda::vector-type-selectors 'float*) simple-error)
+
+;; test valid-vector-type-selector-p
+(is (cl-cuda::valid-vector-type-selector-p 'float3-x) t)
+(is (cl-cuda::valid-vector-type-selector-p 'float3-y) t)
+(is (cl-cuda::valid-vector-type-selector-p 'float3-z) t)
+(is (cl-cuda::valid-vector-type-selector-p 'float4-x) t)
+(is (cl-cuda::valid-vector-type-selector-p 'float4-y) t)
+(is (cl-cuda::valid-vector-type-selector-p 'float4-z) t)
+(is (cl-cuda::valid-vector-type-selector-p 'float4-w) t)
+(is (cl-cuda::valid-vector-type-selector-p 'float   ) nil)
+(is (cl-cuda::valid-vector-type-selector-p 'float3  ) nil)
+(is (cl-cuda::valid-vector-type-selector-p 'float3* ) nil)
+
+;; test vector-type-selector-type
+(is       (cl-cuda::vector-type-selector-type 'float3-x) 'float3     )
+(is       (cl-cuda::vector-type-selector-type 'float3-y) 'float3     )
+(is       (cl-cuda::vector-type-selector-type 'float3-z) 'float3     )
+(is       (cl-cuda::vector-type-selector-type 'float4-x) 'float4     )
+(is       (cl-cuda::vector-type-selector-type 'float4-y) 'float4     )
+(is       (cl-cuda::vector-type-selector-type 'float4-z) 'float4     )
+(is       (cl-cuda::vector-type-selector-type 'float4-w) 'float4     )
+(is-error (cl-cuda::vector-type-selector-type 'float   ) simple-error)
+
+;; test array-type-p
+(is (cl-cuda::array-type-p 'float ) nil)
+(is (cl-cuda::array-type-p 'float3) nil)
+(is (cl-cuda::array-type-p 'float*) t  )
+
+;; test array-cffi-type
+(is       (cl-cuda::array-cffi-type 'float* ) 'cl-cuda::cu-device-ptr)
+(is       (cl-cuda::array-cffi-type 'float3*) 'cl-cuda::cu-device-ptr)
+(is       (cl-cuda::array-cffi-type 'float4*) 'cl-cuda::cu-device-ptr)
+(is-error (cl-cuda::array-cffi-type 'float  ) simple-error           )
+(is-error (cl-cuda::array-cffi-type 'float3 ) simple-error           )
+
+;; test array-type-pointer-size
+(is       (cl-cuda::array-type-pointer-size 'float* ) 4)
+(is       (cl-cuda::array-type-pointer-size 'float3*) 4)
+(is       (cl-cuda::array-type-pointer-size 'float4*) 4)
+(is-error (cl-cuda::array-type-pointer-size 'float  ) simple-error)
+(is-error (cl-cuda::array-type-pointer-size 'float3 ) simple-error)
+
+;; test array-type-dimension
+(is       (cl-cuda::array-type-dimension 'int*  ) 1)
+(is       (cl-cuda::array-type-dimension 'int** ) 2)
+(is       (cl-cuda::array-type-dimension 'int***) 3)
+(is-error (cl-cuda::array-type-dimension 'int   ) simple-error)
+(is-error (cl-cuda::array-type-dimension 'int3  ) simple-error)
+
 ;; test add-star
-(is (cl-cuda::add-star 'int -1) 'int           )
-(is (cl-cuda::add-star 'int 0 ) 'int           )
-(is (cl-cuda::add-star 'int 1 ) 'int*          )
-(is (cl-cuda::add-star 'int 2 ) 'cl-cuda::int**)
+(is (cl-cuda::add-star 'int -1) 'int  )
+(is (cl-cuda::add-star 'int 0 ) 'int  )
+(is (cl-cuda::add-star 'int 1 ) 'int* )
+;(is (cl-cuda::add-star 'int 2 ) 'int**)
 
 ;; test remove-star
 (is (cl-cuda::remove-star 'int  ) 'int)
 (is (cl-cuda::remove-star 'int* ) 'int)
 (is (cl-cuda::remove-star 'int**) 'int)
-
-;; test type-dimension
-(is (cl-cuda::type-dimension 'int   ) 0)
-(is (cl-cuda::type-dimension 'int*  ) 1)
-(is (cl-cuda::type-dimension 'int** ) 2)
-(is (cl-cuda::type-dimension 'int***) 3)
-
-;; test cffi-type
-(is-error (cl-cuda::cffi-type 'void   ) simple-error  )
-(is       (cl-cuda::cffi-type 'int    ) :int          )
-(is       (cl-cuda::cffi-type 'float  ) :float        )
-(is       (cl-cuda::cffi-type 'float3 ) 'float3       )
-(is       (cl-cuda::cffi-type 'float4 ) 'float4       )
-(is       (cl-cuda::cffi-type 'float* ) 'cl-cuda::cu-device-ptr)
-(is       (cl-cuda::cffi-type 'float3*) 'cl-cuda::cu-device-ptr)
-(is       (cl-cuda::cffi-type 'float4*) 'cl-cuda::cu-device-ptr)
-
-(is (cl-cuda::size-of 'void  ) 0 )
-(is (cl-cuda::size-of 'int   ) 4 )
-(is (cl-cuda::size-of 'float ) 4 )
-(is (cl-cuda::size-of 'float3) 12)
-(is (cl-cuda::size-of 'float4) 16)
-(is (cl-cuda::size-of 'int*  ) 4 )
-(is (cl-cuda::size-of 'int** ) 4 )
-(is (cl-cuda::size-of 'int***) 4 )
 
 
 ;;;
@@ -1075,30 +1141,30 @@
 
 ;; test type-of-variable-reference
 (cl-cuda::with-type-environment (type-env ((x int)))
-  (is-error (cl-cuda::type-of-variable-reference 'x        nil     ) simple-error)
-  (is       (cl-cuda::type-of-variable-reference 'x        type-env) 'int        )
-  (is-error (cl-cuda::type-of-variable-reference '(aref x) type-env) simple-error))
+  (is-error (cl-cuda::type-of-variable-reference 'x        nil      nil) simple-error)
+  (is       (cl-cuda::type-of-variable-reference 'x        type-env nil) 'int        )
+  (is-error (cl-cuda::type-of-variable-reference '(aref x) type-env nil) simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int*)))
-  (is       (cl-cuda::type-of-variable-reference 'x            type-env) 'int*       )
-  (is       (cl-cuda::type-of-variable-reference '(aref x 0)   type-env) 'int        )
-  (is-error (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) simple-error))
+  (is       (cl-cuda::type-of-variable-reference 'x            type-env nil) 'int*       )
+  (is       (cl-cuda::type-of-variable-reference '(aref x 0)   type-env nil) 'int        )
+  (is-error (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env nil) simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int**)))
-  (is       (cl-cuda::type-of-variable-reference 'x            type-env) 'int**      )
-  (is-error (cl-cuda::type-of-variable-reference '(aref x 0)   type-env) simple-error)
-  (is       (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env) 'int        ))
+  (is       (cl-cuda::type-of-variable-reference 'x            type-env nil) 'int**      )
+  (is-error (cl-cuda::type-of-variable-reference '(aref x 0)   type-env nil) simple-error)
+  (is       (cl-cuda::type-of-variable-reference '(aref x 0 0) type-env nil) 'int        ))
 
 (cl-cuda::with-type-environment (type-env ((x float3)))
-  (is (cl-cuda::type-of-variable-reference '(float3-x x) type-env) 'float)
-  (is (cl-cuda::type-of-variable-reference '(float3-y x) type-env) 'float)
-  (is (cl-cuda::type-of-variable-reference '(float3-z x) type-env) 'float))
+  (is (cl-cuda::type-of-variable-reference '(float3-x x) type-env nil) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float3-y x) type-env nil) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float3-z x) type-env nil) 'float))
 
 (cl-cuda::with-type-environment (type-env ((x float4)))
-  (is (cl-cuda::type-of-variable-reference '(float4-x x) type-env) 'float)
-  (is (cl-cuda::type-of-variable-reference '(float4-y x) type-env) 'float)
-  (is (cl-cuda::type-of-variable-reference '(float4-z x) type-env) 'float)
-  (is (cl-cuda::type-of-variable-reference '(float4-w x) type-env) 'float))
+  (is (cl-cuda::type-of-variable-reference '(float4-x x) type-env nil) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float4-y x) type-env nil) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float4-z x) type-env nil) 'float)
+  (is (cl-cuda::type-of-variable-reference '(float4-w x) type-env nil) 'float))
 
 
 ;;;
