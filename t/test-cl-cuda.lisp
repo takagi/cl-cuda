@@ -307,9 +307,9 @@
 
 ;; test expansion of with-non-pointer-arguments macro
 (is-expand
-  (cl-cuda::with-non-pointer-arguments ((n n-ptr int)
-                                        (x x-ptr float)
-                                        (a a-ptr float3))
+  (cl-cuda::with-non-array-objects ((n n-ptr int)
+                                    (x x-ptr float)
+                                    (a a-ptr float3))
     nil)
   (cffi:with-foreign-objects ((n-ptr :int)
                               (x-ptr :float)
@@ -325,10 +325,10 @@
 ;; test expansion of with-kernel-arguments macro
 (is-expand
  (cl-cuda::with-kernel-arguments (args
-                                  (cl-cuda::memory-block-device-ptr a)
-                                  (cl-cuda::memory-block-device-ptr b)
-                                  (cl-cuda::memory-block-device-ptr c)
-                                  n-ptr)
+                                  ((cl-cuda::memory-block-device-ptr a)
+                                   (cl-cuda::memory-block-device-ptr b)
+                                   (cl-cuda::memory-block-device-ptr c)
+                                   n-ptr))
    nil)
  (cffi:with-foreign-object (args :pointer 4)
    (setf (cffi:mem-aref args :pointer 0) (cl-cuda::memory-block-device-ptr a))

@@ -607,17 +607,41 @@
 ;;; Definition of defkernel macro
 ;;;
 
-(defmacro with-module-and-function (args &body body)
-  (destructuring-bind (hfunc module function) args
-    (with-gensyms (module-name func-name hmodule)
-      `(cffi:with-foreign-string (,module-name ,module)
-         (cffi:with-foreign-string (,func-name ,function)
-           (cffi:with-foreign-objects ((,hmodule 'cu-module)
-                                       (,hfunc 'cu-function))
-             (cu-module-load ,hmodule ,module-name)
-             (cu-module-get-function ,hfunc (cffi:mem-ref ,hmodule 'cu-module)
-                                     ,func-name)
-             ,@body))))))
+;; WITH-NON-ARRAY-OBJECTS macro
+;;
+;; Syntax:
+;;
+;; WITH-NON-ARRAY-OBJECTS ({(var var-ptr type)}*) form*
+;;
+;; Description:
+;;
+;; WITH-NON-POINTER-ARGUMENTS macro is used only in expansion of DEFKERNEL
+;; macro to prepare arguments to be passed to a CUDA kernel function. The
+;; arguments prepared in the expanded forms are only of non-array type, whose
+;; values are passed by value to a CUDA kernel function.
+;; WITH-NON-POINTER-ARGUMENTS macro takes a list of bindings which have three
+;; elements (a variable which has a value to be passed, a variable to be used
+;; to cotain a cffi foreign pointer and a cl-cuda type specifier) and body
+;; forms as its arguments, then is expanded into forms which allocate cffi
+;; foreign objects and set values of given variables into them before given
+;; body forms are evaluated. The given body forms will contain a CUDA kernel
+;; function call.
+;;
+;; Example:
+;;
+;; (with-non-array-objects ((n n-ptr int)
+;;                          (x x-ptr float3))
+;;   (launch-cuda-kernel-function))
+;;
+;; Expanded:
+;;
+;; (cffi:with-foreign-objects ((n-ptr :int)
+;;                             (x-ptr 'float3))
+;;   (setf (cffi:mem-ref n-ptr :int) n)
+;;   (setf (cffi:foreign-slot-value x-ptr 'float3 'x) (float3-x x)
+;;         (cffi:foreign-slot-value x-ptr 'float3 'y) (float3-y x)
+;;         (cffi:foreign-slot-value x-ptr 'float3 'z) (float3-z x))
+;;   (launch-cuda-kernel-function))
 
 (defun foreign-pointer-setf-basic-type (var var-ptr type)
   `(setf (cffi:mem-ref ,var-ptr ,(cffi-type type)) ,var))
@@ -629,58 +653,76 @@
           collect `(setf (cffi:foreign-slot-value ,var-ptr ',(cffi-type type) ',elm)
                          (,selector ,var)))))
 
-(defun foreign-pointer-setf (binding)
-  (destructuring-bind (var var-ptr type) binding
+(defun foreign-pointer-setf (arg)
+  (destructuring-bind (var var-ptr type) arg
     (cond
       ((basic-type-p  type) (foreign-pointer-setf-basic-type  var var-ptr type))
       ((vector-type-p type) (foreign-pointer-setf-vector-type var var-ptr type))
       (t (error "invalid type: ~A" type)))))
 
-(defmacro with-non-pointer-arguments (bindings &body body)
-  (if bindings
-      (labels ((ptr-type-pair (binding)
-                 (destructuring-bind (_ var-ptr type) binding
+(defmacro with-non-array-objects (args &body body)
+  (if args
+      (labels ((ptr-type-pair (arg)
+                 (destructuring-bind (_ var-ptr type) arg
                    (declare (ignorable _))
                    (if (vector-type-p type)
                        `(,var-ptr ',(cffi-type type))
                        `(,var-ptr ,(cffi-type type))))))
-        `(cffi:with-foreign-objects (,@(mapcar #'ptr-type-pair bindings))
-           ,@(mapcar #'foreign-pointer-setf bindings)
+        `(cffi:with-foreign-objects ,(mapcar #'ptr-type-pair args)
+           ,@(mapcar #'foreign-pointer-setf args)
            ,@body))
       `(progn ,@body)))
 
-(defmacro with-kernel-arguments (args &body body)
-  (let ((var (car args))
-        (ptrs (cdr args)))
-    `(cffi:with-foreign-object (,var :pointer ,(length ptrs))
-       ,@(loop for ptr in ptrs
-            for i from 0
-            collect `(setf (cffi:mem-aref ,var :pointer ,i) ,ptr))
-       ,@body)))
+;; WIT-KERNEL-ARGUMENTS macro
+;;
+;; Syntax:
+;;
+;; WITH-KERNEL-ARGUMENTS (var ({ptr}*)) form*
+;;
+;; Description:
+;;
+;; WITH-KERNEL-ARGUMENTS macro is used only in expansion of DEFKERNEL macro
+;; to prepare arguments to be passed to a CUDA kernel function. This binds
+;; a given symbol VAR to a cffi pointer referreing an array whose elements
+;; are also cffi pointers to arguments passed to a CUDA kernel function. In
+;; given body forms, a CUDA kernel function is launched with the symbol to
+;; take its arguments.
+;;
+;; Example:
+;;
+;; (with-kernel-arguments (karg (n-ptr x-ptr (memory-block-device-ptr a)))
+;;   (launch-cuda-kernel-function))
+;;
+;; Expanded:
+;;
+;; (cffi:with-foreign-object (kargs :pointer 3)
+;;   (setf (cffi:mem-aref kargs :pointer 0) n-ptr)
+;;   (setf (cffi:mem-aref kargs :pointer 1) x-ptr)
+;;   (setf (cffi:mem-aref kargs :pointer 2) (memory-block-device-ptr a))
+;;   (launch-cuda-kernel-function karg))   
 
-(defmacro defkernel (name args &body body)
-  (destructuring-bind (return-type arg-bindings) args
-    (with-gensyms (hfunc kargs)
-      `(progn
-         (kernel-manager-define-function *kernel-manager* ',name ',return-type ',arg-bindings ',body)
-         (defun ,name (,@(kernel-arg-names arg-bindings) &key grid-dim block-dim)
-           (let ((,hfunc (ensure-kernel-function-loaded *kernel-manager* ',name)))
-             (with-non-pointer-arguments
-                 ,(kernel-arg-foreign-pointer-bindings arg-bindings)
-               (with-kernel-arguments
-                   (,kargs ,@(kernel-arg-names-as-pointer arg-bindings))
-                 (destructuring-bind
-                       (grid-dim-x grid-dim-y grid-dim-z) grid-dim
-                 (destructuring-bind
-                       (block-dim-x block-dim-y block-dim-z) block-dim
-                   (cu-launch-kernel (cffi:mem-ref ,hfunc 'cu-function)
-                                     grid-dim-x grid-dim-y grid-dim-z
-                                     block-dim-x block-dim-y block-dim-z
-                                     0 (cffi:null-pointer)
-                                     ,kargs (cffi:null-pointer))))))))))))
+(defmacro with-kernel-arguments ((var ptrs) &body body)
+  `(cffi:with-foreign-object (,var :pointer ,(length ptrs))
+     ,@(loop for ptr in ptrs
+             for i from 0
+          collect `(setf (cffi:mem-aref ,var :pointer ,i) ,ptr))
+     ,@body))
 
-
-;;; kernel-arg
+(defmacro defkernel (name (return-type args) &body body)
+  (with-gensyms (hfunc kargs)
+    `(progn
+       (kernel-manager-define-function *kernel-manager* ',name ',return-type ',args ',body)
+       (defun ,name (,@(kernel-arg-names args) &key (grid-dim '(1 1 1)) (block-dim '(1 1 1)))
+         (let ((,hfunc (ensure-kernel-function-loaded *kernel-manager* ',name)))
+           (with-non-array-objects ,(kernel-arg-foreign-pointer-bindings args)
+             (with-kernel-arguments (,kargs ,(kernel-arg-names-as-pointer args))
+               (destructuring-bind (grid-dim-x grid-dim-y grid-dim-z) grid-dim
+               (destructuring-bind (block-dim-x block-dim-y block-dim-z) block-dim
+                 (cu-launch-kernel (cffi:mem-aref ,hfunc 'cu-function)
+                                   grid-dim-x  grid-dim-y  grid-dim-z
+                                   block-dim-x block-dim-y block-dim-z
+                                   0 (cffi:null-pointer)
+                                   ,kargs (cffi:null-pointer)))))))))))
 
 (defun kernel-arg-names (arg-bindings)
   ;; ((a float*) (b float*) (c float*) (n int)) -> (a b c n)
