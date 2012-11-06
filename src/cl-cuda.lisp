@@ -607,106 +607,94 @@
 ;;; Definition of defkernel macro
 ;;;
 
-;; WITH-NON-ARRAY-OBJECTS macro
-;;
+(defun var-ptr (var)
+  (symbolicate var "-PTR"))
+
+(defun kernel-arg-names (arg-bindings)
+  ;; ((a float*) (b float*) (c float*) (n int)) -> (a b c n)
+  (mapcar #'car arg-bindings))
+
+(defun kernel-arg-non-array-args (args)
+  ;; ((x int) (y float3) (a float3*)) => ((x int) (y float3))
+  (remove-if #'array-type-p args :key #'cadr))
+
+(defun kernel-arg-ptr-type-binding (arg)
+  ;; (x int) => (x-ptr :int), (y float3) => (y-ptr 'float3)
+  (destructuring-bind (var type) arg
+    (if (vector-type-p type)
+      `(,(var-ptr var) ',(cffi-type type))
+      `(,(var-ptr var) ,(cffi-type type)))))
+
+(defun kernel-arg-pointer (arg)
+  ;; (x int) => x-ptr, (y float3) => y-ptr, (a float3*) => (memory-block-device-ptr a)
+  (destructuring-bind (var type) arg
+    (if (array-type-p type)
+      `(memory-block-device-ptr ,var)
+      (var-ptr var))))
+
+(defun setf-basic-type-to-foreign-memory-form (var type)
+  `(setf (cffi:mem-ref ,(var-ptr var) ,(cffi-type type)) ,var))
+
+(defun setf-vector-type-to-foreign-memory-form (var type)
+  `(setf ,@(loop for elm in (vector-type-elements type)
+                 for selector in (vector-type-selectors type)
+              append `((cffi:foreign-slot-value ,(var-ptr var) ',(cffi-type type) ',elm)
+                       (,selector ,var)))))
+
+(defun setf-to-foreign-memory-form (arg)
+  (destructuring-bind (var type) arg
+    (cond ((basic-type-p  type) (setf-basic-type-to-foreign-memory-form  var type))
+          ((vector-type-p type) (setf-vector-type-to-foreign-memory-form var type))
+          (t (error "invalid argument: ~A" arg)))))
+
+(defun setf-to-argument-array-form (var arg n)
+  `(setf (cffi:mem-aref ,var :pointer ,n) ,(kernel-arg-pointer arg)))
+
+
+;; WITH-KERNEL-ARGUMENTS macro
+;;  
 ;; Syntax:
 ;;
-;; WITH-NON-ARRAY-OBJECTS ({(var var-ptr type)}*) form*
+;; WITH-KERNEL-ARGUMENTS (kernel-argument ({(var type)}*) form*
 ;;
 ;; Description:
 ;;
-;; WITH-NON-POINTER-ARGUMENTS macro is used only in expansion of DEFKERNEL
-;; macro to prepare arguments to be passed to a CUDA kernel function. The
-;; arguments prepared in the expanded forms are only of non-array type, whose
-;; values are passed by value to a CUDA kernel function.
-;; WITH-NON-POINTER-ARGUMENTS macro takes a list of bindings which have three
-;; elements (a variable which has a value to be passed, a variable to be used
-;; to cotain a cffi foreign pointer and a cl-cuda type specifier) and body
-;; forms as its arguments, then is expanded into forms which allocate cffi
-;; foreign objects and set values of given variables into them before given
-;; body forms are evaluated. The given body forms will contain a CUDA kernel
-;; function call.
+;; WITH-KERNEL-ARGUMENTS macro is used only in expansion of DEFKERNEL
+;; macro to prepare arguments which are to be passed to a CUDA kernel
+;; function. This macro binds a given symbol to a cffi pointer which
+;; refers an array whose elements are also cffi pointers. The contained
+;; pointers refer arguments passed to a CUDA kernel function. In given
+;; body forms, a CUDA kernel function will be launched using the binded
+;; symbol to take its arguments.
 ;;
 ;; Example:
 ;;
-;; (with-non-array-objects ((n n-ptr int)
-;;                          (x x-ptr float3))
-;;   (launch-cuda-kernel-function))
+;; (with-kernel-arguments (kargs ((x int) (y float3) (a float3*)))
+;;   (launch-cuda-kernel-function kargs))
 ;;
 ;; Expanded:
 ;;
-;; (cffi:with-foreign-objects ((n-ptr :int)
-;;                             (x-ptr 'float3))
-;;   (setf (cffi:mem-ref n-ptr :int) n)
-;;   (setf (cffi:foreign-slot-value x-ptr 'float3 'x) (float3-x x)
-;;         (cffi:foreign-slot-value x-ptr 'float3 'y) (float3-y x)
-;;         (cffi:foreign-slot-value x-ptr 'float3 'z) (float3-z x))
-;;   (launch-cuda-kernel-function))
+;; (cffi:with-foreign-objects ((x-ptr :int) (y-ptr 'float3))
+;;   (setf (cffi:mem-ref x-ptr :int) x)
+;;   (setf (cffi:slot-value y-ptr 'float3 'x) (float3-x y)
+;;         (cffi:slot-value y-ptr 'float3 'y) (float3-y y)
+;;         (cffi:slot-value y-ptr 'float3 'z) (float3-z y))
+;;   (cffi:with-foreign-object (kargs :pointer 3)
+;;     (setf (cffi:mem-aref kargs :pointer 0) x-ptr)
+;;     (setf (cffi:mem-aref kargs :pointer 1) y-ptr)
+;;     (setf (cffi:mem-aref kargs :pointer 2) (memory-block-device-ptr a))
+;;     (launch-cuda-kernel-function kargs)))
 
-(defun foreign-pointer-setf-basic-type (var var-ptr type)
-  `(setf (cffi:mem-ref ,var-ptr ,(cffi-type type)) ,var))
-
-(defun foreign-pointer-setf-vector-type (var var-ptr type)
-  `(progn
-     ,@(loop for elm      in (vector-type-elements type)
-             for selector in (vector-type-selectors type)
-          collect `(setf (cffi:foreign-slot-value ,var-ptr ',(cffi-type type) ',elm)
-                         (,selector ,var)))))
-
-(defun foreign-pointer-setf (arg)
-  (destructuring-bind (var var-ptr type) arg
-    (cond
-      ((basic-type-p  type) (foreign-pointer-setf-basic-type  var var-ptr type))
-      ((vector-type-p type) (foreign-pointer-setf-vector-type var var-ptr type))
-      (t (error "invalid type: ~A" type)))))
-
-(defmacro with-non-array-objects (args &body body)
-  (if args
-      (labels ((ptr-type-pair (arg)
-                 (destructuring-bind (_ var-ptr type) arg
-                   (declare (ignorable _))
-                   (if (vector-type-p type)
-                       `(,var-ptr ',(cffi-type type))
-                       `(,var-ptr ,(cffi-type type))))))
-        `(cffi:with-foreign-objects ,(mapcar #'ptr-type-pair args)
-           ,@(mapcar #'foreign-pointer-setf args)
-           ,@body))
-      `(progn ,@body)))
-
-;; WIT-KERNEL-ARGUMENTS macro
-;;
-;; Syntax:
-;;
-;; WITH-KERNEL-ARGUMENTS (var ({ptr}*)) form*
-;;
-;; Description:
-;;
-;; WITH-KERNEL-ARGUMENTS macro is used only in expansion of DEFKERNEL macro
-;; to prepare arguments to be passed to a CUDA kernel function. This binds
-;; a given symbol VAR to a cffi pointer referreing an array whose elements
-;; are also cffi pointers to arguments passed to a CUDA kernel function. In
-;; given body forms, a CUDA kernel function is launched with the symbol to
-;; take its arguments.
-;;
-;; Example:
-;;
-;; (with-kernel-arguments (karg (n-ptr x-ptr (memory-block-device-ptr a)))
-;;   (launch-cuda-kernel-function))
-;;
-;; Expanded:
-;;
-;; (cffi:with-foreign-object (kargs :pointer 3)
-;;   (setf (cffi:mem-aref kargs :pointer 0) n-ptr)
-;;   (setf (cffi:mem-aref kargs :pointer 1) x-ptr)
-;;   (setf (cffi:mem-aref kargs :pointer 2) (memory-block-device-ptr a))
-;;   (launch-cuda-kernel-function karg))   
-
-(defmacro with-kernel-arguments ((var ptrs) &body body)
-  `(cffi:with-foreign-object (,var :pointer ,(length ptrs))
-     ,@(loop for ptr in ptrs
-             for i from 0
-          collect `(setf (cffi:mem-aref ,var :pointer ,i) ,ptr))
-     ,@body))
+(defmacro with-kernel-arguments ((var args) &body body)
+  (let ((non-array-args (kernel-arg-non-array-args args)))
+    `(cffi:with-foreign-objects ,(mapcar #'kernel-arg-ptr-type-binding non-array-args)
+       ,@(loop for arg in non-array-args
+            collect (setf-to-foreign-memory-form arg))
+       (cffi:with-foreign-object (,var :pointer ,(length args))
+         ,@(loop for arg in   args
+                 for i   from 0
+              collect (setf-to-argument-array-form var arg i))
+         ,@body))))
 
 (defmacro defkernel (name (return-type args) &body body)
   (with-gensyms (hfunc kargs)
@@ -714,50 +702,14 @@
        (kernel-manager-define-function *kernel-manager* ',name ',return-type ',args ',body)
        (defun ,name (,@(kernel-arg-names args) &key (grid-dim '(1 1 1)) (block-dim '(1 1 1)))
          (let ((,hfunc (ensure-kernel-function-loaded *kernel-manager* ',name)))
-           (with-non-array-objects ,(kernel-arg-foreign-pointer-bindings args)
-             (with-kernel-arguments (,kargs ,(kernel-arg-names-as-pointer args))
-               (destructuring-bind (grid-dim-x grid-dim-y grid-dim-z) grid-dim
-               (destructuring-bind (block-dim-x block-dim-y block-dim-z) block-dim
-                 (cu-launch-kernel (cffi:mem-aref ,hfunc 'cu-function)
-                                   grid-dim-x  grid-dim-y  grid-dim-z
-                                   block-dim-x block-dim-y block-dim-z
-                                   0 (cffi:null-pointer)
-                                   ,kargs (cffi:null-pointer)))))))))))
-
-(defun kernel-arg-names (arg-bindings)
-  ;; ((a float*) (b float*) (c float*) (n int)) -> (a b c n)
-  (mapcar #'car arg-bindings))
-
-(defun kernel-arg-names-as-pointer (arg-bindings)
-  ;; ((a float*) (b float*) (c float*) (n int)) -> (a b c n-ptr)
-  (mapcar #'arg-name-as-pointer arg-bindings))
-
-(defun arg-name-as-pointer (arg-binding)
-  ; (a float*) -> a, (n int) -> n-ptr
-  (destructuring-bind (var type) arg-binding
-    (unless (valid-type-p type)
-      (error (format nil "invalid type: ~A" type)))
-    (if (non-pointer-type-p type)
-        (var-ptr var)
-        `(memory-block-device-ptr ,var))))
-
-(defun kernel-arg-foreign-pointer-bindings (arg-bindings)
-  ; ((a float*) (b float*) (c float*) (n int)) -> ((n n-ptr int))
-  (mapcar #'foreign-pointer-binding
-    (remove-if-not #'arg-binding-with-non-pointer-type-p arg-bindings)))
-
-(defun foreign-pointer-binding (arg-binding)
-  (destructuring-bind (var type) arg-binding
-    (list var (var-ptr var) type)))
-
-(defun arg-binding-with-non-pointer-type-p (arg-binding)
-  (let ((type (cadr arg-binding)))
-    (unless (valid-type-p type)
-      (error (format nil "invalid type: ~A" type)))
-    (non-pointer-type-p type)))
-
-(defun var-ptr (var)
-  (symbolicate var "-PTR"))
+           (with-kernel-arguments (,kargs ,args)
+             (destructuring-bind (grid-dim-x grid-dim-y grid-dim-z) grid-dim
+             (destructuring-bind (block-dim-x block-dim-y block-dim-z) block-dim
+               (cu-launch-kernel (cffi:mem-aref ,hfunc 'cu-function)
+                                 grid-dim-x  grid-dim-y  grid-dim-z
+                                 block-dim-x block-dim-y block-dim-z
+                                 0 (cffi:null-pointer)
+                                 ,kargs (cffi:null-pointer))))))))))
 
 
 ;;;

@@ -298,62 +298,55 @@
 
 (diag "test kernel-defun")
 
-;; test foreign-pointer-setf-vector-type
-(is (cl-cuda::foreign-pointer-setf-vector-type 'x 'x-ptr 'float3)
-    '(progn
-      (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::x) (float3-x x))
-      (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::y) (float3-y x))
-      (setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::z) (float3-z x))))
-
-;; test expansion of with-non-pointer-arguments macro
-(is-expand
-  (cl-cuda::with-non-array-objects ((n n-ptr int)
-                                    (x x-ptr float)
-                                    (a a-ptr float3))
-    nil)
-  (cffi:with-foreign-objects ((n-ptr :int)
-                              (x-ptr :float)
-                              (a-ptr 'float3))
-    (setf (cffi:mem-ref n-ptr :int) n)
-    (setf (cffi:mem-ref x-ptr :float) x)
-    (progn
-      (setf (cffi:foreign-slot-value a-ptr 'float3 'cl-cuda::x) (float3-x a))
-      (setf (cffi:foreign-slot-value a-ptr 'float3 'cl-cuda::y) (float3-y a))
-      (setf (cffi:foreign-slot-value a-ptr 'float3 'cl-cuda::z) (float3-z a)))
-    nil))
-
-;; test expansion of with-kernel-arguments macro
-(is-expand
- (cl-cuda::with-kernel-arguments (args
-                                  ((cl-cuda::memory-block-device-ptr a)
-                                   (cl-cuda::memory-block-device-ptr b)
-                                   (cl-cuda::memory-block-device-ptr c)
-                                   n-ptr))
-   nil)
- (cffi:with-foreign-object (args :pointer 4)
-   (setf (cffi:mem-aref args :pointer 0) (cl-cuda::memory-block-device-ptr a))
-   (setf (cffi:mem-aref args :pointer 1) (cl-cuda::memory-block-device-ptr b))
-   (setf (cffi:mem-aref args :pointer 2) (cl-cuda::memory-block-device-ptr c))
-   (setf (cffi:mem-aref args :pointer 3) n-ptr)
-   nil))
+;; test var-ptr
+(is (cl-cuda::var-ptr 'x) 'x-ptr)
 
 ;; test kernel-arg-names
-(is (cl-cuda::kernel-arg-names
-      '((a float*) (b float*) (c float*) (n int) (x float3)))
-    '(a b c n x))
+(is (cl-cuda::kernel-arg-names '((x cl-cuda:int) (y cl-cuda:float3) (a cl-cuda:float3*))) '(x y a))
 
-;; test kernel-arg-names-as-pointer
-(is (cl-cuda::kernel-arg-names-as-pointer
-      '((a float*) (b float*) (c float*) (n int) (x float3)))
-    '((cl-cuda::memory-block-device-ptr a)
-      (cl-cuda::memory-block-device-ptr b)
-      (cl-cuda::memory-block-device-ptr c)
-      n-ptr x-ptr))
+;; test kernel-arg-non-array-args
+(is (cl-cuda::kernel-arg-non-array-args '((x cl-cuda:int) (y cl-cuda:float3) (a cl-cuda:float3*)))
+                                        '((x cl-cuda:int) (y cl-cuda:float3)))
 
-;; test kernel-arg-foreign-pointer-bindings
-(is (cl-cuda::kernel-arg-foreign-pointer-bindings
-      '((a float*) (b float*) (c float*) (n int) (x float3)))
-    '((n n-ptr int) (x x-ptr float3)))
+;; test kernel-arg-ptr-type-binding
+(is (cl-cuda::kernel-arg-ptr-type-binding '(x cl-cuda:int))    '(x-ptr :int))
+(is (cl-cuda::kernel-arg-ptr-type-binding '(x cl-cuda:float3)) '(x-ptr 'float3))
+
+;; test kernel-arg-pointer
+(is (cl-cuda::kernel-arg-pointer '(x int))     'x-ptr)
+(is (cl-cuda::kernel-arg-pointer '(x float3))  'x-ptr)
+(is (cl-cuda::kernel-arg-pointer '(x float3*)) '(cl-cuda::memory-block-device-ptr x))
+
+;; test setf-to-foreign-memory-form
+(is (cl-cuda::setf-to-foreign-memory-form '(x int)) '(setf (cffi:mem-ref x-ptr :int) x))
+(is (cl-cuda::setf-to-foreign-memory-form '(x float3))
+    '(setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::x) (float3-x x)
+      (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::y) (float3-y x)
+      (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::z) (float3-z x)))
+
+;; test setf-to-argument-array-form
+(is (cl-cuda::setf-to-argument-array-form 'kargs '(x int) 0)
+    '(setf (cffi:mem-aref kargs :pointer 0) x-ptr))
+(is (cl-cuda::setf-to-argument-array-form 'kargs '(y float3) 1)
+    '(setf (cffi:mem-aref kargs :pointer 1) y-ptr))
+(is (cl-cuda::setf-to-argument-array-form 'kargs '(a float3*) 2)
+    '(setf (cffi:mem-aref kargs :pointer 2) (cl-cuda::memory-block-device-ptr a)))
+
+;; test with-kernel-arguments
+(is-expand
+  (cl-cuda::with-kernel-arguments (kargs ((x int) (y float3) (a float3*)))
+    nil)
+  (cffi:with-foreign-objects ((x-ptr :int)
+                              (y-ptr 'float3))
+    (setf (cffi:mem-ref x-ptr :int) x)
+    (setf (cffi:foreign-slot-value y-ptr 'float3 'cl-cuda::x) (float3-x y)
+          (cffi:foreign-slot-value y-ptr 'float3 'cl-cuda::y) (float3-y y)
+          (cffi:foreign-slot-value y-ptr 'float3 'cl-cuda::z) (float3-z y))
+    (cffi:with-foreign-object (kargs :pointer 3)
+      (setf (cffi:mem-aref kargs :pointer 0) x-ptr)
+      (setf (cffi:mem-aref kargs :pointer 1) y-ptr)
+      (setf (cffi:mem-aref kargs :pointer 2) (cl-cuda::memory-block-device-ptr a))
+      nil)))
 
 
 ;;;
