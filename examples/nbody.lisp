@@ -149,6 +149,7 @@
   ;; swap buffers
   (glut:swap-buffers)
   ;; display frame rate
+  (frame-rate-counter-measure)
   (display-frame-rate (nbody-num-bodies) (nbody-get-frame-rate)))
 
 (defmethod glut:reshape ((w nbody-window) width height)
@@ -379,8 +380,7 @@
         ;; disable features
         (gl:disable :point-sprite-arb)
         (gl:disable :blend)
-        (gl:depth-mask :true)))
-    (frame-rate-counter-measure))
+        (gl:depth-mask :true))))
   
   (defun draw-points ()
     (gl:begin :points)
