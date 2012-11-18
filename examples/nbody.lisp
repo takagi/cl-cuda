@@ -16,9 +16,6 @@
 (in-package :cl-cuda-examples.nbody)
 
 
-(defvar *gpu* t)
-
-
 ;;;
 ;;; Vec3 array
 ;;;
@@ -749,19 +746,18 @@
 
 #|
 (require :sb-sprof)
-(defun main/profile ()
+(defun main/profile (&key (gpu-p t))
   (sb-sprof:with-profiling (:max-samples 1000
                             :report      :graph
                             :loop        nil)
-    (setf *gpu* nil)
-    (main)))
+    (main :gpu-p gpu-p)))
 |#
 
-(defun main ()
+(defun main (&key (gpu-p t))
   (setf glut:*run-main-loop-after-display* nil)
   (let ((window (make-instance 'nbody-window)))
     (glut:display-window window) ; GLUT window must be created before initializing nbody-demo
-    (with-nbody-demo (demo 2048 *gpu*)
+    (with-nbody-demo (demo 2048 gpu-p)
       (with-frame-rate-counter (counter)
         (setf (slot-value window 'nbody-demo) demo
               (slot-value window 'counter)    counter)
