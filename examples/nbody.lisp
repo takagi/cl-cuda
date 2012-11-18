@@ -50,6 +50,7 @@
      (declare (type single-float ,x ,y ,z))
      ,@body))
 
+(declaim (inline vec3-array-values))
 (defun vec3-array-values (ary i)
   (declare (optimize (speed 3) (safety 0)))
   (declare (type vec3-array ary)
@@ -62,6 +63,7 @@
   ;; for fast write
   `(%set-vec3-array ,ary ,i ,x ,y ,z))
 
+(declaim (inline %set-vec3-array))
 (defun %set-vec3-array (ary i x y z)
   (declare (optimize (speed 3) (safety 0)))
   (declare (type vec3-array ary)
@@ -88,13 +90,14 @@
     (:cpu nil)))
 
 (defun array-ref (ary i)
-;  (declare (optimize (speed 3) (safety 0)))
   (destructuring-bind (type raw-ary) ary
     (ecase type
       (:gpu (let ((x (mem-aref raw-ary i)))
               (values (float4-x x) (float4-y x) (float4-z x) (float4-w x))))
-      (:cpu (with-vec3-array ((x y z) (raw-ary i))
-              (values x y z 1.0))))))
+      (:cpu (values (vec3-aref raw-ary i :x)
+                    (vec3-aref raw-ary i :y)
+                    (vec3-aref raw-ary i :z)
+                    1.0)))))
 
 (defun (setf array-ref) (val ary i)
   (destructuring-bind (x y z w) val
@@ -219,6 +222,7 @@
                       :grid-dim grid-dim
                       :block-dim block-dim)))
 
+(declaim (inline body-body-interaction-cpu))
 (defun body-body-interaction-cpu (x1 y1 z1 x2 y2 z2)
   (declare (optimize (speed 3) (safety 0)))
   (declare (type single-float x1 y1 z1 x2 y2 z2))
@@ -741,6 +745,16 @@
 ;;;
 ;;; main
 ;;;
+
+#|
+(require :sb-sprof)
+(defun main/profile ()
+  (sb-sprof:with-profiling (:max-samples 1000
+                            :report      :graph
+                            :loop        nil)
+    (setf *gpu* nil)
+    (main)))
+|#
 
 (defun main ()
   (setf glut:*run-main-loop-after-display* nil)
