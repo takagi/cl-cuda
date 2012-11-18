@@ -220,7 +220,8 @@
     (integrate-bodies (raw-array new-pos) (raw-array old-pos) (raw-array vel)
                       delta-time damping num-bodies
                       :grid-dim grid-dim
-                      :block-dim block-dim)))
+                      :block-dim block-dim)
+    (synchronize-context)))
 
 (declaim (inline body-body-interaction-cpu))
 (defun body-body-interaction-cpu (x1 y1 z1 x2 y2 z2)
