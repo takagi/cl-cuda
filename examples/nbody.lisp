@@ -34,15 +34,15 @@
 
 (defun vec3-aref (ary i elm)
   (ecase elm
-    (:x (aref ary (the fixnum (+ (the fixnum (* i 3)) 0))))
-    (:y (aref ary (the fixnum (+ (the fixnum (* i 3)) 1))))
-    (:z (aref ary (the fixnum (+ (the fixnum (* i 3)) 2))))))
+    (:x (aref ary (+ (* i 3) 0)))
+    (:y (aref ary (+ (* i 3) 1)))
+    (:z (aref ary (+ (* i 3) 2)))))
 
 (defun (setf vec3-aref) (val ary i elm)
   (ecase elm
-    (:x (setf (aref ary (the fixnum (+ (the fixnum (* i 3)) 0))) val))
-    (:y (setf (aref ary (the fixnum (+ (the fixnum (* i 3)) 1))) val))
-    (:z (setf (aref ary (the fixnum (+ (the fixnum (* i 3)) 2))) val))))
+    (:x (setf (aref ary (+ (* i 3) 0)) val))
+    (:y (setf (aref ary (+ (* i 3) 1)) val))
+    (:z (setf (aref ary (+ (* i 3) 2)) val))))
 
 (defmacro with-vec3-array-values (((x y z) (ary i)) &body body)
   ;; for fast read
