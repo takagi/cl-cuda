@@ -21,6 +21,7 @@
                 :serial t
                 :components
                 ((:file "package")
+                 (:file "cl-cuda-error-string")
                  (:file "cl-cuda"))))
   :description ""
   :long-description

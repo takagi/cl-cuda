@@ -215,8 +215,8 @@
 
 (defun check-cuda-errors (name return-code)
   (unless (= return-code +cuda-success+)
-    (error (format nil "~A failed with driver API error No. ~A.~%"
-                       name return-code)))
+    (error "~A failed with driver API error No. ~A.~%~A"
+           name return-code (get-error-string return-code)))
   (when *show-messages*
     (format t "~A succeeded.~%" name))
   (values))
