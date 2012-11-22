@@ -185,13 +185,13 @@ Syntax:
 Example:
 
     (progn
-      (do-some-statement)
-      (do-more-statement))
+      (do-some-statements)
+      (do-more-statements))
 
 Compiled:
 
-    do_some_statement ();
-    do_more_statement ();
+    do_some_statements ();
+    do_more_statements ();
 
 ### RETURN statement
 
