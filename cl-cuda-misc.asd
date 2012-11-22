@@ -11,7 +11,7 @@
 (defsystem cl-cuda-misc
   :author "Masayuki Takagi"
   :license "LLGPL"
-  :depends-on (:local-time)
+  :depends-on (:local-time :cl-emb)
   :components ((:module "misc"
                 :serial t
                 :components

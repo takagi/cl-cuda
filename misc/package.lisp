@@ -5,5 +5,5 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-misc
-  (:use :cl :local-time)
+  (:use :cl)
   (:export :convert-error-string))
