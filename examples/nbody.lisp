@@ -754,8 +754,8 @@
 |#
 
 (defun main (&key (gpu-p t))
-  (setf glut:*run-main-loop-after-display* nil)
-  (let ((window (make-instance 'nbody-window)))
+  (let ((glut:*run-main-loop-after-display* nil)
+        (window (make-instance 'nbody-window)))
     (glut:display-window window) ; GLUT window must be created before initializing nbody-demo
     (with-nbody-demo (demo 2048 gpu-p)
       (with-frame-rate-counter (counter)
