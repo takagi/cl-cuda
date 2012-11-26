@@ -16,7 +16,7 @@
   :version "0.1-SNAPSHOT"
   :author "Masayuki Takagi"
   :license "LLGPL"
-  :depends-on (:cffi :alexandria :anaphora :osicat :cl-pattern :split-sequence)
+  :depends-on (:cffi :alexandria :anaphora :osicat :cl-pattern :split-sequence :cl-opengl :cl-glut)
   :components ((:module "src"
                 :serial t
                 :components

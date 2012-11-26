@@ -14,7 +14,6 @@
   :depends-on (:cl-cuda
                :imago
                :cl-stopwatch
-               :cl-opengl
                :cl-glu
                :cl-glut)
   :components ((:module "examples"

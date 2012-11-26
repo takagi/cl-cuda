@@ -14,6 +14,7 @@
            :with-memory-blocks          ; Memory Block
            :alloc-memory-block
            :free-memory-block
+           :memory-block-vertex-buffer-object
            :mem-aref
            :memcpy-host-to-device
            :memcpy-device-to-host

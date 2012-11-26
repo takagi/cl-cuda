@@ -76,6 +76,7 @@
 (cffi:defctype cu-stream :pointer)
 (cffi:defctype cu-device-ptr :unsigned-int)
 (cffi:defctype cu-event :pointer)
+(cffi:defctype cu-graphics-resource :pointer)
 (cffi:defctype size-t :unsigned-int)
 
 
@@ -84,10 +85,22 @@
 ;;;
 
 (defcuenum cu-event-flags-enum
-  (:cu-event-default #X0)
-  (:cu-event-blocking-sync #X1)
+  (:cu-event-default        #X0)
+  (:cu-event-blocking-sync  #X1)
   (:cu-event-disable-timing #X2)
-  (:cu-event-interprocess #X4))
+  (:cu-event-interprocess   #X4))
+
+(defcuenum cu-graphics-register-flags
+  (:cu-graphics-register-flags-none           #X0)
+  (:cu-graphics-register-flags-read-only      #X1)
+  (:cu-graphics-register-flags-write-discard  #X2)
+  (:cu-graphics-register-flags-surface-ldst   #X4)
+  (:cu-graphics-register-flags-texture-gather #X8))
+
+(defcuenum cu-graphics-map-resource-flags
+  (:cu-graphics-map-resource-flags-none          #X0)
+  (:cu-graphics-map-resource-flags-read-only     #X1)
+  (:cu-graphics-map-resource-flags-write-discard #X2))
 
 
 ;;;
@@ -120,6 +133,12 @@
 
 ;; cuCtxCreate
 (defcufun (cu-ctx-create "cuCtxCreate") cu-result
+  (pctx (:pointer cu-context))
+  (flags :unsigned-int)
+  (dev cu-device))
+
+;; cuGLCtxCreate
+(defcufun (cu-gl-ctx-create "cuGLCtxCreate") cu-result
   (pctx (:pointer cu-context))
   (flags :unsigned-int)
   (dev cu-device))
@@ -209,6 +228,40 @@
 (defcufun (cu-event-synchronize "cuEventSynchronize") cu-result
   (hevent cu-event))
 
+;; cuGraphicsGLRegisterBuffer
+(defcufun (cu-graphics-gl-register-buffer "cuGraphicsGLRegisterBuffer") cu-result
+  (p-cuda-resource (:pointer cu-graphics-resource))
+  (buffer %gl:uint)
+  (flags :unsigned-int))
+
+;; cuGraphicsMapResources
+(defcufun (cu-graphics-map-resources "cuGraphicsMapResources") cu-result
+  (count     :unsigned-int)
+  (resources (:pointer cu-graphics-resource))
+  (hstream   cu-stream))
+
+;; cuGraphicsResourceGetMappedPointer
+(defcufun (cu-graphics-resource-get-mapped-pointer "cuGraphicsResourceGetMappedPointer") cu-result
+  (pdevptr  (:pointer cu-device-ptr))
+  (psize    (:pointer size-t))
+  (resource cu-graphics-resource))
+
+;; cuGraphicsResourceSetMapFlags
+(defcufun (cu-graphics-resource-set-map-flags "cuGraphicsResourceSetMapFlags") cu-result
+  (resource cu-graphics-resource)
+  (flags    :unsigned-int))
+
+;; cuGraphicsUnmapResources
+(defcufun (cu-graphics-unmap-resources "cuGraphicsUnmapResources") cu-result
+  (count     :unsigned-int)
+  (resources (:pointer cu-graphics-resource))
+  (hstream   cu-stream))
+
+;; cuGraphicsUnregisterResource
+(defcufun (cu-graphics-unregister-resource "cuGraphicsUnregisterResource") cu-result
+  (resource cu-graphics-resource))
+
+
 ;; check-cuda-errors function
 (defvar +cuda-success+ 0)
 (defvar *show-messages* t)
@@ -226,21 +279,23 @@
 ;;; Definition of with- macro for CUDA driver API
 ;;;
 
-(defmacro with-cuda-context ((dev-id) &body body)
+(defmacro with-cuda-context ((dev-id &key (interop nil)) &body body)
   `(progn
-     (init-cuda-context ,dev-id)
+     (init-cuda-context ,dev-id :interop ,interop)
      (unwind-protect (progn ,@body)
        (release-cuda-context))))
 
 (let (device context)
   
-  (defun init-cuda-context (dev-id)
+  (defun init-cuda-context (dev-id &key (interop nil))
     (let ((flags 0))
       (setf device  (cffi:foreign-alloc 'cu-device)
             context (cffi:foreign-alloc 'cu-context))
       (cu-init 0)
       (cu-device-get device dev-id)
-      (cu-ctx-create context flags (cffi:mem-ref device 'cu-device))))
+      (if (not interop)
+          (cu-ctx-create    context flags (cffi:mem-ref device 'cu-device))
+          (cu-gl-ctx-create context flags (cffi:mem-ref device 'cu-device)))))
   
   (defun release-cuda-context ()
     (kernel-manager-unload *kernel-manager*)
@@ -437,38 +492,113 @@
 ;;; Definition of Memory Block
 ;;;
 
-(defun alloc-memory-block (type n)
-  (unless (non-pointer-type-p type)
-    (error (format nil "invalid type: ~A" type)))
+(defun alloc-memory-block-cuda (type n)
   (let ((cffi-ptr   (cffi:foreign-alloc (cffi-type type) :count n))
         (device-ptr (cffi:foreign-alloc 'cu-device-ptr)))
     (cu-mem-alloc device-ptr (* n (type-size type)))
-    (list cffi-ptr device-ptr type n)))
+    (list :cuda cffi-ptr device-ptr type n)))
+
+(defun alloc-memory-block-interop (type n)
+  (let* ((cffi-ptr (cffi:foreign-alloc (cffi-type type) :count n))
+         (vbo      (car (gl:gen-buffers 1)))
+         (gres-ptr (cffi:foreign-alloc 'cu-graphics-resource)))
+    ;; create and initialize a buffer object's data store
+    (gl:bind-buffer :array-buffer vbo)
+    (let ((ary (gl:alloc-gl-array (cffi-type type) n)))
+      (unwind-protect (gl:buffer-data :array-buffer :dynamic-draw ary)
+        (gl:free-gl-array ary)))
+    (gl:bind-buffer :array-buffer 0)
+    ;; register a buffer object accessed through CUDA
+    (cu-graphics-gl-register-buffer gres-ptr vbo cu-graphics-register-flags-none)
+    (list :interop cffi-ptr vbo gres-ptr type n)))
+
+(defun alloc-memory-block (type n &key (interop nil))
+  (unless (non-pointer-type-p type)
+    (error "invalid type: ~A" type))
+  (if interop
+      (alloc-memory-block-interop type n)
+      (alloc-memory-block-cuda    type n)))
+
+(defun memory-block-interop-p (blk)
+  (ecase (car blk)
+    (:interop t)
+    (:cuda    nil)))
+
+(defun free-memory-block-interop (blk)
+  (let ((gres-ptr (memory-block-graphic-resource-ptr blk))
+        (vbo      (memory-block-vertex-buffer-object blk))
+        (cffi-ptr (memory-block-cffi-ptr             blk)))
+    ;; unregister a buffer object accessed through CUDA
+    (cu-graphics-unregister-resource (cffi:mem-ref gres-ptr 'cu-graphics-resource))
+    ;; free a pointer to a graphics resource
+    (cffi:foreign-free gres-ptr)
+    ;; delete a buffer object
+    (gl:delete-buffers (list vbo))
+    ;; free a pointer to host memory area
+    (cffi:foreign-free cffi-ptr)))
+
+(defun free-memory-block-cuda (blk)
+  (let ((device-ptr (memory-block-device-ptr blk))
+        (cffi-ptr   (memory-block-cffi-ptr   blk)))
+    (cu-mem-free (cffi:mem-ref device-ptr 'cu-device-ptr))
+    (cffi:foreign-free cffi-ptr)
+    (cffi:foreign-free device-ptr)))
 
 (defun free-memory-block (blk)
-  (if blk
-      (let ((device-ptr (memory-block-device-ptr blk))
-            (cffi-ptr (memory-block-cffi-ptr blk)))
-        (cu-mem-free (cffi:mem-ref device-ptr 'cu-device-ptr))
-        (cffi:foreign-free device-ptr)
-        (cffi:foreign-free cffi-ptr)
-        (setf device-ptr nil)
-        (setf cffi-ptr nil))))
+  (when blk
+    (if (memory-block-interop-p blk)
+        (free-memory-block-interop blk)
+        (free-memory-block-cuda    blk))))
 
 (defun memory-block-cffi-ptr (blk)
-  (car blk))
-
-(defun memory-block-device-ptr (blk)
   (cadr blk))
 
+(defun memory-block-device-ptr (blk)
+  (if (memory-block-interop-p blk)
+      (error "interoperable memory block can not return a device pointer through this interface")
+      (caddr blk)))
+
+(defmacro with-memory-block-device-ptr ((device-ptr blk) &body body)
+  (with-gensyms (gres-ptr gres size-ptr)
+    `(if (memory-block-interop-p ,blk)
+         (let* ((,gres-ptr   (memory-block-graphic-resource-ptr ,blk))
+                (,gres       (cffi:mem-ref ,gres-ptr 'cu-graphics-resource))
+                (,device-ptr (cffi:foreign-alloc 'cu-device-ptr))
+                (,size-ptr   (cffi:foreign-alloc :unsigned-int)))
+           (unwind-protect
+                (progn
+                  (cu-graphics-resource-set-map-flags ,gres cu-graphics-map-resource-flags-none)
+                  (cu-graphics-map-resources 1 ,gres-ptr (cffi:null-pointer))
+                  (cu-graphics-resource-get-mapped-pointer ,device-ptr ,size-ptr ,gres)
+                  ,@body
+                  (cu-graphics-unmap-resources 1 ,gres-ptr (cffi:null-pointer)))
+             (cffi:foreign-free ,size-ptr)
+             (cffi:foreign-free ,device-ptr)))
+         (let ((,device-ptr (memory-block-device-ptr ,blk)))
+           ,@body))))
+
+(defun memory-block-vertex-buffer-object (blk)
+  (if (memory-block-interop-p blk)
+      (caddr blk)
+      (error "not interoperable memory block")))
+
+(defun memory-block-graphic-resource-ptr (blk)
+  (if (memory-block-interop-p blk)
+      (cadddr blk)
+      (error "not interoperable memory block")))
+
 (defun memory-block-type (blk)
-  (caddr blk))
+  (if (memory-block-interop-p blk)
+      (cadddr (cdr blk))
+      (cadddr blk)))
 
 (defun memory-block-cffi-type (blk)
   (cffi-type (memory-block-type blk)))
 
 (defun memory-block-length (blk)
-  (cadddr blk))
+  (if (memory-block-interop-p blk)
+      (cadddr (cddr blk))
+      (cadddr (cdr  blk))))
 
 (defun memory-block-bytes (blk)
   (* (memory-block-element-bytes blk)
@@ -477,43 +607,23 @@
 (defun memory-block-element-bytes (blk)
   (type-size (memory-block-type blk)))
 
-(defun memory-block-binding-var (binding)
-  (match binding
-    ((var _ _) var)
-    (_ (error (format nil "invalid memory block binding: ~A" binding)))))
-
-(defun memory-block-binding-type (binding)
-  (match binding
-    ((_ type _) type)
-    (_ (error (format nil "invalid memory block binding: ~A" binding)))))
-
-(defun memory-block-binding-size (binding)
-  (match binding
-    ((_ _ size) size)
-    (_ (error (format nil "invalid memory block binding: ~A" binding)))))
-
-(defun alloc-memory-block-form (binding)
-  (let ((var (memory-block-binding-var binding))
-        (type (memory-block-binding-type binding))
-        (size (memory-block-binding-size binding)))
-    `(setf ,var (alloc-memory-block ,type ,size))))
-
-(defun free-memory-block-form (binding)
-  `(free-memory-block ,(memory-block-binding-var binding)))
+(defmacro with-memory-block ((var type size &key (interop nil)) &body body)
+  `(let ((,var (alloc-memory-block ,type ,size :interop ,interop)))
+     (unwind-protect
+          (progn ,@body)
+       (free-memory-block ,var))))
 
 (defmacro with-memory-blocks (bindings &body body)
-  `(let ,(mapcar #'memory-block-binding-var bindings)
-     (unwind-protect
-          (progn
-            ,@(mapcar #'alloc-memory-block-form bindings)
-            ,@body)
-       (progn
-         ,@(mapcar #'free-memory-block-form bindings)))))
+  (if bindings
+      `(with-memory-block ,(car bindings)
+         (with-memory-blocks ,(cdr bindings)
+           ,@body))
+      `(progn ,@body)))
 
 (defun basic-type-mem-aref (blk idx)
   ;; give type as constant explicitly for better performance
   (case (memory-block-type blk)
-    (int (cffi:mem-aref (memory-block-cffi-ptr blk) :int idx))
+    (int   (cffi:mem-aref (memory-block-cffi-ptr blk) :int   idx))
     (float (cffi:mem-aref (memory-block-cffi-ptr blk) :float idx))
     (t (error "must not be reached"))))
 
@@ -543,14 +653,14 @@
     (error (format nil "invalid index: ~A" idx)))
   (let ((type (memory-block-type blk)))
     (cond
-      ((basic-type-p type) (basic-type-mem-aref blk idx))
+      ((basic-type-p type)  (basic-type-mem-aref blk idx))
       ((vector-type-p type) (vector-type-mem-aref blk idx))
       (t (error "must not be reached")))))
 
 (defun basic-type-setf-mem-aref (blk idx val)
   ;; give type as constant explicitly for better performance
   (case (memory-block-type blk)
-    (int (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :int idx) val))
+    (int   (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :int   idx) val))
     (float (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :float idx) val))
     (t (error "must not be reached"))))
 
@@ -580,27 +690,27 @@
     (error (format nil "invalid index: ~A" idx)))
   (let ((type (memory-block-type blk)))
     (cond
-      ((basic-type-p type) (basic-type-setf-mem-aref blk idx val))
+      ((basic-type-p type)  (basic-type-setf-mem-aref blk idx val))
       ((vector-type-p type) (vector-type-setf-mem-aref blk idx val))
       (t (error "must not be reached")))))
 
 (defun memcpy-host-to-device (&rest blks)
-  (dolist (blk blks)
-    (let ((device-ptr (memory-block-device-ptr blk))
-          (cffi-ptr (memory-block-cffi-ptr blk))
-          (bytes (memory-block-bytes blk)))
-      (cu-memcpy-host-to-device (cffi:mem-ref device-ptr 'cu-device-ptr)
-                                cffi-ptr
-                                bytes))))
+  (dolist (blk blks)    
+    (let ((cffi-ptr (memory-block-cffi-ptr blk))
+          (bytes    (memory-block-bytes blk)))
+      (with-memory-block-device-ptr (device-ptr blk)
+        (cu-memcpy-host-to-device (cffi:mem-ref device-ptr 'cu-device-ptr)
+                                  cffi-ptr
+                                  bytes)))))
 
 (defun memcpy-device-to-host (&rest blks)
   (dolist (blk blks)
-    (let ((device-ptr (memory-block-device-ptr blk))
-          (cffi-ptr (memory-block-cffi-ptr blk))
-          (bytes (memory-block-bytes blk)))
-      (cu-memcpy-device-to-host cffi-ptr
-                                (cffi:mem-ref device-ptr 'cu-device-ptr)
-                                bytes))))
+    (let ((cffi-ptr (memory-block-cffi-ptr blk))
+          (bytes    (memory-block-bytes blk)))
+      (with-memory-block-device-ptr (device-ptr blk)
+        (cu-memcpy-device-to-host cffi-ptr
+                                  (cffi:mem-ref device-ptr 'cu-device-ptr)
+                                  bytes)))))
 
 
 ;;;
@@ -618,6 +728,10 @@
   ;; ((x int) (y float3) (a float3*)) => ((x int) (y float3))
   (remove-if #'array-type-p args :key #'cadr))
 
+(defun kernel-arg-array-args (args)
+  ;; ((x int) (y float3) (a float3*)) => ((a float3*))
+  (remove-if-not #'array-type-p args :key #'cadr))
+
 (defun kernel-arg-ptr-type-binding (arg)
   ;; (x int) => (x-ptr :int), (y float3) => (y-ptr 'float3)
   (destructuring-bind (var type) arg
@@ -625,12 +739,14 @@
       `(,(var-ptr var) ',(cffi-type type))
       `(,(var-ptr var) ,(cffi-type type)))))
 
+(defun kernel-arg-ptr-var-binding (arg)
+  ;; (a float3*) => (a-ptr a)
+  (let ((var (car arg)))
+    (list (var-ptr var) var)))
+
 (defun kernel-arg-pointer (arg)
-  ;; (x int) => x-ptr, (y float3) => y-ptr, (a float3*) => (memory-block-device-ptr a)
-  (destructuring-bind (var type) arg
-    (if (array-type-p type)
-      `(memory-block-device-ptr ,var)
-      (var-ptr var))))
+  ;; (x int) => x-ptr, (y float3) => y-ptr, (a float3*) => a-ptr
+  (var-ptr (car arg)))
 
 (defun setf-basic-type-to-foreign-memory-form (var type)
   `(setf (cffi:mem-ref ,(var-ptr var) ,(cffi-type type)) ,var))
@@ -679,22 +795,33 @@
 ;;   (setf (cffi:slot-value y-ptr 'float3 'x) (float3-x y)
 ;;         (cffi:slot-value y-ptr 'float3 'y) (float3-y y)
 ;;         (cffi:slot-value y-ptr 'float3 'z) (float3-z y))
-;;   (cffi:with-foreign-object (kargs :pointer 3)
-;;     (setf (cffi:mem-aref kargs :pointer 0) x-ptr)
-;;     (setf (cffi:mem-aref kargs :pointer 1) y-ptr)
-;;     (setf (cffi:mem-aref kargs :pointer 2) (memory-block-device-ptr a))
-;;     (launch-cuda-kernel-function kargs)))
+;;   (with-memory-block-device-ptr (a-ptr a)
+;;     (cffi:with-foreign-object (kargs :pointer 3)
+;;       (setf (cffi:mem-aref kargs :pointer 0) x-ptr)
+;;       (setf (cffi:mem-aref kargs :pointer 1) y-ptr)
+;;       (setf (cffi:mem-aref kargs :pointer 2) a-ptr)
+;;       (launch-cuda-kernel-function kargs))))
+
+(defmacro with-memory-block-device-ptrs (bindings &body body)
+  (if bindings
+      `(with-memory-block-device-ptr ,(car bindings)
+         (with-memory-block-device-ptrs ,(cdr bindings)
+           ,@body))
+      `(progn
+         ,@body)))
 
 (defmacro with-kernel-arguments ((var args) &body body)
-  (let ((non-array-args (kernel-arg-non-array-args args)))
+  (let ((non-array-args (kernel-arg-non-array-args args))
+        (array-args     (kernel-arg-array-args args)))
     `(cffi:with-foreign-objects ,(mapcar #'kernel-arg-ptr-type-binding non-array-args)
        ,@(loop for arg in non-array-args
             collect (setf-to-foreign-memory-form arg))
-       (cffi:with-foreign-object (,var :pointer ,(length args))
-         ,@(loop for arg in   args
-                 for i   from 0
-              collect (setf-to-argument-array-form var arg i))
-         ,@body))))
+       (with-memory-block-device-ptrs ,(mapcar #'kernel-arg-ptr-var-binding array-args)
+         (cffi:with-foreign-object (,var :pointer ,(length args))
+           ,@(loop for arg in   args
+                   for i   from 0
+                collect (setf-to-argument-array-form var arg i))
+           ,@body)))))
 
 (defmacro defkernel (name (return-type args) &body body)
   (with-gensyms (hfunc kargs)
