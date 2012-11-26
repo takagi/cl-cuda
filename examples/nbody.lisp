@@ -74,22 +74,23 @@
 ;;; Abstract array structure
 ;;;
 
-(defun alloc-array (n gpu-p)
-  (if gpu-p
-      (list :gpu (alloc-memory-block 'float4 n))
-      (list :cpu (make-vec3-array n))))
+(defun alloc-array (n array-type)
+  (ecase array-type
+    (:gpu         (list :gpu         (alloc-memory-block 'float4 n)))
+    (:gpu/interop (list :gpu/interop (alloc-memory-block 'float4 n :interop t)))
+    (:cpu         (list :cpu         (make-vec3-array n)))))
 
 (defun free-array (ary)
   (ecase (array-type ary)
-    (:gpu (progn
-            (free-memory-block (cadr ary))
-            (setf (cadr ary) nil)))
-    (:cpu nil)))
+    (:gpu         (free-memory-block (raw-array ary)))
+    (:gpu/interop (free-memory-block (raw-array ary)))
+    (:cpu         nil)))
 
 (defun array-ref (ary i)
   (destructuring-bind (type raw-ary) ary
     (ecase type
-      (:gpu (let ((x (mem-aref raw-ary i)))
+      ((:gpu :gpu/interop)
+            (let ((x (mem-aref raw-ary i)))
               (values (float4-x x) (float4-y x) (float4-z x) (float4-w x))))
       (:cpu (values (vec3-aref raw-ary i :x)
                     (vec3-aref raw-ary i :y)
@@ -100,7 +101,8 @@
   (destructuring-bind (x y z w) val
     (destructuring-bind (type raw-ary) ary
       (ecase type
-        (:gpu (setf (mem-aref raw-ary i) (make-float4 x y z w)))
+        ((:gpu :gpu/interop)
+              (setf (mem-aref raw-ary i) (make-float4 x y z w)))
         (:cpu (setf (vec3-aref raw-ary i :x) x
                     (vec3-aref raw-ary i :y) y
                     (vec3-aref raw-ary i :z) z))))))
@@ -113,12 +115,12 @@
 
 (defun memcpy-array-host-to-device (ary)
   (ecase (array-type ary)
-    (:gpu (memcpy-host-to-device (raw-array ary)))
+    ((:gpu :gpu/interop) (memcpy-host-to-device (raw-array ary)))
     (:cpu (error "invalid array type: cpu"))))
 
 (defun memcpy-array-device-to-host (ary)
   (ecase (array-type ary)
-    (:gpu (memcpy-device-to-host (raw-array ary)))
+    ((:gpu :gpu/interop) (memcpy-device-to-host (raw-array ary)))
     (:cpu (error "invalid array type: cpu"))))
 
 
@@ -424,17 +426,17 @@
 (defstruct (nbody-demo :conc-name)
   system renderer)
 
-(defmacro with-nbody-demo ((var num-bodies gpu-p) &body body)
+(defmacro with-nbody-demo ((var num-bodies &key (gpu t) (interop nil)) &body body)
   `(let (,var)
      (unwind-protect
         (progn
-          (setf ,var (init-nbody-demo ,num-bodies ,gpu-p))
+          (setf ,var (init-nbody-demo ,num-bodies :gpu ,gpu :interop ,interop))
           ,@body)
        (release-nbody-demo ,var))))
 
-(defun init-nbody-demo (num-bodies gpu-p)
+(defun init-nbody-demo (num-bodies &key (gpu t) (interop nil))
   (let ((demo (make-nbody-demo)))
-    (setf (system   demo) (init-body-sysmem num-bodies gpu-p)
+    (setf (system   demo) (init-body-system num-bodies :gpu gpu :interop interop)
           (renderer demo) (init-particle-renderer))
     demo))
 
@@ -475,25 +477,37 @@
   (cluster-scale  1.56  :read-only t)
   (velocity-scale 2.64  :read-only t))
 
-(defun init-body-sysmem (num-bodies gpu-p)
+(defun init-body-system (num-bodies &key (gpu t) (interop nil))
+  (when (and (null gpu) interop)
+    (error "Interoperability is available only on GPU"))
   (let ((system (make-body-system)))
     (setf (num-bodies system) num-bodies)
-    (init-cuda-context 0)
-    (init-memory-blocks system gpu-p)
+    (init-cuda-context 0 :interop t)
+    (init-memory-blocks system gpu interop)
     (reset-body-system system)
-    (when gpu-p
+    (when gpu
       (memcpy-array-host-to-device (old-pos system))
       (memcpy-array-host-to-device (vel system)))
     system))
 
-(defun init-memory-blocks (system gpu-p)
+(defun lookup-array-type (gpu interop)
+  (if gpu
+      (if interop
+          :gpu/interop
+          :gpu)
+      (if interop
+          (error "Interoperability is available only on GPU")
+          :cpu)))
+
+(defun init-memory-blocks (system gpu interop)
   (symbol-macrolet ((new-pos    (new-pos system))
                     (old-pos    (old-pos system))
                     (vel        (vel system))
                     (num-bodies (num-bodies system)))
-    (setf new-pos (alloc-array num-bodies gpu-p)
-          old-pos (alloc-array num-bodies gpu-p)
-          vel     (alloc-array num-bodies gpu-p))))
+    (let ((array-type (lookup-array-type gpu interop)))
+      (setf new-pos (alloc-array num-bodies array-type)
+            old-pos (alloc-array num-bodies array-type)
+            vel     (alloc-array num-bodies array-type)))))
 
 (defun release-body-system (system)
   (release-memory-blocks system)
@@ -514,16 +528,18 @@
 
 (defun update-body-system (system)
   (symbol-macrolet ((new-pos    (new-pos system))
-                    (old-pos    (old-pos system))
-                    (vel        (vel system))
-                    (delta-time (delta-time system))
-                    (damping    (damping system))
-                    (num-bodies (num-bodies system))
-                    (p          (p system)))
-    (ecase (array-type new-pos)
-      (:cpu (integrate-nbody-system-cpu new-pos old-pos vel delta-time damping num-bodies))
-      (:gpu (integrate-nbody-system-gpu new-pos old-pos vel delta-time damping num-bodies p)))
-    (rotatef new-pos old-pos)))
+                    (old-pos    (old-pos system)))
+    (let ((vel        (vel system))
+          (delta-time (delta-time system))
+          (damping    (damping system))
+          (num-bodies (num-bodies system))
+          (p          (p system)))
+      (ecase (array-type new-pos)
+        ((:gpu :gpu/interop)
+         (integrate-nbody-system-gpu new-pos old-pos vel delta-time damping num-bodies p))
+        (:cpu
+         (integrate-nbody-system-cpu new-pos old-pos vel delta-time damping num-bodies)))
+      (rotatef new-pos old-pos))))
 
 
 ;;;
@@ -648,8 +664,19 @@
   (gl:end))
 
 (defun draw-points-interop (pos num-bodies)
-  (declare (ignorable pos num-bodies))
-  (not-implemented))
+  (let ((pbo (memory-block-vertex-buffer-object (raw-array pos))))
+    ;; enable GL_VERTEX_ARRAY
+    (gl:enable-client-state :vertex-array)
+    ;; bind a named buffer object
+    (gl:bind-buffer :array-buffer pbo)
+    ;; define an array of vertex data
+    (%gl:vertex-pointer 4 :float 0 (cffi:null-pointer))
+    ;; render primitives from array data
+    (gl:draw-arrays :points 0 num-bodies)
+    ;; unbind a buffer object
+    (gl:bind-buffer :array-buffer 0)
+    ;; disable GL_VERTEX_ARRAY
+    (gl:disable-client-state :vertex-array)))
 
 
 ;;;
@@ -746,22 +773,23 @@
 
 #|
 (require :sb-sprof)
-(defun main/profile (&key (gpu-p t))
+(defun main/profile (&key (gpu t) (interop nil))
   (sb-sprof:with-profiling (:max-samples 1000
                             :report      :graph
                             :loop        nil)
-    (main :gpu-p gpu-p)))
+    (main :gpu gpu :interop interop)))
 |#
 
-(defun main (&key (gpu-p t))
+(defun main (&key (gpu t) (interop nil))
   (let ((glut:*run-main-loop-after-display* nil)
         (window (make-instance 'nbody-window)))
     (glut:display-window window) ; GLUT window must be created before initializing nbody-demo
-    (with-nbody-demo (demo 2048 gpu-p)
+    (with-nbody-demo (demo 2048 :gpu gpu :interop interop)
       (with-frame-rate-counter (counter)
         (setf (slot-value window 'nbody-demo) demo
               (slot-value window 'counter)    counter)
         (glut:main-loop)))))
+
 
 (defun not-implemented ()
   (error "not implemented."))
