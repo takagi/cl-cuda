@@ -18,7 +18,7 @@
   ;; test alloc-memory-block/free-memory-block
   (let ((dev-id 0))
     (with-cuda-context (dev-id)
-      (is-error (cl-cuda::alloc-memory-block 'int 1024 :interop t   ) simple-error)))
+      (is-error (cl-cuda::alloc-memory-block 'int 1024 :interop t) simple-error)))
   
   ;; test alloc-memory-block/free-memory-block with OpenGL interoperability
   (let ((dev-id 0))
