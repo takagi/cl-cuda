@@ -772,7 +772,8 @@
 ;;;
 
 #|
-(require :sb-sprof)
+(eval-when (:compile-toplevel :load-toplevel)
+  (require :sb-sprof))
 (defun main/profile (&key (gpu t) (interop nil))
   (sb-sprof:with-profiling (:max-samples 1000
                             :report      :graph
