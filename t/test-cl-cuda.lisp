@@ -206,8 +206,8 @@
     (format t "elapsed time: ~A~%" (get-elapsed-time timer))
     (stop-and-synchronize-timer timer)
     (destroy-timer timer)
-    (ok (cffi:null-pointer-p (cl-cuda::timer-object-start-event timer)))
-    (ok (cffi:null-pointer-p (cl-cuda::timer-object-stop-event  timer)))))
+    (ok (null (cl-cuda::timer-object-start-event timer)))
+    (ok (null (cl-cuda::timer-object-stop-event  timer)))))
 
 (with-cuda-context (0)
   (with-timer (timer)
