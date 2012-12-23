@@ -288,20 +288,39 @@
 (let (device context)
   
   (defun init-cuda-context (dev-id &key (interop nil))
-    (let ((flags 0))
-      (setf device  (cffi:foreign-alloc 'cu-device)
-            context (cffi:foreign-alloc 'cu-context))
-      (cu-init 0)
-      (cu-device-get device dev-id)
-      (if (not interop)
-          (cu-ctx-create    context flags (cffi:mem-ref device 'cu-device))
-          (cu-gl-ctx-create context flags (cffi:mem-ref device 'cu-device)))))
+    (when (or device context)
+      (error "CUDA context is already initialized"))
+    (unwind-protect-case ()
+        (let ((flags 0))
+          ;; allocate memory areas for a CUDA device and a CUDA context
+          (setf device  (cffi:foreign-alloc 'cu-device  :initial-element 0)
+                context (cffi:foreign-alloc 'cu-context :initial-element (cffi:null-pointer)))
+          ;; initialized CUDA
+          (cu-init 0)
+          ;; get a CUDA device
+          (cu-device-get device dev-id)
+          ;; create a CUDA context
+          (if (not interop)
+              (cu-ctx-create    context flags (cffi:mem-ref device 'cu-device))
+              (cu-gl-ctx-create context flags (cffi:mem-ref device 'cu-device))))
+      (:abort (release-cuda-context))))
   
   (defun release-cuda-context ()
-    (kernel-manager-unload *kernel-manager*)
-    (cu-ctx-destroy (cffi:mem-ref context 'cu-context))
-    (cffi:foreign-free context)
-    (cffi:foreign-free device))
+    (symbol-macrolet ((mem-ref-context (cffi:mem-ref context 'cu-context)))
+      ;; unload kernel manager
+      (kernel-manager-unload *kernel-manager*)
+      ;; destroy a CUDA context if created
+      (when (and context (not (cffi:null-pointer-p mem-ref-context)))
+        (cu-ctx-destroy mem-ref-context)
+        (setf mem-ref-context (cffi:null-pointer)))
+      ;; free a memory pointer to a CUDA context if allocated
+      (when context
+        (cffi:foreign-free context)
+        (setf context nil))
+      ;; free a memory area for a CUDA device if allocated
+      (when device
+        (cffi:foreign-free device)
+        (setf device nil))))
   
   (defun synchronize-context ()
     (cu-ctx-synchronize)))
@@ -386,7 +405,7 @@
       (array-type-p  type)))
 
 (defun cffi-type (type)
-  (acond
+  (cond
     ((basic-type-p  type) (basic-cffi-type  type))
     ((vector-type-p type) (vector-cffi-type type))
     ((array-type-p  type) (array-cffi-type  type))
@@ -492,25 +511,57 @@
 ;;; Definition of Memory Block
 ;;;
 
+(defstruct memory-block-cuda
+  cffi-ptr device-ptr type length)
+
+(defstruct memory-block-interop
+  cffi-ptr vertex-buffer-object graphic-resource-ptr type length)
+
 (defun alloc-memory-block-cuda (type n)
-  (let ((cffi-ptr   (cffi:foreign-alloc (cffi-type type) :count n))
-        (device-ptr (cffi:foreign-alloc 'cu-device-ptr)))
-    (cu-mem-alloc device-ptr (* n (type-size type)))
-    (list :cuda cffi-ptr device-ptr type n)))
+  (let ((blk (make-memory-block-cuda)))
+    (symbol-macrolet ((cffi-ptr   (memory-block-cuda-cffi-ptr   blk))
+                      (device-ptr (memory-block-cuda-device-ptr blk))
+                      (blk-type   (memory-block-cuda-type       blk))
+                      (length     (memory-block-cuda-length     blk)))
+      (unwind-protect-case ()
+          (progn
+            ;; allocate a memory block
+            (setf cffi-ptr   (cffi:foreign-alloc (cffi-type type) :count n)
+                  device-ptr (cffi:foreign-alloc 'cu-device-ptr :initial-element 0)
+                  blk-type   type
+                  length     n)
+            ;; allocate device memory
+            (cu-mem-alloc (memory-block-cuda-device-ptr blk) (* n (type-size type)))
+            ;; return a memory block
+            blk)
+        (:abort (free-memory-block-cuda blk))))))
 
 (defun alloc-memory-block-interop (type n)
-  (let* ((cffi-ptr (cffi:foreign-alloc (cffi-type type) :count n))
-         (vbo      (car (gl:gen-buffers 1)))
-         (gres-ptr (cffi:foreign-alloc 'cu-graphics-resource)))
-    ;; create and initialize a buffer object's data store
-    (gl:bind-buffer :array-buffer vbo)
-    (let ((ary (gl:alloc-gl-array (cffi-type type) n)))
-      (unwind-protect (gl:buffer-data :array-buffer :dynamic-draw ary)
-        (gl:free-gl-array ary)))
-    (gl:bind-buffer :array-buffer 0)
-    ;; register a buffer object accessed through CUDA
-    (cu-graphics-gl-register-buffer gres-ptr vbo cu-graphics-register-flags-none)
-    (list :interop cffi-ptr vbo gres-ptr type n)))
+  (let ((blk (make-memory-block-interop)))
+    (symbol-macrolet ((cffi-ptr (memory-block-interop-cffi-ptr             blk))
+                      (vbo      (memory-block-interop-vertex-buffer-object blk))
+                      (gres-ptr (memory-block-interop-graphic-resource-ptr blk))
+                      (blk-type (memory-block-interop-type                 blk))
+                      (length   (memory-block-interop-length               blk)))
+      (unwind-protect-case ()
+          (progn
+            ;; allocate memory area
+            (setf cffi-ptr (cffi:foreign-alloc (cffi-type type) :count n)
+                  vbo      (car (gl:gen-buffers 1))
+                  gres-ptr (cffi:foreign-alloc 'cu-graphics-resource :initial-element (cffi:null-pointer))
+                  blk-type type
+                  length   n)
+            ;; create and initialize a buffer object's data store
+            (gl:bind-buffer :array-buffer vbo)
+            (let ((ary (gl:alloc-gl-array (cffi-type type) n)))
+              (unwind-protect (gl:buffer-data :array-buffer :dynamic-draw ary)
+                (gl:free-gl-array ary)))
+            (gl:bind-buffer :array-buffer 0)
+            ;; register a buffer object accessed through CUDA
+            (cu-graphics-gl-register-buffer gres-ptr vbo cu-graphics-register-flags-none)
+            ;; return a memory block
+            blk)
+        (:abort (free-memory-block-interop blk))))))
 
 (defun alloc-memory-block (type n &key (interop nil))
   (unless (non-pointer-type-p type)
@@ -519,44 +570,69 @@
       (alloc-memory-block-interop type n)
       (alloc-memory-block-cuda    type n)))
 
-(defun memory-block-interop-p (blk)
-  (ecase (car blk)
-    (:interop t)
-    (:cuda    nil)))
+(defun free-memory-block-cuda (blk)
+  (symbol-macrolet ((cffi-ptr           (memory-block-cuda-cffi-ptr   blk))
+                    (device-ptr         (memory-block-cuda-device-ptr blk))
+                    (mem-ref-device-ptr (cffi:mem-ref device-ptr 'cu-device-ptr)))
+    ;; free device memory
+    (when (and device-ptr (/= mem-ref-device-ptr 0))
+      (cu-mem-free mem-ref-device-ptr)
+      (setf mem-ref-device-ptr 0))
+    ;; free a pointer to device memory
+    (when device-ptr
+      (cffi:foreign-free device-ptr)
+      (setf device-ptr nil))
+    ;; free a pointer to host memory
+    (when cffi-ptr
+      (cffi:foreign-free cffi-ptr)
+      (setf cffi-ptr nil))))
 
 (defun free-memory-block-interop (blk)
-  (let ((gres-ptr (memory-block-graphic-resource-ptr blk))
-        (vbo      (memory-block-vertex-buffer-object blk))
-        (cffi-ptr (memory-block-cffi-ptr             blk)))
-    ;; unregister a buffer object accessed through CUDA
-    (cu-graphics-unregister-resource (cffi:mem-ref gres-ptr 'cu-graphics-resource))
-    ;; free a pointer to a graphics resource
-    (cffi:foreign-free gres-ptr)
-    ;; delete a buffer object
-    (gl:delete-buffers (list vbo))
-    ;; free a pointer to host memory area
-    (cffi:foreign-free cffi-ptr)))
-
-(defun free-memory-block-cuda (blk)
-  (let ((device-ptr (memory-block-device-ptr blk))
-        (cffi-ptr   (memory-block-cffi-ptr   blk)))
-    (cu-mem-free (cffi:mem-ref device-ptr 'cu-device-ptr))
-    (cffi:foreign-free cffi-ptr)
-    (cffi:foreign-free device-ptr)))
+  (symbol-macrolet ((gres-ptr         (memory-block-graphic-resource-ptr blk))
+                    (vbo              (memory-block-vertex-buffer-object blk))
+                    (cffi-ptr         (memory-block-cffi-ptr             blk))
+                    (mem-ref-gres-ptr (cffi:mem-ref gres-ptr 'cu-graphics-resource)))
+    (when (and gres-ptr (not (cffi:null-pointer-p mem-ref-gres-ptr)))
+      ;; unregister a buffer object accessed through CUDA
+      (cu-graphics-unregister-resource mem-ref-gres-ptr)
+      (setf mem-ref-gres-ptr (cffi:null-pointer)))
+    (when gres-ptr
+      ;; free a pointer to a graphics resource
+      (cffi:foreign-free gres-ptr)
+      (setf gres-ptr nil))
+    (when vbo
+      ;; delete a buffer object
+      (gl:delete-buffers (list vbo))
+      (setf vbo nil))
+    (when cffi-ptr
+      ;; free a pointer to host memory area
+      (cffi:foreign-free cffi-ptr)
+      (setf cffi-ptr nil))))
 
 (defun free-memory-block (blk)
-  (when blk
-    (if (memory-block-interop-p blk)
-        (free-memory-block-interop blk)
-        (free-memory-block-cuda    blk))))
+  (if (memory-block-interop-p blk)
+      (free-memory-block-interop blk)
+      (free-memory-block-cuda    blk)))
 
 (defun memory-block-cffi-ptr (blk)
-  (cadr blk))
+  (if (memory-block-interop-p blk)
+      (memory-block-interop-cffi-ptr blk)
+      (memory-block-cuda-cffi-ptr    blk)))
+
+(defun (setf memory-block-cffi-ptr) (val blk)
+  (if (memory-block-interop-p blk)
+      (setf (memory-block-interop-cffi-ptr blk) val)
+      (setf (memory-block-cuda-cffi-ptr    blk) val)))
 
 (defun memory-block-device-ptr (blk)
   (if (memory-block-interop-p blk)
       (error "interoperable memory block can not return a device pointer through this interface")
-      (caddr blk)))
+      (memory-block-cuda-device-ptr blk)))
+
+(defun (setf memory-block-device-ptr) (val blk)
+  (if (memory-block-interop-p blk)
+      (error "interoperable memory block can not be set a device pointer through this interface")
+      (setf (memory-block-cuda-device-ptr blk) val)))
 
 (defmacro with-memory-block-device-ptr ((device-ptr blk) &body body)
   (with-gensyms (gres-ptr gres size-ptr)
@@ -579,26 +655,46 @@
 
 (defun memory-block-vertex-buffer-object (blk)
   (if (memory-block-interop-p blk)
-      (caddr blk)
+      (memory-block-interop-vertex-buffer-object blk)
+      (error "not interoperable memory block")))
+
+(defun (setf memory-block-vertex-buffer-object) (val blk)
+  (if (memory-block-interop-p blk)
+      (setf (memory-block-interop-vertex-buffer-object blk) val)
       (error "not interoperable memory block")))
 
 (defun memory-block-graphic-resource-ptr (blk)
   (if (memory-block-interop-p blk)
-      (cadddr blk)
+      (memory-block-interop-graphic-resource-ptr blk)
+      (error "not interoperable memory block")))
+
+(defun (setf memory-block-graphic-resource-ptr) (val blk)
+  (if (memory-block-interop-p blk)
+      (setf (memory-block-interop-graphic-resource-ptr blk) val)
       (error "not interoperable memory block")))
 
 (defun memory-block-type (blk)
   (if (memory-block-interop-p blk)
-      (cadddr (cdr blk))
-      (cadddr blk)))
+      (memory-block-interop-type blk)
+      (memory-block-cuda-type    blk)))
+
+(defun (setf memory-block-type) (val blk)
+  (if (memory-block-interop-p blk)
+      (setf (memory-block-interop-type blk) val)
+      (setf (memory-block-cuda-type    blk) val)))
 
 (defun memory-block-cffi-type (blk)
   (cffi-type (memory-block-type blk)))
 
 (defun memory-block-length (blk)
   (if (memory-block-interop-p blk)
-      (cadddr (cddr blk))
-      (cadddr (cdr  blk))))
+      (memory-block-interop-length blk)
+      (memory-block-cuda-length    blk)))
+
+(defun (setf memory-block-length) (val blk)
+  (if (memory-block-length blk)
+      (setf (memory-block-interop-length blk) val)
+      (setf (memory-block-cuda-length    blk) val)))
 
 (defun memory-block-bytes (blk)
   (* (memory-block-element-bytes blk)
@@ -609,8 +705,7 @@
 
 (defmacro with-memory-block ((var type size &key (interop nil)) &body body)
   `(let ((,var (alloc-memory-block ,type ,size :interop ,interop)))
-     (unwind-protect
-          (progn ,@body)
+     (unwind-protect (progn ,@body)
        (free-memory-block ,var))))
 
 (defmacro with-memory-blocks (bindings &body body)
@@ -1961,44 +2056,52 @@
 
 ;;; Timer
 
-(defun make-timer-object (start-event stop-event)
-  (cons start-event stop-event))
-
-(defun timer-object-start-event (timer-object)
-  (car timer-object))
-
-(defun (setf timer-object-start-event) (val timer-object)
-  (setf (car timer-object) val))
-
-(defun timer-object-stop-event (timer-object)
-  (cdr timer-object))
-
-(defun (setf timer-object-stop-event) (val timer-object)
-  (setf (cdr timer-object) val))
+(defstruct timer-object
+  start-event stop-event)
 
 (defun create-timer ()
-  (let ((start-event (cffi:foreign-alloc 'cu-event))
-        (stop-event  (cffi:foreign-alloc 'cu-event)))
-    (cu-event-create start-event cu-event-default)
-    (cu-event-create stop-event  cu-event-default)
-    (make-timer-object start-event stop-event)))
+  (let ((timer-object (make-timer-object)))
+    (symbol-macrolet ((start-event (timer-object-start-event timer-object))
+                      (stop-event  (timer-object-stop-event  timer-object)))
+      (unwind-protect-case ()
+          (progn
+            ;; allocate memory pointers to start and stop events
+            (setf start-event (cffi:foreign-alloc 'cu-event :initial-element (cffi:null-pointer))
+                  stop-event  (cffi:foreign-alloc 'cu-event :initial-element (cffi:null-pointer)))
+            ;; create a start event
+            (cu-event-create start-event cu-event-default)
+            ;; create a stop event
+            (cu-event-create stop-event  cu-event-default)
+            ;; return a timer object
+            timer-object)
+        (:abort (destroy-timer timer-object))))))
 
 (defun destroy-timer (timer-object)
-  (let ((start-event (timer-object-start-event timer-object))
-        (stop-event  (timer-object-stop-event  timer-object)))
-    (cu-event-destroy (cffi:mem-ref start-event 'cu-event))
-    (cu-event-destroy (cffi:mem-ref stop-event 'cu-event))
-    (cffi:foreign-free start-event)
-    (cffi:foreign-free stop-event)
-    (setf (timer-object-start-event timer-object) (cffi:null-pointer)
-          (timer-object-stop-event  timer-object) (cffi:null-pointer))))
+  (symbol-macrolet ((start-event         (timer-object-start-event timer-object))
+                    (stop-event          (timer-object-stop-event  timer-object))
+                    (mem-ref-start-event (cffi:mem-ref start-event 'cu-event))
+                    (mem-ref-stop-event  (cffi:mem-ref stop-event  'cu-event)))
+    ;; destroy a stop event if created
+    (when (and stop-event (not (cffi:null-pointer-p mem-ref-stop-event)))
+      (cu-event-destroy mem-ref-stop-event)
+      (setf mem-ref-stop-event (cffi:null-pointer)))
+    ;; destroy a start event if created
+    (when (and start-event (not (cffi:null-pointer-p mem-ref-start-event)))
+      (cu-event-destroy mem-ref-start-event)
+      (setf mem-ref-start-event (cffi:null-pointer)))
+    ;; free a memory pointer to a stop event if allocated
+    (when stop-event
+      (cffi:foreign-free stop-event)
+      (setf stop-event nil))
+    ;; free a memory pointer to a start event if allocated
+    (when start-event
+      (cffi:foreign-free start-event)
+      (setf start-event nil))))
 
-(defmacro with-timer ((timer)&body body)
-  `(progn
-     (let (,timer)
-       (setf ,timer (create-timer))
-       (unwind-protect (progn ,@body)
-         (destroy-timer ,timer)))))
+(defmacro with-timer ((timer) &body body)
+  `(let ((,timer (create-timer)))
+     (unwind-protect (progn ,@body)
+       (destroy-timer ,timer))))
 
 (defun start-timer (timer-object)
   (let ((start-event (timer-object-start-event timer-object)))
