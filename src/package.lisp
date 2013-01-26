@@ -30,7 +30,7 @@
            :float4 :make-float4
            :float4-p
            :float4-x :float4-y :float4-z :float4-w :float4-=
-           :defkernel                   ; Kernel Description Language
+           :defkernel :defkernelmacro   ; Kernel Description Language
            :void :int :int* :float :float*
            :float3 :float3* :float4 :float4*
            :grid-dim-x :grid-dim-y :grid-dim-z
@@ -39,4 +39,7 @@
            :thread-idx-x :thread-idx-y :thread-idx-z
            :with-shared-memory :syncthreads
            :rsqrtf                      ; Built-in functions
+           :print-kernel-manager        ; Utilities for the default kernel manager
+           :clear-kernel-manager
+           :expand-macro :expand-macro-1
            ))

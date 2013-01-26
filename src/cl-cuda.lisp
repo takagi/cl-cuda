@@ -935,6 +935,18 @@
 
 
 ;;;
+;;; Definition of defkernelmacro macro
+;;;
+
+(defmacro defkernelmacro (name args &body body)
+  (with-gensyms (form-body)
+    `(kernel-manager-define-macro *kernel-manager* ',name ',args ',body
+       (lambda (,form-body)
+         (destructuring-bind ,args ,form-body
+           ,@body)))))
+
+       
+;;;
 ;;; Definition of Kernel Manager
 ;;;
 
@@ -966,42 +978,86 @@
   (cadddr info))
 
 
+;;; macro-info
+;;; <macro-info> ::= (<name> <arguments> <body> <expander>)
+
+(defun make-macro-info (name args body expander)
+  (list name args body expander))
+
+(defun macro-name (info)
+  (car info))
+
+(defun macro-arguments (info)
+  (cadr info))
+
+(defun macro-body (info)
+  (caddr info))
+
+(defun macro-expander (info)
+  (cadddr info))
+
+
 ;;; kernel-definition
-;;; <kernel-definition>     ::= (<kernel-function-table> <kernel-constant-table>)
+;;; <kernel-definition>     ::= (<kernel-function-table> <kernel-macro-table> <kernel-constant-table>)
 ;;; <kernel-function-table> ::= alist { <function-name> => <function-info> }
+;;; <kernel-macro-table>    ::= alist { <macro-name>    => <macro-info> }
 ;;; <kernel-constant-table> ::= alist { <constant-name> => <constant-info> }
 
 (defun empty-kernel-definition ()
-  (list nil nil))
+  (list nil nil nil))
 
 (defun function-table (def)
   (car def))
 
-(defun constant-table (def)
+(defun macro-table (def)
   (cadr def))
+
+(defun constant-table (def)
+  (caddr def))
 
 (defun function-info (name def)
   (or (assoc name (function-table def))
       (error (format nil "undefined kernel function: ~A" name))))
+
+(defun macro-info (name def)
+  (or (assoc name (macro-table def))
+      (error (format nil "undefined kernel macro: ~A" name))))
 
 (defun constant-info (name def)
   (or (assoc name (constant-table def))
       (error (format nil "undefined kernel constant: ~A" name))))
 
 (defun define-kernel-function (name return-type args body def)
-  (let ((func-table (function-table def))
+  (let ((func-table  (function-table def))
+        (macro-table (macro-table    def))
         (const-table (constant-table def)))
     (let ((func (make-function-info name return-type args body))
           (rest (remove name func-table :key #'car)))
-      (list (cons func rest) const-table))))
+      (list (cons func rest) macro-table const-table))))
 
 (defun undefine-kernel-function (name def)
   (unless (kernel-definition-function-exists-p name def)
     (error (format nil "undefined kernel function: ~A" name)))
-  (let ((func-table (function-table def))
+  (let ((func-table  (function-table def))
+        (macro-table (macro-table    def))
         (const-table (constant-table def)))
-    (list (remove name func-table :key #'car)
-          const-table)))
+    (list (remove name func-table :key #'car) macro-table const-table)))
+
+(defun define-kernel-macro (name args body expander def)
+  (let ((func-table  (function-table def))
+        (macro-table (macro-table    def))
+        (const-table (constant-table def)))
+    (let ((macro (make-macro-info name args body expander))
+          (rest  (remove name macro-table :key #'car)))
+      (list func-table (cons macro rest) const-table))))
+
+(defun undefine-kernel-macro (name def)
+  (unless (kernel-definition-macro-exists-p name def)
+    (error (format nil "undefined kernel macro: ~A" name)))
+  (let ((func-table  (function-table def))
+        (macro-table (macro-table    def))
+        (const-table (constant-table def)))
+    (list func-table (remove name macro-table :key #'car) const-table)))
 
 (defun define-kernel-constant (name value def)
   (declare (ignorable name value def))
@@ -1016,7 +1072,7 @@
        t))
 
 (defun kernel-definition-function-names (def)
-  (mapcar #'car (function-table def)))
+  (mapcar #'function-name (function-table def)))
 
 (defun kernel-definition-function-name (name def)
   (function-name (function-info name def)))
@@ -1035,6 +1091,25 @@
 
 (defun kernel-definition-function-body (name def)
   (function-body (function-info name def)))
+
+(defun kernel-definition-macro-exists-p (name def)
+  (and (assoc name (macro-table def))
+       t))
+
+(defun kernel-definition-macro-names (def)
+  (mapcar #'macro-name (macro-table def)))
+
+(defun kernel-definition-macro-name (name def)
+  (macro-name (macro-info name def)))
+
+(defun kernel-definition-macro-arguments (name def)
+  (macro-arguments (macro-info name def)))
+
+(defun kernel-definition-macro-body (name def)
+  (macro-body (macro-info name def)))
+
+(defun kernel-definition-macro-expander (name def)
+  (macro-expander (macro-info name def)))
 
 
 ;;; module-info
@@ -1146,6 +1221,35 @@
   (not (and (equal return-type (kernel-manager-function-return-type mgr name))
             (equal args (kernel-manager-function-arguments mgr name))
             (equal body (kernel-manager-function-body mgr name)))))
+
+(defun kernel-manager-macro-exists-p (mgr name)
+  (kernel-definition-macro-exists-p name (kernel-definition mgr)))
+
+(defun kernel-manager-macro-names (mgr)
+  (kernel-definition-macro-names (kernel-definition mgr)))
+
+(defun kernel-manager-macro-name (mgr name)
+  (kernel-definition-macro-name name (kernel-definition mgr)))
+
+(defun kernel-manager-macro-arguments (mgr name)
+  (kernel-definition-macro-arguments name (kernel-definition mgr)))
+
+(defun kernel-manager-macro-body (mgr name)
+  (kernel-definition-macro-body name (kernel-definition mgr)))
+
+(defun kernel-manager-macro-expander (mgr name)
+  (kernel-definition-macro-expander name (kernel-definition mgr)))
+
+(defun kernel-manager-define-macro (mgr name args body expander)
+  (when (or (not (kernel-manager-macro-exists-p mgr name))
+            (macro-modified-p mgr name args body))
+    (setf (kernel-definition mgr)
+          (define-kernel-macro name args body expander (kernel-definition mgr)))
+    (setf (kernel-manager-module-compilation-needed mgr) t)))
+
+(defun macro-modified-p (mgr name args body)
+  (not (and (equal args (kernel-manager-macro-arguments mgr name))
+            (equal body (kernel-manager-macro-body mgr name)))))
 
 (defun kernel-manager-load-function (mgr name)
   (unless (kernel-manager-module-handle mgr)
@@ -1347,6 +1451,7 @@
 
 (defun compile-statement (stmt type-env def)
   (cond
+    ((defined-macro-p stmt def) (compile-macro stmt type-env def :statement-p t))
     ((if-p stmt) (compile-if stmt type-env def))
     ((let-p stmt) (compile-let stmt type-env def))
     ((do-p stmt) (compile-do stmt type-env def))
@@ -1388,7 +1493,7 @@
   (let ((test-exp (if-test-expression stmt))
         (then-stmt (if-then-statement stmt))
         (else-stmt (if-else-statement stmt)))
-    (unlines (format nil "if ~A {"
+    (unlines (format nil "if (~A) {"
                      (compile-expression test-exp type-env def))
              (indent 2 (compile-statement then-stmt type-env def))
              (and else-stmt "} else {")
@@ -1693,14 +1798,14 @@
     (_ nil)))
 
 (defun function-operator (form)
-  (if (function-p form)
-      (car form)
-      (error (format nil "invalid statement or expression: ~A" form))))
+  (unless (function-p form)
+    (error "invalid statement or expression: ~A" form))
+  (car form))
 
 (defun function-operands (form)
-  (if (function-p form)
-      (cdr form)
-      (error (format nil "invalid statement or expression: ~A" form))))
+  (unless (function-p form)
+    (error "invalid statement or expression: ~A" form))
+  (cdr form))
 
 (defun compile-function (form type-env def &key (statement-p nil))
   (unless (defined-function-p form def)
@@ -1715,8 +1820,6 @@
 (defun compile-built-in-function (form type-env def)
   (let ((op (function-operator form)))
     (cond
-      ((built-in-function-arithmetic-p op)
-       (compile-built-in-arithmetic-function form type-env def))
       ((built-in-function-infix-p op)
        (compile-built-in-infix-function form type-env def))
       ((built-in-function-prefix-p op)
@@ -1768,6 +1871,70 @@
                      operands)))
 
 
+;;; compile macro
+
+(defun macro-p (form)
+  (function-p form))
+
+(defun defined-macro-p (form def)
+  (or (built-in-macro-p form)
+      (user-macro-p form def)))
+
+(defun built-in-macro-p (form)
+  (match form
+    ((op . _) (and (getf +built-in-macroes+ op) t))
+    (_ nil)))
+
+(defun user-macro-p (form def)
+  (match form
+    ((op . _) (kernel-definition-macro-exists-p op def))
+    (_ nil)))
+
+(defun macro-operator (form)
+  (unless (macro-p form)
+    (error "invalid statement or expression: ~A" form))
+  (car form))
+
+(defun macro-operands (form)
+  (unless (macro-p form)
+    (error "invalid statement or expression: ~A" form))
+  (cdr form))
+
+(defun compile-macro (form type-env def &key (statement-p nil))
+  (unless (defined-macro-p form def)
+    (error "undefined macro: ~A" form))
+  (if statement-p
+      (compile-statement  (%expand-macro-1 form def) type-env def)
+      (compile-expression (%expand-macro-1 form def) type-env def)))
+
+(defun %expand-macro-1 (form def)
+  (if (defined-macro-p form def)
+      (let ((operator (macro-operator form))
+            (operands (macro-operands form)))
+        (let ((expander (if (built-in-macro-p form)
+                            (built-in-macro-expander operator)
+                            (kernel-definition-macro-expander operator def))))
+          (funcall expander operands)))
+      form))
+
+(defun expand-macro-1 (form)
+  (let ((def (kernel-definition *kernel-manager*)))
+    (%expand-macro-1 form def)))
+
+(defun %expand-macro (form def)
+  (cond
+    ((defined-macro-p form def) (%expand-macro (%expand-macro-1 form def) def))
+    ((not (atom form)) (let ((op   (car form))
+                             (rest (cdr form)))
+                         `(,op ,@(mapcar (lambda (x)
+                                           (%expand-macro x def)) rest))))
+    (t form)))
+
+(defun expand-macro (form)
+  (let ((def (kernel-definition *kernel-manager*)))
+    (%expand-macro form def)))
+
+
 ;;; built-in functions
 ;;;   <built-in-functions>  ::= plist { <function-name> => <function-info> }
 ;;;   <function-info>       ::= (<infix-p> <function-candidates>)
@@ -1775,18 +1942,15 @@
 ;;;   <function-candidate>  ::= (<arg-types> <return-type> <function-c-name>)
 ;;;   <arg-types>           ::= (<arg-type>*)
 
-(defvar +built-in-arithmetic-functions+
-  '(+ - * /))
-
 (defvar +built-in-functions+
-  '(+ (t (((int int) int "+")
-          ((float float) float "+")))
-    - (t (((int int) int "-")
-          ((float float) float "-")))
-    * (t (((int int) int "*")
-          ((float float) float "*")))
-    / (t (((int int) int "/")
-          ((float float) float "/")))
+  '(%add (t (((int int) int "+")
+             ((float float) float "+")))
+    %sub (t (((int int) int "-")
+             ((float float) float "-")))
+    %mul (t (((int int) int "*")
+             ((float float) float "*")))
+    %div (t (((int int) int "/")
+             ((float float) float "/")))
     = (t (((int int) bool "==")
           ((float float) bool "==")))
     < (t (((int int) bool "<")
@@ -1802,10 +1966,6 @@
     float3 (nil (((float float float) float3 "make_float3")))
     float4 (nil (((float float float float) float4 "make_float4")))
     ))
-
-(defun built-in-function-arithmetic-p (op)
-  (and (getf +built-in-arithmetic-functions+ op)
-       t))
 
 (defun built-in-function-infix-p (op)
   (aif (getf +built-in-functions+ op)
@@ -1836,19 +1996,52 @@
   (or (cadr (getf +built-in-functions+ op))
       (error (format nil "invalid operator: ~A" op))))
 
-(defun built-in-arithmetic-function-return-type (form type-env def)
-  (built-in-function-inferred-return-type (binarize-1 form) type-env def))
+
+;;; built-in macroes
+;;;   <built-in-macroes> ::= plist { <macro-name> => <macro-expander> }
+
+(defvar +built-in-macroes+
+  (list '+ (lambda (args)
+             (match args
+               (() 0)
+               ((a1) a1)
+               ((a1 a2) `(%add ,a1 ,a2))
+               ((a1 a2 . rest) `(+ (%add ,a1 ,a2) ,@rest))))
+        '- (lambda (args)
+             (match args
+               (() (error "invalid number of arguments: 0"))
+               ((a1) `(%sub 0 ,a1))
+               ((a1 a2) `(%sub ,a1 ,a2))
+               ((a1 a2 . rest) `(- (%sub ,a1 ,a2) ,@rest))))
+        '* (lambda (args)
+             (match args
+               (() 1)
+               ((a1) a1)
+               ((a1 a2) `(%mul ,a1 ,a2))
+               ((a1 a2 . rest) `(* (%mul ,a1 ,a2) ,@rest))))
+        '/ (lambda (args)
+             (match args
+               (() (error "invalid number of arguments: 0"))
+               ((a1) `(%div 1 ,a1))
+               ((a1 a2) `(%div ,a1 ,a2))
+               ((a1 a2 . rest) `(/ (%div ,a1 ,a2) ,@rest))))))
+
+(defun built-in-macro-expander (name)
+  (or (getf +built-in-macroes+ name)
+      (error "invalid macro name: ~A" name)))
 
 
 ;;; compile expression
 
 (defun compile-expression (exp type-env def)
-  (cond ((literal-p exp) (compile-literal exp))
-        ((cuda-dimension-p exp) (compile-cuda-dimension exp))
-        ((variable-reference-p exp)
-         (compile-variable-reference exp type-env def))
-        ((function-p exp) (compile-function exp type-env def))
-        (t (error (format nil "invalid expression: ~A" exp)))))
+  (cond
+    ((defined-macro-p exp def) (compile-macro exp type-env def))
+    ((literal-p exp) (compile-literal exp))
+    ((cuda-dimension-p exp) (compile-cuda-dimension exp))
+    ((variable-reference-p exp)
+     (compile-variable-reference exp type-env def))
+    ((function-p exp) (compile-function exp type-env def))
+    (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun literal-p (exp)
   (or (int-literal-p exp)
@@ -2017,9 +2210,7 @@
 
 (defun type-of-built-in-function (exp type-env def)
   (let ((op (function-operator exp)))
-    (if (built-in-function-arithmetic-p op)
-        (built-in-arithmetic-function-return-type exp type-env def)
-        (built-in-function-inferred-return-type exp type-env def))))
+    (built-in-function-inferred-return-type exp type-env def)))
 
 (defun type-of-user-function (exp def)
   (let ((operator (function-operator exp)))

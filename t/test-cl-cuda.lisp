@@ -434,6 +434,35 @@
       (memcpy-device-to-host x)
       (is (mem-aref x 0) 16))))
 
+(defkernel test-add (void ((x int*)))
+  (set (aref x 0) (+ 1 1 1)))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((x 'int 1))
+      (setf (mem-aref x 0) 0)
+      (memcpy-host-to-device x)
+      (test-add x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+      (memcpy-device-to-host x)
+      (is (mem-aref x 0) 3))))
+
+
+;;;
+;;; test kernel macroes
+;;;
+
+(defkernelmacro when (test &body forms)
+  `(if ,test
+       (progn ,@forms)))
+
+(defkernel test-when (void ())
+  (when 1 (return))
+  (return))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (test-when :grid-dim '(1 1 1) :block-dim '(1 1 1))))
+
 
 ;;;
 ;;; test types
@@ -609,11 +638,11 @@
 
 (diag "test kernel definition")
 
-(is (cl-cuda::empty-kernel-definition) '(nil nil))
+(is (cl-cuda::empty-kernel-definition) '(nil nil nil))
 
 (is (cl-cuda::define-kernel-function 'foo 'void '() '((return))
       (cl-cuda::empty-kernel-definition))
-    '(((foo void () ((return)))) ()))
+    '(((foo void () ((return)))) () ()))
 
 (is-error (cl-cuda::define-kernel-constant 'foo 1
             (cl-cuda::empty-kernel-definition))
@@ -743,7 +772,7 @@
 (let ((lisp-code '(if 1
                       (return)
                       (return)))
-      (c-code (cl-cuda::unlines "if 1 {"
+      (c-code (cl-cuda::unlines "if (1) {"
                                 "  return;"
                                 "} else {"
                                 "  return;"
@@ -754,7 +783,7 @@
                       (progn
                         (return 0)
                         (return 0))))
-      (c-code (cl-cuda::unlines "if 1 {"
+      (c-code (cl-cuda::unlines "if (1) {"
                                 "  return 0;"
                                 "  return 0;"
                                 "}")))
@@ -961,24 +990,24 @@
 (diag "test compile-function")
 
 ;; test built-in-function-p
-(is (cl-cuda::built-in-function-p '(+ 1 1)  ) t  )
-(is (cl-cuda::built-in-function-p '(- 1 1)  ) t  )
+(is (cl-cuda::built-in-function-p '(cl-cuda::%add 1 1)) t)
+(is (cl-cuda::built-in-function-p '(cl-cuda::%sub 1 1)) t)
 (is (cl-cuda::built-in-function-p '(foo 1 1)) nil)
 
 ;; test function-candidates
-(is       (cl-cuda::function-candidates '+  ) '(((int int) int "+")
-                                                ((float float) float "+")))
+(is       (cl-cuda::function-candidates 'cl-cuda::%add) '(((int int) int "+")
+                                                          ((float float) float "+")))
 (is-error (cl-cuda::function-candidates 'foo) simple-error)
 
 ;; test built-in-function-infix-p
-(is       (cl-cuda::built-in-function-infix-p '+   ) t           )
-(is       (cl-cuda::built-in-function-infix-p 'expt) nil         )
-(is-error (cl-cuda::built-in-function-infix-p 'foo ) simple-error)
+(is       (cl-cuda::built-in-function-infix-p 'cl-cuda::%add) t           )
+(is       (cl-cuda::built-in-function-infix-p 'expt         ) nil         )
+(is-error (cl-cuda::built-in-function-infix-p 'foo          ) simple-error)
 
 ;; test built-in-function-prefix-p
-(is       (cl-cuda::built-in-function-prefix-p '+   ) nil         )
-(is       (cl-cuda::built-in-function-prefix-p 'expt) t           )
-(is-error (cl-cuda::built-in-function-prefix-p 'foo ) simple-error)
+(is       (cl-cuda::built-in-function-prefix-p 'cl-cuda::%add) nil         )
+(is       (cl-cuda::built-in-function-prefix-p 'expt         ) t           )
+(is-error (cl-cuda::built-in-function-prefix-p 'foo          ) simple-error)
 
 ;; test function-p
 (is (cl-cuda::function-p 'a        ) nil)
@@ -1001,9 +1030,8 @@
 (is       (cl-cuda::function-operands '(foo 1 1)) '(1 1)      )
 
 ;; test compile-function
-(is-error (cl-cuda::compile-function 'a         nil nil) simple-error   )
-(is       (cl-cuda::compile-function '(+ 1 1)   nil nil) "(1 + 1)"      )
-(is       (cl-cuda::compile-function '(+ 1 1 1) nil nil) "((1 + 1) + 1)")
+(is-error (cl-cuda::compile-function 'a                     nil nil) simple-error   )
+(is       (cl-cuda::compile-function '(cl-cuda::%add 1 1)   nil nil) "(1 + 1)"      )
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
              (cl-cuda::empty-kernel-definition))))
@@ -1020,25 +1048,72 @@
 
 
 ;;;
-;;; test built-in arithmetic functions
+;;; test compile-macro
 ;;;
 
-(diag "test built-in arithmetic functions")
+(diag "test compile-macro")
 
-;; test compile-function
-(is       (cl-cuda::compile-function '(+ 1 1)         nil nil) "(1 + 1)"            )
-(is       (cl-cuda::compile-function '(+ 1 1 1)       nil nil) "((1 + 1) + 1)"      )
-(is       (cl-cuda::compile-function '(+ 1.0 1.0 1.0) nil nil) "((1.0 + 1.0) + 1.0)")
-(is-error (cl-cuda::compile-function '(+ 1 1 1.0)     nil nil) simple-error         )
-(is-error (cl-cuda::compile-function '(+)             nil nil) simple-error         )
-(is-error (cl-cuda::compile-function '(+ 1)           nil nil) simple-error         )
+;; test macro-p
+(is (cl-cuda::macro-p 'a        ) nil)
+(is (cl-cuda::macro-p '()       ) nil)
+(is (cl-cuda::macro-p '1        ) nil)
+(is (cl-cuda::macro-p '(foo)    ) t  )
+(is (cl-cuda::macro-p '(+ 1 1)  ) t  )
+(is (cl-cuda::macro-p '(foo 1 1)) t  )
 
-;; test built-in-arithmetic-function-return-type
-(is-error (cl-cuda::built-in-arithmetic-function-return-type '(+)         nil nil) simple-error)
-(is       (cl-cuda::built-in-arithmetic-function-return-type '(+ 1 1)     nil nil) 'int        )
-(is       (cl-cuda::built-in-arithmetic-function-return-type '(+ 1.0 1.0) nil nil) 'float      )
-(is-error (cl-cuda::built-in-arithmetic-function-return-type '(+ 1 1.0)   nil nil) simple-error)
-(is-error (cl-cuda::built-in-arithmetic-function-return-type '(foo)       nil nil) simple-error)
+;; test defined-macro-p
+(let ((def (cl-cuda::define-kernel-macro 'foo '(x) '`(progn ,x)
+             (lambda (form-body)
+               (destructuring-bind (x) form-body
+                 `(progn ,x)))
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::defined-macro-p '(+ 1 1) def) t)
+  (is (cl-cuda::defined-macro-p '(foo 1) def) t)
+  (is (cl-cuda::defined-macro-p 'bar def) nil))
+
+;; test macro-operator
+(is (cl-cuda::macro-operator '(+ 1 1)) '+)
+
+;; test macro-operands
+(is (cl-cuda::macro-operands '(+ 1 1)) '(1 1))
+
+;; test expand-macro-1 and expand-macro
+(defkernelmacro foo (x)
+  `(return ,x))
+
+(defkernelmacro bar (x)
+  `(foo ,x))
+
+(is       (expand-macro-1 '(foo 1))   '(return 1))
+(is-error (expand-macro-1 '(foo))     error)
+(is-error (expand-macro-1 '(foo 1 2)) error)
+(is       (expand-macro-1 '(1))       '(1))
+(is       (expand-macro-1 1)          1)
+(is       (expand-macro-1 '(bar 1))   '(foo 1))
+(is       (expand-macro-1 '(baz 1))   '(baz 1))
+(is       (expand-macro   '(foo 1))   '(return 1))
+(is       (expand-macro   '(bar 1))   '(return 1))
+(is       (expand-macro   '(baz 1))   '(baz 1))
+(is       (expand-macro   1)          1)
+(is       (expand-macro   '())        '())
+
+;; test built-in macroes
+(is       (expand-macro '(+))       0)
+(is       (expand-macro '(+ 1))     1)
+(is       (expand-macro '(+ 1 2))   '(cl-cuda::%add 1 2))
+(is       (expand-macro '(+ 1 2 3)) '(cl-cuda::%add (cl-cuda::%add 1 2) 3))
+(is-error (expand-macro '(-))       simple-error)
+(is       (expand-macro '(- 1))     '(cl-cuda::%sub 0 1))
+(is       (expand-macro '(- 1 2))   '(cl-cuda::%sub 1 2))
+(is       (expand-macro '(- 1 2 3)) '(cl-cuda::%sub (cl-cuda::%sub 1 2) 3))
+(is       (expand-macro '(*))       1)
+(is       (expand-macro '(* 1))     1)
+(is       (expand-macro '(* 1 2))   '(cl-cuda::%mul 1 2))
+(is       (expand-macro '(* 1 2 3)) '(cl-cuda::%mul (cl-cuda::%mul 1 2) 3))
+(is-error (expand-macro '(/))       simple-error)
+(is       (expand-macro '(/ 1))     '(cl-cuda::%div 1 1))
+(is       (expand-macro '(/ 1 2))   '(cl-cuda::%div 1 2))
+(is       (expand-macro '(/ 1 2 3)) '(cl-cuda::%div (cl-cuda::%div 1 2) 3))
 
 
 ;;;
@@ -1128,14 +1203,14 @@
 ;; test type-of-function
 (let ((def (cl-cuda::define-kernel-function 'foo 'int '((x int) (y int)) '()
              (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::type-of-function '(+ 1 1)   nil nil) 'int)
+  (is (cl-cuda::type-of-function '(cl-cuda::%add 1 1) nil nil) 'int)
   (is (cl-cuda::type-of-function '(foo 1 1) nil def) 'int))
 
 ;; test type-of-function
-(is       (cl-cuda::type-of-function '(+ 1 1 1)       nil nil) 'int        )
-(is       (cl-cuda::type-of-function '(+ 1.0 1.0 1.0) nil nil) 'float      )
-(is-error (cl-cuda::type-of-function '(+ 1 1 1.0)     nil nil) simple-error)
-(is       (cl-cuda::type-of-function '(expt 1.0 1.0)  nil nil) 'float      )
+(is       (cl-cuda::type-of-function '(cl-cuda::%add 1 1)     nil nil) 'int        )
+(is       (cl-cuda::type-of-function '(cl-cuda::%add 1.0 1.0) nil nil) 'float      )
+(is-error (cl-cuda::type-of-function '(cl-cuda::%add 1 1.0)   nil nil) simple-error)
+(is       (cl-cuda::type-of-function '(expt 1.0 1.0)          nil nil) 'float      )
 
 ;; test type-of-expression
 (is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x   nil nil) 'int)
