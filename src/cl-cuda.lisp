@@ -2198,8 +2198,7 @@ TODO: consider symbol macros"
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun type-of-built-in-function (exp type-env def)
-  (let ((op (function-operator exp)))
-    (built-in-function-inferred-return-type exp type-env def)))
+  (built-in-function-inferred-return-type exp type-env def))
 
 (defun type-of-user-function (exp def)
   (let ((operator (function-operator exp)))
