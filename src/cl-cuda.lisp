@@ -1451,7 +1451,7 @@
 
 (defun compile-statement (stmt type-env def)
   (cond
-    ((defined-macro-p stmt def) (compile-macro stmt type-env def :statement-p t))
+    ((macro-form-p stmt def) (compile-macro stmt type-env def :statement-p t))
     ((if-p stmt) (compile-if stmt type-env def))
     ((let-p stmt) (compile-let stmt type-env def))
     ((do-p stmt) (compile-do stmt type-env def))
@@ -1873,10 +1873,11 @@
 
 ;;; compile macro
 
-(defun macro-p (form)
-  (function-p form))
-
-(defun defined-macro-p (form def)
+(defun macro-form-p (form def)
+  "Returns t if the given form is a macro form. The macro used in the
+form may be an user-defined macro under the given kernel definition or
+a built-in macro.
+TODO: consider symbol macros"
   (or (built-in-macro-p form)
       (user-macro-p form def)))
 
@@ -1901,14 +1902,14 @@
   (cdr form))
 
 (defun compile-macro (form type-env def &key (statement-p nil))
-  (unless (defined-macro-p form def)
+  (unless (macro-form-p form def)
     (error "undefined macro: ~A" form))
   (if statement-p
       (compile-statement  (%expand-macro-1 form def) type-env def)
       (compile-expression (%expand-macro-1 form def) type-env def)))
 
 (defun %expand-macro-1 (form def)
-  (if (defined-macro-p form def)
+  (if (macro-form-p form def)
       (let ((operator (macro-operator form))
             (operands (macro-operands form)))
         (let ((expander (if (built-in-macro-p form)
@@ -1923,7 +1924,7 @@
 
 (defun %expand-macro (form def)
   (cond
-    ((defined-macro-p form def) (%expand-macro (%expand-macro-1 form def) def))
+    ((macro-form-p form def) (%expand-macro (%expand-macro-1 form def) def))
     ((not (atom form)) (let ((op   (car form))
                              (rest (cdr form)))
                          `(,op ,@(mapcar (lambda (x)
@@ -2035,7 +2036,7 @@
 
 (defun compile-expression (exp type-env def)
   (cond
-    ((defined-macro-p exp def) (compile-macro exp type-env def))
+    ((macro-form-p exp def) (compile-macro exp type-env def))
     ((literal-p exp) (compile-literal exp))
     ((cuda-dimension-p exp) (compile-cuda-dimension exp))
     ((variable-reference-p exp)
