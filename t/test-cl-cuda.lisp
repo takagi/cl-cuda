@@ -1053,29 +1053,21 @@
 
 (diag "test compile-macro")
 
-;; test macro-p
-(is (cl-cuda::macro-p 'a        ) nil)
-(is (cl-cuda::macro-p '()       ) nil)
-(is (cl-cuda::macro-p '1        ) nil)
-(is (cl-cuda::macro-p '(foo)    ) t  )
-(is (cl-cuda::macro-p '(+ 1 1)  ) t  )
-(is (cl-cuda::macro-p '(foo 1 1)) t  )
-
-;; test defined-macro-p
+;; test macro-form-p
 (let ((def (cl-cuda::define-kernel-macro 'foo '(x) '`(progn ,x)
              (lambda (form-body)
                (destructuring-bind (x) form-body
                  `(progn ,x)))
              (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::defined-macro-p '(+ 1 1) def) t)
-  (is (cl-cuda::defined-macro-p '(foo 1) def) t)
-  (is (cl-cuda::defined-macro-p 'bar def) nil))
+  (is (cl-cuda::macro-form-p '(+ 1 1) def) t)
+  (is (cl-cuda::macro-form-p '(foo 1) def) t)
+  (is (cl-cuda::macro-form-p 'bar def) nil))
 
 ;; test macro-operator
-(is (cl-cuda::macro-operator '(+ 1 1)) '+)
+(is (cl-cuda::macro-operator '(+ 1 1) (cl-cuda::empty-kernel-definition)) '+)
 
 ;; test macro-operands
-(is (cl-cuda::macro-operands '(+ 1 1)) '(1 1))
+(is (cl-cuda::macro-operands '(+ 1 1) (cl-cuda::empty-kernel-definition)) '(1 1))
 
 ;; test expand-macro-1 and expand-macro
 (defkernelmacro foo (x)
