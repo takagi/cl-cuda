@@ -2145,7 +2145,8 @@ TODO: consider symbol macros"
 ;;; type of expression
 
 (defun type-of-expression (exp type-env def)
-  (cond ((literal-p exp) (type-of-literal exp))
+  (cond ((macro-form-p exp def) (type-of-macro-form exp type-env def))
+        ((literal-p exp) (type-of-literal exp))
         ((cuda-dimension-p exp) 'int)
         ((variable-reference-p exp) (type-of-variable-reference exp type-env def))
         ((function-p exp) (type-of-function exp type-env def))
@@ -2191,6 +2192,9 @@ TODO: consider symbol macros"
        (remove-star type)))
     (_ (error "invalid variable reference: ~A" exp))))
 
+
+(defun type-of-macro-form (exp type-env def)
+  (type-of-expression (%expand-macro-1 exp def) type-env def))
 
 (defun type-of-function (exp type-env def)
   (cond ((built-in-function-p exp)
