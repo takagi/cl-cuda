@@ -448,7 +448,7 @@
 
 
 ;;;
-;;; test kernel macroes
+;;; test kernel macros
 ;;;
 
 (defkernelmacro when (test &body forms)
@@ -1076,20 +1076,24 @@
 (defkernelmacro bar (x)
   `(foo ,x))
 
-(is       (expand-macro-1 '(foo 1))   '(return 1))
-(is-error (expand-macro-1 '(foo))     error)
-(is-error (expand-macro-1 '(foo 1 2)) error)
-(is       (expand-macro-1 '(1))       '(1))
-(is       (expand-macro-1 1)          1)
-(is       (expand-macro-1 '(bar 1))   '(foo 1))
-(is       (expand-macro-1 '(baz 1))   '(baz 1))
-(is       (expand-macro   '(foo 1))   '(return 1))
-(is       (expand-macro   '(bar 1))   '(return 1))
-(is       (expand-macro   '(baz 1))   '(baz 1))
-(is       (expand-macro   1)          1)
-(is       (expand-macro   '())        '())
+(defmacro is-values (got expected &rest args)
+  `(is (multiple-value-list ,got) ,expected ,@args))
 
-;; test built-in macroes
+(is-values (expand-macro-1 '(foo 1))       '((return 1) t))
+(is-error  (expand-macro-1 '(foo))         error)
+(is-error  (expand-macro-1 '(foo 1 2))     error)
+(is-values (expand-macro-1 '(1))           '((1) nil))
+(is-values (expand-macro-1 1)              '(1 nil))
+(is-values (expand-macro-1 '(bar 1))       '((foo 1) t))
+(is-values (expand-macro-1 '(baz 1))       '((baz 1) nil))
+(is-values (expand-macro   '(foo 1))       '((return 1) t))
+(is-values (expand-macro   '(bar 1))       '((return 1) t))
+(is-values (expand-macro   '(baz 1))       '((baz 1) nil))
+(is-values (expand-macro   1)              '(1 nil))
+(is-values (expand-macro   '())            '(() nil))
+(is-values (expand-macro   '(foo (foo 1))) '((return (foo 1)) t))
+
+;; test built-in macros
 (is       (expand-macro '(+))       0)
 (is       (expand-macro '(+ 1))     1)
 (is       (expand-macro '(+ 1 2))   '(cl-cuda::%add 1 2))

@@ -1898,30 +1898,36 @@ TODO: consider symbol macros"
       (compile-statement  (%expand-macro-1 form def) type-env def)
       (compile-expression (%expand-macro-1 form def) type-env def)))
 
+(defun %get-expansion (form def)
+  (let ((operator (macro-operator form def))
+        (operands (macro-operands form def)))
+    (let ((expander (if (built-in-macro-p form)
+                        (built-in-macro-expander operator)
+                        (kernel-definition-macro-expander operator def))))
+      (funcall expander operands))))
+
 (defun %expand-macro-1 (form def)
   (if (macro-form-p form def)
-      (let ((operator (macro-operator form def))
-            (operands (macro-operands form def)))
-        (let ((expander (if (built-in-macro-p form)
-                            (built-in-macro-expander operator)
-                            (kernel-definition-macro-expander operator def))))
-          (funcall expander operands)))
-      form))
+      (values (%get-expansion form def) t)
+      (values form nil)))
 
 (defun expand-macro-1 (form)
+  "If a form is a macro form, then EXPAND-MACRO-1 expands the macro
+form call once, and returns the macro expansion and true as values.
+Otherwise, returns the given form and false as values."
   (let ((def (kernel-definition *kernel-manager*)))
     (%expand-macro-1 form def)))
 
 (defun %expand-macro (form def)
-  (cond
-    ((macro-form-p form def) (%expand-macro (%expand-macro-1 form def) def))
-    ((not (atom form)) (let ((op   (car form))
-                             (rest (cdr form)))
-                         `(,op ,@(mapcar (lambda (x)
-                                           (%expand-macro x def)) rest))))
-    (t form)))
+  (if (macro-form-p form def)
+      (values (%expand-macro (%expand-macro-1 form def) def) t)
+      (values form nil)))
 
 (defun expand-macro (form)
+  "If a form is a macro form, then EXPAND-MACRO repeatedly expands
+the macro form until it is no longer a macro form, and returns the
+macro expansion and true as values. Otherwise, returns the given form
+and false as values."
   (let ((def (kernel-definition *kernel-manager*)))
     (%expand-macro form def)))
 
