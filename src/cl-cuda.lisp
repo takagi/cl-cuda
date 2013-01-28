@@ -1826,18 +1826,6 @@
        (compile-built-in-prefix-function form type-env def))
       (t (error (format nil "invalid built-in function: ~A" op))))))
 
-(defun compile-built-in-arithmetic-function (form type-env def)
-  (compile-built-in-infix-function (binarize-1 form) type-env def))
-
-(defun binarize-1 (form)
-  (if (atom form)
-      form
-      (if (and (nthcdr 3 form)
-               (member (car form) +built-in-arithmetic-functions+))
-          (destructuring-bind (op a1 a2 . rest) form
-            (binarize-1 `(,op (,op ,a1 ,a2) ,@rest)))
-          form)))
-
 (defun compile-built-in-infix-function (form type-env def)
   (let ((operands (function-operands form)))
     (let ((op (built-in-function-inferred-operator form type-env def))
