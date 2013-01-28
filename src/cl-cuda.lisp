@@ -1883,7 +1883,7 @@ TODO: consider symbol macros"
 
 (defun built-in-macro-p (form)
   (match form
-    ((op . _) (and (getf +built-in-macroes+ op) t))
+    ((op . _) (and (getf +built-in-macros+ op) t))
     (_ nil)))
 
 (defun user-macro-p (form def)
@@ -1998,10 +1998,10 @@ TODO: consider symbol macros"
       (error (format nil "invalid operator: ~A" op))))
 
 
-;;; built-in macroes
-;;;   <built-in-macroes> ::= plist { <macro-name> => <macro-expander> }
+;;; built-in macros
+;;;   <built-in-macros> ::= plist { <macro-name> => <macro-expander> }
 
-(defvar +built-in-macroes+
+(defvar +built-in-macros+
   (list '+ (lambda (args)
              (match args
                (() 0)
@@ -2028,7 +2028,7 @@ TODO: consider symbol macros"
                ((a1 a2 . rest) `(/ (%div ,a1 ,a2) ,@rest))))))
 
 (defun built-in-macro-expander (name)
-  (or (getf +built-in-macroes+ name)
+  (or (getf +built-in-macros+ name)
       (error "invalid macro name: ~A" name)))
 
 
