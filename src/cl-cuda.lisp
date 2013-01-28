@@ -1891,13 +1891,13 @@ TODO: consider symbol macros"
     ((op . _) (kernel-definition-macro-exists-p op def))
     (_ nil)))
 
-(defun macro-operator (form)
-  (unless (macro-p form)
+(defun macro-operator (form def)
+  (unless (macro-form-p form def)
     (error "invalid statement or expression: ~A" form))
   (car form))
 
-(defun macro-operands (form)
-  (unless (macro-p form)
+(defun macro-operands (form def)
+  (unless (macro-form-p form def)
     (error "invalid statement or expression: ~A" form))
   (cdr form))
 
@@ -1910,8 +1910,8 @@ TODO: consider symbol macros"
 
 (defun %expand-macro-1 (form def)
   (if (macro-form-p form def)
-      (let ((operator (macro-operator form))
-            (operands (macro-operands form)))
+      (let ((operator (macro-operator form def))
+            (operands (macro-operands form def)))
         (let ((expander (if (built-in-macro-p form)
                             (built-in-macro-expander operator)
                             (kernel-definition-macro-expander operator def))))
