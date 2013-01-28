@@ -1365,9 +1365,11 @@
   (values))
 
 (defun print-kernel-manager ()
-  (list (module-info *kernel-manager*)
-        (hash-table-alist (function-handles *kernel-manager*))
-        (kernel-definition *kernel-manager*)))
+  (let ((module-info (module-info *kernel-manager*)))
+    (list (module-handle             module-info)
+          (module-path               module-info)
+          (module-compilation-needed module-info)
+          (hash-table-alist (function-handles module-info)))))
 
 
 ;;;
@@ -1881,12 +1883,12 @@ TODO: consider symbol macros"
 
 (defun macro-operator (form def)
   (unless (macro-form-p form def)
-    (error "invalid statement or expression: ~A" form))
+    (error "undefined macro form: ~A" form))
   (car form))
 
 (defun macro-operands (form def)
   (unless (macro-form-p form def)
-    (error "invalid statement or expression: ~A" form))
+    (error "undefined macro form: ~A" form))
   (cdr form))
 
 (defun compile-macro (form type-env def &key (statement-p nil))
