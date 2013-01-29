@@ -1898,18 +1898,17 @@ TODO: consider symbol macros"
       (compile-statement  (%expand-macro-1 form def) type-env def)
       (compile-expression (%expand-macro-1 form def) type-env def)))
 
-(defun %get-expansion (form def)
-  (let ((operator (macro-operator form def))
-        (operands (macro-operands form def)))
-    (let ((expander (if (built-in-macro-p form)
-                        (built-in-macro-expander operator)
-                        (kernel-definition-macro-expander operator def))))
-      (funcall expander operands))))
-
 (defun %expand-macro-1 (form def)
-  (if (macro-form-p form def)
-      (values (%get-expansion form def) t)
-      (values form nil)))
+  (labels ((expand (form def)
+             (let ((operator (macro-operator form def))
+                   (operands (macro-operands form def)))
+               (let ((expander (if (built-in-macro-p form)
+                                   (built-in-macro-expander operator)
+                                   (kernel-definition-macro-expander operator def))))
+                 (funcall expander operands)))))
+    (if (macro-form-p form def)
+        (values (expand form def) t)
+        (values form nil))))
 
 (defun expand-macro-1 (form)
   "If a form is a macro form, then EXPAND-MACRO-1 expands the macro
