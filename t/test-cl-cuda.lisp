@@ -1046,6 +1046,9 @@
 (is (cl-cuda::compile-function '(float3 1.0 1.0 1.0)     nil nil) "make_float3 (1.0, 1.0, 1.0)"     )
 (is (cl-cuda::compile-function '(float4 1.0 1.0 1.0 1.0) nil nil) "make_float4 (1.0, 1.0, 1.0, 1.0)")
 
+(cl-cuda::with-type-environment (type-env ((x int)))
+  (is (cl-cuda::compile-function '(pointer x) type-env nil) "& (x)"))
+
 
 ;;;
 ;;; test compile-macro
