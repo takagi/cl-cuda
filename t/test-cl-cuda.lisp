@@ -446,6 +446,25 @@
       (memcpy-device-to-host x)
       (is (mem-aref x 0) 3))))
 
+(defkernel test-atomic-add (void ((x int*)))
+  (atomic-add (pointer (aref x 0)) 1))
+
+(defkernel test-no-atomic-add (void ((x int*)))
+  (set (aref x 0) (+ (aref x 0) 1)))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((x 'int 1)
+                         (y 'int 1))
+      (setf (mem-aref x 0) 0
+            (mem-aref y 0) 0)
+      (memcpy-host-to-device x y)
+      (test-atomic-add    x :grid-dim '(1 1 1) :block-dim '(256 1 1))
+      (test-no-atomic-add y :grid-dim '(1 1 1) :block-dim '(256 1 1))
+      (memcpy-device-to-host x y)
+      (is   (mem-aref x 0) 256)
+      (isnt (mem-aref y 0) 256))))
+
 
 ;;;
 ;;; test kernel macros

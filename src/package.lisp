@@ -39,6 +39,7 @@
            :thread-idx-x :thread-idx-y :thread-idx-z
            :with-shared-memory :syncthreads
            :rsqrtf                      ; Built-in functions
+           :atomic-add
            :pointer
            :print-kernel-manager        ; Utilities for the default kernel manager
            :clear-kernel-manager
