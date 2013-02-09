@@ -1068,6 +1068,8 @@
 (cl-cuda::with-type-environment (type-env ((x int)))
   (is (cl-cuda::compile-function '(pointer x) type-env nil) "& (x)"))
 
+(is (cl-cuda::compile-function '(floor 1.0) nil nil) "floorf (1.0)")
+
 
 ;;;
 ;;; test compile-macro

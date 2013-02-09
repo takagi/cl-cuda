@@ -1959,6 +1959,7 @@ and false as values."
            ((float float) bool ">=")))
     expt (nil (((float float) float "powf")))
     rsqrtf (nil (((float) float "rsqrtf")))
+    floor (nil (((float) int "floorf")))
     atomic-add (nil (((int* int) int "atomicAdd")))
     pointer (nil (((int) int* "&")
                   ((float) float* "&")))
