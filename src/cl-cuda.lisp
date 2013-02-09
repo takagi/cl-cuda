@@ -1319,12 +1319,12 @@
   (values))
 
 (defun output-nvcc-command (cu-path ptx-path)
-  (format t "nvcc -ptx -o ~A ~A~%" cu-path ptx-path))
+  (format t "nvcc -arch=sm_11 -ptx -o ~A ~A~%" cu-path ptx-path))
 
 (defun compile-cu-code (cu-path ptx-path)
   (output-nvcc-command cu-path ptx-path)
   (with-output-to-string (out)
-    (let ((p (sb-ext:run-program +nvcc-path+ `("-ptx" "-o" ,ptx-path ,cu-path)
+    (let ((p (sb-ext:run-program +nvcc-path+ `("-arch=sm_11" "-ptx" "-o" ,ptx-path ,cu-path)
                                  :error out)))
       (unless (= 0 (sb-ext:process-exit-code p))
         (error (format nil "nvcc exits with code: ~A~%~A"
