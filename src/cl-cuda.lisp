@@ -2187,6 +2187,7 @@ and false as values."
         ((literal-p exp) (type-of-literal exp))
         ((cuda-dimension-p exp) 'int)
         ((variable-reference-p exp) (type-of-variable-reference exp type-env def))
+        ((inline-if-p exp) (type-of-inline-if exp type-env def))
         ((function-p exp) (type-of-function exp type-env def))
         (t (error (format nil "invalid expression: ~A" exp)))))
 
