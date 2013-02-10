@@ -1477,22 +1477,22 @@
   (match stmt
     (('if test-exp _) test-exp)
     (('if test-exp _ _) test-exp)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun if-then-statement (stmt)
   (match stmt
     (('if _ then-stmt) then-stmt)
     (('if _ then-stmt _) then-stmt)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun if-else-statement (stmt)
   (match stmt
     (('if _ _) nil)
     (('if _ _ else-stmt) else-stmt)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun compile-if (stmt type-env def)
-  (let ((test-exp (if-test-expression stmt))
+  (let ((test-exp  (if-test-expression stmt))
         (then-stmt (if-then-statement stmt))
         (else-stmt (if-else-statement stmt)))
     (unlines (format nil "if (~A) {"
@@ -2040,6 +2040,7 @@ and false as values."
     ((cuda-dimension-p exp) (compile-cuda-dimension exp))
     ((variable-reference-p exp)
      (compile-variable-reference exp type-env def))
+    ((inline-if-p exp) (compile-inline-if exp type-env def))
     ((function-p exp) (compile-function exp type-env def))
     (t (error (format nil "invalid expression: ~A" exp)))))
 
@@ -2150,6 +2151,34 @@ and false as values."
                                (compile-expression idx type-env def)) idxs))))
     (_ (error "invalid variable reference: ~A" form))))
 
+(defun inline-if-p (exp)
+  (match exp
+    (('if _ _ _) t)
+    (_ nil)))
+
+(defun inline-if-test-expression (exp)
+  (match exp
+    (('if test-exp _ _) test-exp)
+    (_ (error "invalid expression: ~A" exp))))
+
+(defun inline-if-then-expression (exp)
+  (match exp
+    (('if _ then-exp _) then-exp)
+    (_ (error "invalid expression: ~A" exp))))
+
+(defun inline-if-else-expression (exp)
+  (match exp
+    (('if _ _ else-exp) else-exp)
+    (_ (error "invalid expression: ~A" exp))))
+
+(defun compile-inline-if (exp type-env def)
+  (let ((test-exp (inline-if-test-expression exp))
+        (then-exp (inline-if-then-expression exp))
+        (else-exp (inline-if-else-expression exp)))
+    (format nil "~A ? ~A : ~A"
+            (compile-expression test-exp type-env def)
+            (compile-expression then-exp type-env def)
+            (compile-expression else-exp type-env def))))
 
 ;;; type of expression
 
@@ -2201,6 +2230,19 @@ and false as values."
        (remove-star type)))
     (_ (error "invalid variable reference: ~A" exp))))
 
+
+(defun type-of-inline-if (exp type-env def)
+  (let ((test-exp (inline-if-test-expression exp))
+        (then-exp (inline-if-then-expression exp))
+        (else-exp (inline-if-else-expression exp)))
+    (let ((test-exp-type (type-of-expression test-exp type-env def))
+          (then-exp-type (type-of-expression then-exp type-env def))
+          (else-exp-type (type-of-expression else-exp type-env def)))
+      (when (not (eq test-exp-type 'bool))
+        (error "type of the test part of the inline if expression is not bool: ~A" exp))
+      (when (not (eq then-exp-type else-exp-type))
+        (error "types of the then part and the else part of the inline if expression are not same: ~A" exp))
+      then-exp-type)))
 
 (defun type-of-macro-form (exp type-env def)
   (type-of-expression (%expand-macro-1 exp def) type-env def))

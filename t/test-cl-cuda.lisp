@@ -1206,6 +1206,27 @@
 
 
 ;;;
+;;; test compile-inline-if
+;;;
+
+(diag "test compile-inline-if")
+
+;; test inline-if-p
+(is (cl-cuda::inline-if-p '(if)) nil)
+(is (cl-cuda::inline-if-p '(if 1)) nil)
+(is (cl-cuda::inline-if-p '(if 1 2)) nil)
+(is (cl-cuda::inline-if-p '(if 1 2 3)) t)
+(is (cl-cuda::inline-if-p '(if 1 2 3 4)) nil)
+
+;; test compile-inline-if
+(is-error (cl-cuda::compile-inline-if '(if) nil nil) simple-error)
+(is-error (cl-cuda::compile-inline-if '(if (= 1 1)) nil nil) simple-error)
+(is-error (cl-cuda::compile-inline-if '(if (= 1 1) 1) nil nil) simple-error)
+(is       (cl-cuda::compile-inline-if '(if (= 1 1) 1 2) nil nil) "(1 == 1) ? 1 : 2")
+(is-error (cl-cuda::compile-inline-if '(if (= 1 1) 1 2 3) nil nil) simple-error)
+
+
+;;;
 ;;; test type-of-expression
 ;;;
 
@@ -1232,7 +1253,7 @@
 (is-error (cl-cuda::type-of-function '(cl-cuda::%add 1 1.0)   nil nil) simple-error)
 (is       (cl-cuda::type-of-function '(expt 1.0 1.0)          nil nil) 'float      )
 
-;; test type-of-expression
+;; test type-of-expression for grid, block and thread
 (is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-x   nil nil) 'int)
 (is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-y   nil nil) 'int)
 (is (cl-cuda::type-of-expression 'cl-cuda::grid-dim-z   nil nil) 'int)
@@ -1272,6 +1293,15 @@
   (is (cl-cuda::type-of-variable-reference '(float4-y x) type-env nil) 'float)
   (is (cl-cuda::type-of-variable-reference '(float4-z x) type-env nil) 'float)
   (is (cl-cuda::type-of-variable-reference '(float4-w x) type-env nil) 'float))
+
+;; test type-of-inline-if
+(is-error (cl-cuda::type-of-inline-if '(if) nil nil) simple-error)
+(is-error (cl-cuda::type-of-inline-if '(if (= 1 1)) nil nil) simple-error)
+(is-error (cl-cuda::type-of-inline-if '(if (= 1 1) 1) nil nil) simple-error)
+(is       (cl-cuda::type-of-inline-if '(if (= 1 1) 1 2) nil nil) 'int)
+(is-error (cl-cuda::type-of-inline-if '(if (= 1 1) 1 2 3) nil nil) simple-error)
+(is-error (cl-cuda::type-of-inline-if '(if 1 2 3) nil nil) simple-error)
+(is-error (cl-cuda::type-of-inline-if '(if (= 1 1) 1 2.0) nil nil) simple-error)
 
 
 ;;;
