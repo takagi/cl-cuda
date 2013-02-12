@@ -1070,6 +1070,8 @@
 
 (is (cl-cuda::compile-function '(floor 1.0) nil nil) "floorf (1.0)")
 
+(is (cl-cuda::compile-function '(sqrt 1.0) nil nil) "sqrtf (1.0)")
+
 
 ;;;
 ;;; test compile-macro
