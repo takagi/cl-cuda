@@ -1263,6 +1263,8 @@
       (setf (kernel-manager-function-handle mgr name) hfunc)))
 
 (defun kernel-manager-load-module (mgr)
+  (unless (not (kernel-manager-module-compilation-needed mgr))
+    (error "a module needs to be compiled before loaded."))
   (when (kernel-manager-module-handle mgr)
     (error "kernel module is already loaded."))
   (unless (no-kernel-functions-loaded-p mgr)
