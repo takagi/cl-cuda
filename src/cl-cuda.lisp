@@ -1298,41 +1298,43 @@
           (kernel-manager-function-names mgr)))
 
 (defvar +temporary-path-template+ "/tmp/cl-cuda-")
+(defvar +temp-path+ (osicat-posix:mktemp +temporary-path-template+))
+(defvar +cu-path+  (concatenate 'string +temp-path+ ".cu"))
+(defvar +ptx-path+ (concatenate 'string +temp-path+ ".ptx"))
+
+(defvar +header-path+ (namestring (asdf:system-relative-pathname :cl-cuda #P"header")))
 
 (defvar +nvcc-path+ "/usr/local/cuda/bin/nvcc")
 
+(defun output-cu-code (mgr path)
+  (with-open-file (out path :direction :output :if-exists :supersede)
+    (princ (compile-kernel-definition (kernel-definition mgr)) out)))
+
+(defun output-nvcc-command (opts)
+  (format t "nvcc~{ ~A~}~%" opts))
+
+(defun run-nvcc-command (opts)
+  (with-output-to-string (out)
+    (let ((p (sb-ext:run-program +nvcc-path+ opts :error out)))
+      (unless (= 0 (sb-ext:process-exit-code p))
+        (error "nvcc exits with code: ~A~%~A"
+               (sb-ext:process-exit-code p)
+               (get-output-stream-string out))))))
+
+(defun compile-cu-code (header-path cu-path ptx-path)
+  (let ((opts (list "-arch=sm_11" "-I" header-path "-ptx" "-o" ptx-path cu-path)))
+    (output-nvcc-command opts)
+    (run-nvcc-command opts)))
+
 (defun kernel-manager-generate-and-compile (mgr)
-  (when (kernel-manager-module-handle mgr)
+  (unless (not (kernel-manager-module-handle mgr))
     (error "kernel module is already loaded."))
   (unless (no-kernel-functions-loaded-p mgr)
     (error "some kernel functions are already loaded."))
-  (let* ((temp-path (osicat-posix:mktemp +temporary-path-template+))
-         (cu-path (concatenate 'string temp-path ".cu"))
-         (ptx-path (concatenate 'string temp-path ".ptx")))
-    (output-cu-code mgr cu-path)
-    (compile-cu-code cu-path ptx-path)
-    (setf (kernel-manager-module-path mgr) ptx-path)
-    (setf (kernel-manager-module-compilation-needed mgr) nil)
-    (values)))
-
-(defun output-cu-code (mgr path)
-  (with-open-file (out path :direction :output :if-exists :supersede)
-    (princ (compile-kernel-definition (kernel-definition mgr)) out))
-  (values))
-
-(defun output-nvcc-command (cu-path ptx-path)
-  (format t "nvcc -arch=sm_11 -ptx -o ~A ~A~%" cu-path ptx-path))
-
-(defun compile-cu-code (cu-path ptx-path)
-  (output-nvcc-command cu-path ptx-path)
-  (with-output-to-string (out)
-    (let ((p (sb-ext:run-program +nvcc-path+ `("-arch=sm_11" "-ptx" "-o" ,ptx-path ,cu-path)
-                                 :error out)))
-      (unless (= 0 (sb-ext:process-exit-code p))
-        (error (format nil "nvcc exits with code: ~A~%~A"
-                       (sb-ext:process-exit-code p)
-                       (get-output-stream-string out))))))
-  (values))
+  (output-cu-code mgr +cu-path+)
+  (compile-cu-code +header-path+ +cu-path+ +ptx-path+)
+  (setf (kernel-manager-module-path mgr) +ptx-path+
+        (kernel-manager-module-compilation-needed mgr) nil))
 
 
 ;;;
@@ -1379,7 +1381,9 @@
 ;;;
 
 (defun compile-kernel-definition (def)
-  (unlines `(,@(mapcar #'(lambda (name)
+  (unlines `("#include \"float3.h\""
+             ""
+             ,@(mapcar #'(lambda (name)
                            (compile-kernel-function-prototype name def))
                        (kernel-definition-function-names def))
              ""
@@ -1824,15 +1828,15 @@
 (defun compile-built-in-function (form type-env def)
   (let ((op (function-operator form)))
     (cond
-      ((built-in-function-infix-p op)
+      ((built-in-function-infix-p form type-env def)
        (compile-built-in-infix-function form type-env def))
-      ((built-in-function-prefix-p op)
+      ((built-in-function-prefix-p form type-env def)
        (compile-built-in-prefix-function form type-env def))
-      (t (error (format nil "invalid built-in function: ~A" op))))))
+      (t (error "invalid built-in function: ~A" op)))))
 
 (defun compile-built-in-infix-function (form type-env def)
   (let ((operands (function-operands form)))
-    (let ((op (built-in-function-inferred-operator form type-env def))
+    (let ((op  (built-in-function-c-string form type-env def))
           (lhe (compile-expression (car operands) type-env def))
           (rhe (compile-expression (cadr operands) type-env def)))
       (format nil "(~A ~A ~A)" lhe op rhe))))
@@ -1840,7 +1844,7 @@
 (defun compile-built-in-prefix-function (form type-env def)
   (let ((operands (function-operands form)))
     (format nil "~A (~A)"
-            (built-in-function-inferred-operator form type-env def)
+            (built-in-function-c-string form type-env def)
             (compile-operands operands type-env def))))
 
 (defun compile-user-function (form type-env def)
@@ -1941,51 +1945,43 @@ and false as values."
 ;;;   <arg-types>           ::= (<arg-type>*)
 
 (defvar +built-in-functions+
-  '(%add (t (((int int) int "+")
-             ((float float) float "+")))
-    %sub (t (((int int) int "-")
-             ((float float) float "-")))
-    %mul (t (((int int) int "*")
-             ((float float) float "*")))
-    %div (t (((int int) int "/")
-             ((float float) float "/")))
-    = (t (((int int) bool "==")
-          ((float float) bool "==")))
-    < (t (((int int) bool "<")
-          ((float float) bool "<")))
-    > (t (((int int) bool ">")
-          ((float float) bool ">")))
-    <= (t (((int int) bool "<=")
-           ((float float) bool "<=")))
-    >= (t (((int int) bool ">=")
-           ((float float) bool ">=")))
-    expt (nil (((float float) float "powf")))
-    rsqrtf (nil (((float) float "rsqrtf")))
-    sqrt (nil (((float) float "sqrtf")))
-    floor (nil (((float) int "floorf")))
-    atomic-add (nil (((int* int) int "atomicAdd")))
-    pointer (nil (((int) int* "&")
-                  ((float) float* "&")))
-    float3 (nil (((float float float) float3 "make_float3")))
-    float4 (nil (((float float float float) float4 "make_float4")))
+  '(%add (((int    int)    int    t   "+")
+          ((float  float)  float  t   "+")
+          ((float3 float3) float3 nil "float3_add"))
+    %sub (((int    int)    int    t   "-")
+          ((float  float)  float  t   "-")
+          ((float3 float3) float3 nil "float3_sub"))
+    %mul (((int    int)    int    t   "*")
+          ((float  float)  float  t   "*")
+          ((float3 float)  float3 nil "float3_scale")
+          ((float  float3) float3 nil "float3_scale_flipped"))
+    %div (((int    int)    int    t   "/")
+          ((float  float)  float  t   "/")
+          ((float3 float)  float3 nil "float3_scale_inverted"))
+    =    (((int   int)   bool t "==")
+          ((float float) bool t "=="))
+    <    (((int   int)   bool t "<")
+          ((float float) bool t "<"))
+    >    (((int   int)   bool t ">")
+          ((float float) bool t ">"))
+    <=   (((int   int)   bool t "<=")
+          ((float float) bool t "<="))
+    >=   (((int   int)   bool t ">=")
+          ((float float) bool t ">="))
+    expt   (((float float) float nil "powf"))
+    rsqrtf (((float) float nil "rsqrtf"))
+    sqrt   (((float) float nil "sqrtf"))
+    floor  (((float) int   nil "floorf"))
+    atomic-add (((int* int) int nil "atomicAdd"))
+    pointer (((int)   int*   nil "&")
+             ((float) float* nil "&"))
+    float3 (((float float float) float3 nil "make_float3"))
+    float4 (((float float float float) float4 nil "make_float4"))
     ))
 
-(defun built-in-function-infix-p (op)
-  (aif (getf +built-in-functions+ op)
-       (and (car it)
-            t)
-       (error (format nil "invalid built-in function: ~A" op))))
-
-(defun built-in-function-prefix-p (op)
-  (aif (getf +built-in-functions+ op)
-       (not (car it))
-       (error (format nil "invalid built-in function: ~A" op))))
-
-(defun built-in-function-inferred-operator (form type-env def)
-  (caddr (inferred-function form type-env def)))
-
-(defun built-in-function-inferred-return-type (form type-env def)
-  (cadr (inferred-function form type-env def)))
+(defun function-candidates (op)
+  (or (getf +built-in-functions+ op)
+      (error "invalid function: ~A" op)))
 
 (defun inferred-function (form type-env def)
   (let ((operator (function-operator form))
@@ -1993,11 +1989,37 @@ and false as values."
     (let ((candidates (function-candidates operator))
           (types (type-of-operands operands type-env def)))
       (or (find types candidates :key #'car :test #'equal)
-          (error (format nil "invalid function application: ~A" form))))))
+          (error "invalid function application: ~A" form)))))
 
-(defun function-candidates (op)
-  (or (cadr (getf +built-in-functions+ op))
-      (error (format nil "invalid operator: ~A" op))))
+(defun inferred-function-argument-types (fun)
+  (car fun))
+
+(defun inferred-function-return-type (fun)
+  (cadr fun))
+
+(defun inferred-function-infix-p (fun)
+  (caddr fun))
+
+(defun inferred-function-prefix-p (fun)
+  (not (inferred-function-infix-p fun)))
+
+(defun inferred-function-c-string (fun)
+  (cadddr fun))
+
+(defun built-in-function-argument-types (form type-env def)
+  (inferred-function-argument-types (inferred-function form type-env def)))
+
+(defun built-in-function-return-type (form type-env def)
+  (inferred-function-return-type (inferred-function form type-env def)))
+
+(defun built-in-function-infix-p (form type-env def)
+  (inferred-function-infix-p (inferred-function form type-env def)))
+
+(defun built-in-function-prefix-p (form type-env def)
+  (inferred-function-prefix-p (inferred-function form type-env def)))
+
+(defun built-in-function-c-string (form type-env def)
+  (inferred-function-c-string (inferred-function form type-env def)))
 
 
 ;;; built-in macros
@@ -2178,7 +2200,7 @@ and false as values."
   (let ((test-exp (inline-if-test-expression exp))
         (then-exp (inline-if-then-expression exp))
         (else-exp (inline-if-else-expression exp)))
-    (format nil "~A ? ~A : ~A"
+    (format nil "(~A ? ~A : ~A)"
             (compile-expression test-exp type-env def)
             (compile-expression then-exp type-env def)
             (compile-expression else-exp type-env def))))
@@ -2259,7 +2281,7 @@ and false as values."
         (t (error (format nil "invalid expression: ~A" exp)))))
 
 (defun type-of-built-in-function (exp type-env def)
-  (built-in-function-inferred-return-type exp type-env def))
+  (built-in-function-return-type exp type-env def))
 
 (defun type-of-user-function (exp def)
   (let ((operator (function-operator exp)))

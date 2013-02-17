@@ -465,10 +465,17 @@
       (is   (mem-aref x 0) 256)
       (isnt (mem-aref y 0) 256))))
 
+(defkernel test-float3-add (void ((x float3*)))
+  (set (aref x 0) (+ (aref x 0) (float3 1.0 1.0 1.0))))
 
-;;;
-;;; test kernel macros
-;;;
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((x 'float3 1))
+      (setf (mem-aref x 0) (make-float3 0.0 0.0 0.0))
+      (memcpy-host-to-device x)
+      (test-float3-add x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+      (memcpy-device-to-host x)
+      (is (mem-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=))))
 
 (defkernelmacro when (test &body forms)
   `(if ,test
@@ -720,7 +727,9 @@
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
-      (c-code (cl-cuda::unlines "extern \"C\" __global__ void cl_cuda_test_foo ();"
+      (c-code (cl-cuda::unlines "#include \"float3.h\""
+                                ""
+                                "extern \"C\" __global__ void cl_cuda_test_foo ();"
                                 ""
                                 "__global__ void cl_cuda_test_foo ()"
                                 "{"
@@ -1014,19 +1023,35 @@
 (is (cl-cuda::built-in-function-p '(foo 1 1)) nil)
 
 ;; test function-candidates
-(is       (cl-cuda::function-candidates 'cl-cuda::%add) '(((int int) int "+")
-                                                          ((float float) float "+")))
+(is       (cl-cuda::function-candidates 'cl-cuda::%add) '(((int int) int t "+")
+                                                          ((float float) float t "+")
+                                                          ((float3 float3) float3 nil "float3_add")))
 (is-error (cl-cuda::function-candidates 'foo) simple-error)
 
+;; test built-in-function-argument-types
+(is       (cl-cuda::built-in-function-argument-types '(cl-cuda::%add 1 1) nil nil) '(int int))
+(is       (cl-cuda::built-in-function-argument-types '(expt 1.0 1.0) nil nil) '(float float))
+(is-error (cl-cuda::built-in-function-argument-types '(foo) nil nil) simple-error)
+
+;; test built-in-function-return-type
+(is       (cl-cuda::built-in-function-return-type '(cl-cuda::%add 1 1) nil nil) 'int)
+(is       (cl-cuda::built-in-function-return-type '(expt 1.0 1.0) nil nil) 'float)
+(is-error (cl-cuda::built-in-function-return-type '(foo) nil nil) simple-error)
+
 ;; test built-in-function-infix-p
-(is       (cl-cuda::built-in-function-infix-p 'cl-cuda::%add) t           )
-(is       (cl-cuda::built-in-function-infix-p 'expt         ) nil         )
-(is-error (cl-cuda::built-in-function-infix-p 'foo          ) simple-error)
+(is       (cl-cuda::built-in-function-infix-p '(cl-cuda::%add 1 1) nil nil) t)
+(is       (cl-cuda::built-in-function-infix-p '(expt 1.0 1.0) nil nil) nil)
+(is-error (cl-cuda::built-in-function-infix-p '(foo) nil nil) simple-error)
 
 ;; test built-in-function-prefix-p
-(is       (cl-cuda::built-in-function-prefix-p 'cl-cuda::%add) nil         )
-(is       (cl-cuda::built-in-function-prefix-p 'expt         ) t           )
-(is-error (cl-cuda::built-in-function-prefix-p 'foo          ) simple-error)
+(is       (cl-cuda::built-in-function-prefix-p '(cl-cuda::%add 1 1) nil nil) nil)
+(is       (cl-cuda::built-in-function-prefix-p '(expt 1.0 1.0) nil nil) t)
+(is-error (cl-cuda::built-in-function-prefix-p '(foo) nil nil) simple-error)
+
+;; test built-in-function-c-string
+(is       (cl-cuda::built-in-function-c-string '(cl-cuda::%add 1 1) nil nil) "+")
+(is       (cl-cuda::built-in-function-c-string '(expt 1.0 1.0) nil nil) "powf")
+(is-error (cl-cuda::built-in-function-c-string '(foo) nil nil) simple-error)
 
 ;; test function-p
 (is (cl-cuda::function-p 'a        ) nil)
@@ -1224,7 +1249,7 @@
 (is-error (cl-cuda::compile-inline-if '(if) nil nil) simple-error)
 (is-error (cl-cuda::compile-inline-if '(if (= 1 1)) nil nil) simple-error)
 (is-error (cl-cuda::compile-inline-if '(if (= 1 1) 1) nil nil) simple-error)
-(is       (cl-cuda::compile-inline-if '(if (= 1 1) 1 2) nil nil) "(1 == 1) ? 1 : 2")
+(is       (cl-cuda::compile-inline-if '(if (= 1 1) 1 2) nil nil) "((1 == 1) ? 1 : 2)")
 (is-error (cl-cuda::compile-inline-if '(if (= 1 1) 1 2 3) nil nil) simple-error)
 
 
