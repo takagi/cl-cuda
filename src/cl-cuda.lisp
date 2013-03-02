@@ -1302,7 +1302,7 @@
 (defvar +cu-path+  (concatenate 'string +temp-path+ ".cu"))
 (defvar +ptx-path+ (concatenate 'string +temp-path+ ".ptx"))
 
-(defvar +header-path+ (namestring (asdf:system-relative-pathname :cl-cuda #P"header")))
+(defvar +include-path+ (namestring (asdf:system-relative-pathname :cl-cuda #P"include")))
 
 (defvar +nvcc-path+ "/usr/local/cuda/bin/nvcc")
 
@@ -1321,8 +1321,8 @@
                (sb-ext:process-exit-code p)
                (get-output-stream-string out))))))
 
-(defun compile-cu-code (header-path cu-path ptx-path)
-  (let ((opts (list "-arch=sm_11" "-I" header-path "-ptx" "-o" ptx-path cu-path)))
+(defun compile-cu-code (include-path cu-path ptx-path)
+  (let ((opts (list "-arch=sm_11" "-I" include-path "-ptx" "-o" ptx-path cu-path)))
     (output-nvcc-command opts)
     (run-nvcc-command opts)))
 
@@ -1332,7 +1332,7 @@
   (unless (no-kernel-functions-loaded-p mgr)
     (error "some kernel functions are already loaded."))
   (output-cu-code mgr +cu-path+)
-  (compile-cu-code +header-path+ +cu-path+ +ptx-path+)
+  (compile-cu-code +include-path+ +cu-path+ +ptx-path+)
   (setf (kernel-manager-module-path mgr) +ptx-path+
         (kernel-manager-module-compilation-needed mgr) nil))
 
