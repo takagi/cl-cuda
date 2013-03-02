@@ -635,23 +635,25 @@
       (setf (memory-block-cuda-device-ptr blk) val)))
 
 (defmacro with-memory-block-device-ptr ((device-ptr blk) &body body)
-  (with-gensyms (gres-ptr gres size-ptr)
-    `(if (memory-block-interop-p ,blk)
-         (let* ((,gres-ptr   (memory-block-graphic-resource-ptr ,blk))
-                (,gres       (cffi:mem-ref ,gres-ptr 'cu-graphics-resource))
-                (,device-ptr (cffi:foreign-alloc 'cu-device-ptr))
-                (,size-ptr   (cffi:foreign-alloc :unsigned-int)))
-           (unwind-protect
-                (progn
-                  (cu-graphics-resource-set-map-flags ,gres cu-graphics-map-resource-flags-none)
-                  (cu-graphics-map-resources 1 ,gres-ptr (cffi:null-pointer))
-                  (cu-graphics-resource-get-mapped-pointer ,device-ptr ,size-ptr ,gres)
-                  ,@body
-                  (cu-graphics-unmap-resources 1 ,gres-ptr (cffi:null-pointer)))
-             (cffi:foreign-free ,size-ptr)
-             (cffi:foreign-free ,device-ptr)))
-         (let ((,device-ptr (memory-block-device-ptr ,blk)))
-           ,@body))))
+  (with-gensyms (do-body gres-ptr gres size-ptr)
+    `(labels ((,do-body (,device-ptr)
+                ,@body))
+       (if (memory-block-interop-p ,blk)
+           (let* ((,gres-ptr   (memory-block-graphic-resource-ptr ,blk))
+                  (,gres       (cffi:mem-ref ,gres-ptr 'cu-graphics-resource))
+                  (,device-ptr (cffi:foreign-alloc 'cu-device-ptr))
+                  (,size-ptr   (cffi:foreign-alloc :unsigned-int)))
+             (unwind-protect
+                  (progn
+                    (cu-graphics-resource-set-map-flags ,gres cu-graphics-map-resource-flags-none)
+                    (cu-graphics-map-resources 1 ,gres-ptr (cffi:null-pointer))
+                    (cu-graphics-resource-get-mapped-pointer ,device-ptr ,size-ptr ,gres)
+                    (,do-body ,device-ptr)
+                    (cu-graphics-unmap-resources 1 ,gres-ptr (cffi:null-pointer)))
+               (cffi:foreign-free ,size-ptr)
+               (cffi:foreign-free ,device-ptr)))
+           (let ((,device-ptr (memory-block-device-ptr ,blk)))
+             (,do-body ,device-ptr))))))
 
 (defun memory-block-vertex-buffer-object (blk)
   (if (memory-block-interop-p blk)
