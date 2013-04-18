@@ -325,21 +325,6 @@
   (defun synchronize-context ()
     (cu-ctx-synchronize)))
 
-(defmacro with-cuda-memory-block (args &body body)
-  (destructuring-bind (dptr size) args
-    `(cffi:with-foreign-object (,dptr 'cu-device-ptr)
-       (cu-mem-alloc ,dptr ,size)
-       (unwind-protect
-            (progn ,@body)
-         (cu-mem-free (cffi:mem-ref ,dptr 'cu-device-ptr))))))
-
-(defmacro with-cuda-memory-blocks (bindings &body body)
-  (if bindings
-      `(with-cuda-memory-block ,(car bindings)
-         (with-cuda-memory-blocks ,(cdr bindings)
-           ,@body))
-      `(progn ,@body)))
-
 
 ;;;
 ;;; Definition of Built-in Vector Types

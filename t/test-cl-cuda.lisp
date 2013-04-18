@@ -126,28 +126,17 @@
       (cl-cuda::cu-mem-alloc dptr 1024)
       (cl-cuda::cu-mem-free (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr)))))
 
-;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block
-(diag "test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-block")
-(let ((dev-id 0))
-  (with-cuda-context (dev-id)
-    (cl-cuda::with-cuda-memory-block (dptr 1024))))
-
-;; test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-blocks
-(diag "test cuMemAlloc/cuMemFree using with-cuda-context and with-cuda-mem-blocks")
-(let ((dev-id 0))
-  (with-cuda-context (dev-id)
-    (cl-cuda::with-cuda-memory-blocks ((dptr1 1024)
-                                       (dptr2 1024)))))
-
 ;; test cuMemcpyHtoD/cuMemcpyDtoH
 (diag "test cuMemcpyHtoD/cuMemcpyDtoH")
 (let ((dev-id 0)
       (size 1024))
   (with-cuda-context (dev-id)
-    (cffi:with-foreign-object (hptr :float size)
-      (cl-cuda::with-cuda-memory-block (dptr size)
-        (cl-cuda::cu-memcpy-host-to-device (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr) hptr size)
-        (cl-cuda::cu-memcpy-device-to-host hptr (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr) size)))))
+    (cffi:with-foreign-objects ((hptr :float size)
+                                (dptr 'cl-cuda::cu-device-ptr))
+      (cl-cuda::cu-mem-alloc dptr size)
+      (cl-cuda::cu-memcpy-host-to-device (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr) hptr size)
+      (cl-cuda::cu-memcpy-device-to-host hptr (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr) size)
+      (cl-cuda::cu-mem-free (cffi:mem-ref dptr 'cl-cuda::cu-device-ptr)))))
 
 ;; test cuModuleLoad
 (diag "test cuModuleLoad")
