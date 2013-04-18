@@ -892,7 +892,7 @@
 ;;   (setf (cffi:slot-value y-ptr 'float3 'x) (float3-x y)
 ;;         (cffi:slot-value y-ptr 'float3 'y) (float3-y y)
 ;;         (cffi:slot-value y-ptr 'float3 'z) (float3-z y))
-;;   (with-memory-block-device-ptr (a-ptr a)
+;;   (with-memory-block-device-ptrs ((a-ptr a))
 ;;     (cffi:with-foreign-object (kargs :pointer 3)
 ;;       (setf (cffi:mem-aref kargs :pointer 0) x-ptr)
 ;;       (setf (cffi:mem-aref kargs :pointer 1) y-ptr)
