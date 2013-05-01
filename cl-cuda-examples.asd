@@ -12,6 +12,7 @@
   :author "Masayuki Takagi"
   :license "LLGPL"
   :depends-on (:cl-cuda
+               :cl-test-more
                :imago
                :cl-stopwatch
                :cl-glu
@@ -22,5 +23,6 @@
                  (:file "diffuse1")
                  (:file "nbody")
                  ; (:file "shared-memory")
-                 (:file "vector-add"))))
+                 (:file "vector-add")
+                 (:file "sph"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
