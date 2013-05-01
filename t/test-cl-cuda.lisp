@@ -1063,8 +1063,18 @@
 (is       (cl-cuda::function-operands '(foo 1 1)) '(1 1)      )
 
 ;; test compile-function
-(is-error (cl-cuda::compile-function 'a                     nil nil) simple-error   )
-(is       (cl-cuda::compile-function '(cl-cuda::%add 1 1)   nil nil) "(1 + 1)"      )
+(is-error (cl-cuda::compile-function 'a                   nil nil) simple-error)
+(is       (cl-cuda::compile-function '(cl-cuda::%add 1 1) nil nil) "(1 + 1)"   )
+
+(is (cl-cuda::compile-function '(cl-cuda::%negate 1)   nil nil) "int_negate (1)")
+(is (cl-cuda::compile-function '(cl-cuda::%negate 1.0) nil nil) "float_negate (1.0)")
+(is (cl-cuda::compile-function '(cl-cuda::%negate (float3 1.0 1.0 1.0)) nil nil)
+    "float3_negate (make_float3 (1.0, 1.0, 1.0))")
+
+(is (cl-cuda::compile-function '(cl-cuda::%recip 2)   nil nil) "int_recip (2)")
+(is (cl-cuda::compile-function '(cl-cuda::%recip 2.0) nil nil) "float_recip (2.0)")
+(is (cl-cuda::compile-function '(cl-cuda::%recip (float3 2.0 2.0 2.0)) nil nil)
+    "float3_recip (make_float3 (2.0, 2.0, 2.0))")
 
 (let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
              (cl-cuda::empty-kernel-definition))))

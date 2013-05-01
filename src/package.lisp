@@ -41,6 +41,7 @@
            :rsqrtf                      ; Built-in functions
            :atomic-add
            :pointer
+           :dot
            :print-kernel-manager        ; Utilities for the default kernel manager
            :clear-kernel-manager
            :expand-macro :expand-macro-1
