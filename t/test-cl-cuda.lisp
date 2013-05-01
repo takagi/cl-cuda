@@ -314,7 +314,7 @@
 
 ;; test kernel-arg-ptr-type-binding
 (is (cl-cuda::kernel-arg-ptr-type-binding '(x cl-cuda:int))    '(x-ptr :int))
-(is (cl-cuda::kernel-arg-ptr-type-binding '(x cl-cuda:float3)) '(x-ptr 'float3))
+(is (cl-cuda::kernel-arg-ptr-type-binding '(x cl-cuda:float3)) '(x-ptr '(:struct float3)))
 
 ;; test kernel-arg-ptr-type-binding
 (is (cl-cuda::kernel-arg-ptr-var-binding '(a cl-cuda:float3*)) '(a-ptr a))
@@ -327,9 +327,9 @@
 ;; test setf-to-foreign-memory-form
 (is (cl-cuda::setf-to-foreign-memory-form '(x int)) '(setf (cffi:mem-ref x-ptr :int) x))
 (is (cl-cuda::setf-to-foreign-memory-form '(x float3))
-    '(setf (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::x) (float3-x x)
-      (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::y) (float3-y x)
-      (cffi:foreign-slot-value x-ptr 'float3 'cl-cuda::z) (float3-z x)))
+    '(setf (cffi:foreign-slot-value x-ptr '(:struct float3) 'cl-cuda::x) (float3-x x)
+           (cffi:foreign-slot-value x-ptr '(:struct float3) 'cl-cuda::y) (float3-y x)
+           (cffi:foreign-slot-value x-ptr '(:struct float3) 'cl-cuda::z) (float3-z x)))
 
 ;; test setf-to-argument-array-form
 (is (cl-cuda::setf-to-argument-array-form 'kargs '(x int) 0)
@@ -344,11 +344,11 @@
   (cl-cuda::with-kernel-arguments (kargs ((x int) (y float3) (a float3*)))
     nil)
   (cffi:with-foreign-objects ((x-ptr :int)
-                              (y-ptr 'float3))
+                              (y-ptr '(:struct float3)))
     (setf (cffi:mem-ref x-ptr :int) x)
-    (setf (cffi:foreign-slot-value y-ptr 'float3 'cl-cuda::x) (float3-x y)
-          (cffi:foreign-slot-value y-ptr 'float3 'cl-cuda::y) (float3-y y)
-          (cffi:foreign-slot-value y-ptr 'float3 'cl-cuda::z) (float3-z y))
+    (setf (cffi:foreign-slot-value y-ptr '(:struct float3) 'cl-cuda::x) (float3-x y)
+          (cffi:foreign-slot-value y-ptr '(:struct float3) 'cl-cuda::y) (float3-y y)
+          (cffi:foreign-slot-value y-ptr '(:struct float3) 'cl-cuda::z) (float3-z y))
     (cl-cuda::with-memory-block-device-ptrs ((a-ptr a))
       (cffi:with-foreign-object (kargs :pointer 3)
         (setf (cffi:mem-aref kargs :pointer 0) x-ptr)
@@ -510,8 +510,8 @@
 (is (cl-cuda::cffi-type 'void   ) :void                  )
 (is (cl-cuda::cffi-type 'int    ) :int                   )
 (is (cl-cuda::cffi-type 'float  ) :float                 )
-(is (cl-cuda::cffi-type 'float3 ) 'float3                )
-(is (cl-cuda::cffi-type 'float4 ) 'float4                )
+(is (cl-cuda::cffi-type 'float3 ) '(:struct float3)      )
+(is (cl-cuda::cffi-type 'float4 ) '(:struct float4)      )
 (is (cl-cuda::cffi-type 'float* ) 'cl-cuda::cu-device-ptr)
 (is (cl-cuda::cffi-type 'float3*) 'cl-cuda::cu-device-ptr)
 (is (cl-cuda::cffi-type 'float4*) 'cl-cuda::cu-device-ptr)
@@ -557,10 +557,10 @@
 (is (cl-cuda::vector-type-p 'float*) nil)
 
 ;; test vector-cffi-type
-(is       (cl-cuda::vector-cffi-type 'float3) 'float3     )
-(is       (cl-cuda::vector-cffi-type 'float4) 'float4     )
-(is-error (cl-cuda::vector-cffi-type 'float ) simple-error)
-(is-error (cl-cuda::vector-cffi-type 'float*) simple-error)
+(is       (cl-cuda::vector-cffi-type 'float3) '(:struct float3))
+(is       (cl-cuda::vector-cffi-type 'float4) '(:struct float4))
+(is-error (cl-cuda::vector-cffi-type 'float ) simple-error     )
+(is-error (cl-cuda::vector-cffi-type 'float*) simple-error     )
 
 ;; test vector-types
 (is (cl-cuda::vector-types) '(float3 float4))
@@ -1149,7 +1149,7 @@
 (is       (expand-macro '(+ 1 2))   '(cl-cuda::%add 1 2))
 (is       (expand-macro '(+ 1 2 3)) '(cl-cuda::%add (cl-cuda::%add 1 2) 3))
 (is-error (expand-macro '(-))       simple-error)
-(is       (expand-macro '(- 1))     '(cl-cuda::%sub 0 1))
+(is       (expand-macro '(- 1))     '(cl-cuda::%negate 1))
 (is       (expand-macro '(- 1 2))   '(cl-cuda::%sub 1 2))
 (is       (expand-macro '(- 1 2 3)) '(cl-cuda::%sub (cl-cuda::%sub 1 2) 3))
 (is       (expand-macro '(*))       1)
@@ -1157,7 +1157,7 @@
 (is       (expand-macro '(* 1 2))   '(cl-cuda::%mul 1 2))
 (is       (expand-macro '(* 1 2 3)) '(cl-cuda::%mul (cl-cuda::%mul 1 2) 3))
 (is-error (expand-macro '(/))       simple-error)
-(is       (expand-macro '(/ 1))     '(cl-cuda::%div 1 1))
+(is       (expand-macro '(/ 1))     '(cl-cuda::%recip 1))
 (is       (expand-macro '(/ 1 2))   '(cl-cuda::%div 1 2))
 (is       (expand-macro '(/ 1 2 3)) '(cl-cuda::%div (cl-cuda::%div 1 2) 3))
 
