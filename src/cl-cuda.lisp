@@ -423,7 +423,7 @@
 (defun vector-cffi-type (type)
   (unless (vector-type-p type)
     (error "invalid type: ~A" type))
-  type)
+  (list :struct type))
 
 (defun vector-types ()
   (mapcar #'car +vector-types+))
@@ -516,7 +516,7 @@
                   blk-type   type
                   length     n)
             ;; allocate device memory
-            (cu-mem-alloc (memory-block-cuda-device-ptr blk) (* n (type-size type)))
+            (cu-mem-alloc device-ptr (* n (type-size type)))
             ;; return a memory block
             blk)
         (:abort (free-memory-block-cuda blk))))))
