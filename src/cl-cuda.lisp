@@ -1507,12 +1507,12 @@
 (defun let-bindings (stmt)
   (match stmt
     (('let bindings . _) bindings)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun let-statements (stmt0)
   (match stmt0
     (('let _ . stmts) stmts)
-    (_ (error (format nil "invalid statement: ~A" stmt0)))))
+    (_ (error "invalid statement: ~A" stmt0))))
 
 (defun compile-let (stmt0 type-env def)
   (let ((bindings (let-bindings stmt0))
@@ -1536,7 +1536,7 @@
                         (compile-identifier var)
                         (compile-expression exp type-env def))
                 (%compile-let rest stmts type-env2 def))))
-    (_ (error (format nil "invalid bindings: ~A" bindings)))))
+    (_ (error "invalid bindings: ~A" bindings))))
 
 (defun compile-let-statements (stmts type-env def)
   (compile-progn-statements stmts type-env def))
@@ -1552,12 +1552,12 @@
 (defun set-place (stmt)
   (match stmt
     (('set place _) place)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun set-expression (stmt)
   (match stmt
     (('set _ exp) exp)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun compile-set (stmt type-env def)
   (let ((place (set-place stmt))
@@ -1569,7 +1569,7 @@
   (cond ((scalar-place-p place) (compile-scalar-place place type-env))
         ((vector-place-p place) (compile-vector-place place type-env def))
         ((array-place-p place)  (compile-array-place place type-env def))
-        (t (error (format nil "invalid place: ~A" place)))))
+        (t (error "invalid place: ~A" place))))
 
 (defun scalar-place-p (place)
   (scalar-variable-reference-p place))
@@ -1600,7 +1600,7 @@
 (defun progn-statements (stmt)
   (match stmt
     (('progn . stmts) stmts)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun compile-progn (stmt type-env def)
   (compile-progn-statements (progn-statements stmt) type-env def))
@@ -1624,7 +1624,7 @@
     (('return) "return;")
     (('return exp) (format nil "return ~A;"
                                (compile-expression exp type-env def)))
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 
 ;;; do statement
@@ -1722,12 +1722,12 @@
 (defun with-shared-memory-specs (stmt)
   (match stmt
     (('with-shared-memory specs . _) specs)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun with-shared-memory-statements (stmt)
   (match stmt
     (('with-shared-memory _ . stmts) stmts)
-    (_ (error (format nil "invalid statement: ~A" stmt)))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun compile-with-shared-memory (stmt type-env def)
   (let ((specs (with-shared-memory-specs stmt))
@@ -1753,7 +1753,7 @@
                                         (compile-expression exp type-env def))
                                     sizes))
                 (%compile-with-shared-memory rest stmts type-env2 def))))
-    (_ (error (format nil "invalid shared memory specs: ~A" specs)))))
+    (_ (error "invalid shared memory specs: ~A" specs))))
 
 (defun compile-with-shared-memory-statements (stmts type-env def)
   (compile-let-statements stmts type-env def))
@@ -1804,7 +1804,7 @@
 
 (defun compile-function (form type-env def &key (statement-p nil))
   (unless (defined-function-p form def)
-    (error (format nil "undefined function: ~A" form)))
+    (error "undefined function: ~A" form))
   (let ((code (if (built-in-function-p form)
                   (compile-built-in-function form type-env def)
                   (compile-user-function form type-env def))))
@@ -1840,7 +1840,7 @@
     (let ((func (kernel-definition-function-c-name operator def)))
       (unless (equal (kernel-definition-function-argument-types operator def)
                      (type-of-operands operands type-env def))
-        (error (format nil "invalid arguments: ~A" form)))
+        (error "invalid arguments: ~A" form))
       (format nil "~A (~A)" func (compile-operands operands type-env def)))))
 
 (defun type-of-operands (operands type-env def)
@@ -2064,7 +2064,7 @@ and false as values."
      (compile-variable-reference exp type-env def))
     ((inline-if-p exp) (compile-inline-if exp type-env def))
     ((function-p exp) (compile-function exp type-env def))
-    (t (error (format nil "invalid expression: ~A" exp)))))
+    (t (error "invalid expression: ~A" exp))))
 
 (defun literal-p (exp)
   (or (int-literal-p exp)
@@ -2108,7 +2108,7 @@ and false as values."
     (thread-idx-x "threadIdx.x")
     (thread-idx-y "threadIdx.y")
     (thread-idx-z "threadIdx.z")
-    (t (error (format nil "invalid expression: ~A" exp)))))
+    (t (error "invalid expression: ~A" exp))))
 
 (defun variable-reference-p (exp)
   (or (scalar-variable-reference-p exp)
@@ -2135,17 +2135,17 @@ and false as values."
          (compile-vector-variable-reference exp type-env def))
         ((array-variable-reference-p exp)
          (compile-array-variable-reference exp type-env def))
-        (t (error (format nil "invalid expression: ~A" exp)))))
+        (t (error "invalid expression: ~A" exp))))
 
 (defun compile-scalar-variable-reference (var type-env)
   (let ((type (lookup-type-environment var type-env)))
     (unless type
-      (error (format nil "unbound variable: ~A" var))))
+      (error "unbound variable: ~A" var)))
   (compile-identifier var))
 
 (defun compile-vector-selector (selector)
   (unless (valid-vector-type-selector-p selector)
-    (error (format nil "invalid selector: ~A" selector)))
+    (error "invalid selector: ~A" selector))
   (string-downcase (subseq (reverse (princ-to-string selector)) 0 1)))
 
 (defun compile-vector-variable-reference (form type-env def)
@@ -2211,12 +2211,12 @@ and false as values."
         ((variable-reference-p exp) (type-of-variable-reference exp type-env def))
         ((inline-if-p exp) (type-of-inline-if exp type-env def))
         ((function-p exp) (type-of-function exp type-env def))
-        (t (error (format nil "invalid expression: ~A" exp)))))
+        (t (error "invalid expression: ~A" exp))))
 
 (defun type-of-literal (exp)
   (cond ((int-literal-p exp) 'int)
         ((float-literal-p exp) 'float)
-        (t (error (format nil "invalid expression: ~A" exp)))))
+        (t (error "invalid expression: ~A" exp))))
 
 (defun type-of-variable-reference (exp type-env def)
   (cond ((scalar-variable-reference-p exp)
@@ -2225,12 +2225,12 @@ and false as values."
          (type-of-vector-variable-reference exp type-env def))
         ((array-variable-reference-p exp)
          (type-of-array-variable-reference exp type-env def))
-        (t (error (format nil "invalid expression: ~A" exp)))))
+        (t (error "invalid expression: ~A" exp))))
 
 (defun type-of-scalar-variable-reference (var type-env)
   (let ((type (lookup-type-environment var type-env)))
     (unless type
-      (error (format nil "unbound variable: ~A" var)))
+      (error "unbound variable: ~A" var))
     type))
 
 (defun type-of-vector-variable-reference (exp type-env def)
@@ -2249,7 +2249,7 @@ and false as values."
     (('aref exp2 . idxs)
      (let ((type (type-of-expression exp2 type-env def)))
        (unless (= (array-type-dimension type) (length idxs))
-         (error (format nil "invalid dimension: ~A" exp)))
+         (error "invalid dimension: ~A" exp))
        (remove-star type)))
     (_ (error "invalid variable reference: ~A" exp))))
 
@@ -2275,7 +2275,7 @@ and false as values."
          (type-of-built-in-function exp type-env def))
         ((user-function-p exp def)
          (type-of-user-function exp def))
-        (t (error (format nil "invalid expression: ~A" exp)))))
+        (t (error "invalid expression: ~A" exp))))
 
 (defun type-of-built-in-function (exp type-env def)
   (built-in-function-return-type exp type-env def))
@@ -2306,7 +2306,7 @@ and false as values."
 (defun lookup-type-environment (var type-env)
   (match (assoc var type-env)
     ((_ . type) type)
-    (_ (error (format nil "unbound variable: ~A" var)))))
+    (_ (error "unbound variable: ~A" var))))
 
 (defmacro with-type-environment ((var bindings) &body body)
   `(let ((,var (bulk-add-type-environment ',bindings (empty-type-environment))))
