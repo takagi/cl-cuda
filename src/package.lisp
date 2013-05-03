@@ -14,6 +14,10 @@
            :with-memory-blocks          ; Memory Block
            :alloc-memory-block
            :free-memory-block
+           :memory-block-type
+           :memory-block-length
+           :memory-block-bytes
+           :memory-block-element-bytes
            :memory-block-vertex-buffer-object
            :mem-aref
            :memcpy-host-to-device
