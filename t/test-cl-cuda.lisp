@@ -244,6 +244,12 @@
 ;; test setf functions of memory-block
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
+    ;; bool array
+    (with-memory-blocks ((x 'bool 2))
+      (setf (mem-aref x 0) t
+            (mem-aref x 1) nil)
+      (is (mem-aref x 0) t)
+      (is (mem-aref x 1) nil))
     ;; int array
     (with-memory-blocks ((x 'int 1))
       (setf (mem-aref x 0) 1)
@@ -394,6 +400,23 @@
     (argument 1 (make-float3 0.0 0.0 0.0) :grid-dim (list 1 1 1)
                                           :block-dim (list 1 1 1))))
 
+;; test "kernel-bool" kernel
+(defkernel kernel-bool (void ((ary bool*)))
+  (set (aref ary 0) t)
+  (set (aref ary 1) nil)
+  (return))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((a 'bool 2))
+      (setf (mem-aref a 0) nil
+            (mem-aref a 1) t)
+      (memcpy-host-to-device a)
+      (kernel-bool a :grid-dim '(1 1 1) :block-dim '(1 1 1))
+      (memcpy-device-to-host a)
+      (is (mem-aref a 0) t)
+      (is (mem-aref a 1) nil))))
+
 ;; test "kernel-float3" kernel
 (defkernel kernel-float3 (void ((ary float*) (x float3)))
   (set (aref ary 0) (+ (float3-x x) (float3-y x) (float3-z x))))
@@ -487,6 +510,7 @@
 
 ;; test type-size
 (is (cl-cuda::type-size 'void  ) 0 )
+(is (cl-cuda::type-size 'bool  ) 1 )
 (is (cl-cuda::type-size 'int   ) 4 )
 (is (cl-cuda::type-size 'float ) 4 )
 (is (cl-cuda::type-size 'float3) 12)
@@ -497,6 +521,7 @@
 
 ;; test valid-type-p
 (is (cl-cuda::valid-type-p 'void    ) t  )
+(is (cl-cuda::valid-type-p 'bool    ) t  )
 (is (cl-cuda::valid-type-p 'int     ) t  )
 (is (cl-cuda::valid-type-p 'float   ) t  )
 (is (cl-cuda::valid-type-p 'double  ) nil)
@@ -508,6 +533,7 @@
 
 ;; test cffi-type
 (is (cl-cuda::cffi-type 'void   ) :void                  )
+(is (cl-cuda::cffi-type 'bool   ) '(:boolean :int8)      )
 (is (cl-cuda::cffi-type 'int    ) :int                   )
 (is (cl-cuda::cffi-type 'float  ) :float                 )
 (is (cl-cuda::cffi-type 'float3 ) '(:struct float3)      )
@@ -517,7 +543,7 @@
 (is (cl-cuda::cffi-type 'float4*) 'cl-cuda::cu-device-ptr)
 
 ;; test non-pointer-type-p
-(is (cl-cuda::non-pointer-type-p 'int     ) t  )
+(is (cl-cuda::non-pointer-type-p 'float   ) t  )
 (is (cl-cuda::non-pointer-type-p 'float*  ) nil)
 (is (cl-cuda::non-pointer-type-p 'float3* ) nil)
 (is (cl-cuda::non-pointer-type-p 'float4* ) nil)
@@ -525,6 +551,7 @@
 
 ;; test basic-type-size
 (is       (cl-cuda::basic-type-size 'void  ) 0           )
+(is       (cl-cuda::basic-type-size 'bool  ) 1           )
 (is       (cl-cuda::basic-type-size 'int   ) 4           )
 (is       (cl-cuda::basic-type-size 'float ) 4           )
 (is-error (cl-cuda::basic-type-size 'float3) simple-error)
@@ -532,17 +559,19 @@
 
 ;; test basic-type-p
 (is (cl-cuda::basic-type-p 'void  ) t  )
+(is (cl-cuda::basic-type-p 'bool  ) t  )
 (is (cl-cuda::basic-type-p 'int   ) t  )
 (is (cl-cuda::basic-type-p 'float ) t  )
 (is (cl-cuda::basic-type-p 'float3) nil)
 (is (cl-cuda::basic-type-p 'float*) nil)
 
 ;; test basic-cffi-type
-(is       (cl-cuda::basic-cffi-type 'void  ) :void       )
-(is       (cl-cuda::basic-cffi-type 'int   ) :int        )
-(is       (cl-cuda::basic-cffi-type 'float ) :float      )
-(is-error (cl-cuda::basic-cffi-type 'float3) simple-error)
-(is-error (cl-cuda::basic-cffi-type 'float*) simple-error)
+(is       (cl-cuda::basic-cffi-type 'void  ) :void            )
+(is       (cl-cuda::basic-cffi-type 'bool  ) '(:boolean :int8))
+(is       (cl-cuda::basic-cffi-type 'int   ) :int             )
+(is       (cl-cuda::basic-cffi-type 'float ) :float           )
+(is-error (cl-cuda::basic-cffi-type 'float3) simple-error     )
+(is-error (cl-cuda::basic-cffi-type 'float*) simple-error     )
 
 ;; test vector-type-size
 (is       (cl-cuda::vector-type-size 'float3) 12          )
@@ -1166,6 +1195,21 @@
 ;;; test compile-literal (not implemented)
 ;;;
 
+(diag "test compile-literal")
+
+;; test LITERAL-P function
+(is (cl-cuda::literal-p 't)    t)
+(is (cl-cuda::literal-p 'nil)  t)
+(is (cl-cuda::literal-p 1)     t)
+(is (cl-cuda::literal-p 1.0)   t)
+(is (cl-cuda::literal-p 1.0d0) nil)
+
+;; test COMPILE-LITERAL function
+(is       (cl-cuda::compile-literal 't)    "true")
+(is       (cl-cuda::compile-literal 'nil)  "false")
+(is       (cl-cuda::compile-literal 1)     "1")
+(is       (cl-cuda::compile-literal 1.0)   "1.0")
+(is-error (cl-cuda::compile-literal 1.0d0) simple-error)
 
 
 ;;;
@@ -1259,10 +1303,14 @@
 (diag "test type-of-expression")
 
 ;; test type-of-expression
+(is (cl-cuda::type-of-expression 't   nil nil) 'bool )
+(is (cl-cuda::type-of-expression 'nil nil nil) 'bool )
 (is (cl-cuda::type-of-expression '1   nil nil) 'int  )
 (is (cl-cuda::type-of-expression '1.0 nil nil) 'float)
 
 ;; test type-of-literal
+(is       (cl-cuda::type-of-literal 't    ) 'bool       )
+(is       (cl-cuda::type-of-literal 'nil  ) 'bool       )
 (is       (cl-cuda::type-of-literal '1    ) 'int        )
 (is       (cl-cuda::type-of-literal '1.0  ) 'float      )
 (is-error (cl-cuda::type-of-literal '1.0d0) simple-error)

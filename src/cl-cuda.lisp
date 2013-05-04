@@ -369,6 +369,7 @@
 ;;;
 
 (defvar +basic-types+ '((void  0 :void)
+                        (bool  1 (:boolean :int8))
                         (int   4 :int)
                         (float 4 :float)))
 
@@ -705,8 +706,9 @@
 (defun basic-type-mem-aref (blk idx)
   ;; give type as constant explicitly for better performance
   (case (memory-block-type blk)
-    (int   (cffi:mem-aref (memory-block-cffi-ptr blk) :int   idx))
-    (float (cffi:mem-aref (memory-block-cffi-ptr blk) :float idx))
+    (bool  (cffi:mem-aref (memory-block-cffi-ptr blk) '(:boolean :int8) idx))
+    (int   (cffi:mem-aref (memory-block-cffi-ptr blk) :int              idx))
+    (float (cffi:mem-aref (memory-block-cffi-ptr blk) :float            idx))
     (t (error "must not be reached"))))
 
 (defun float3-mem-aref (blk idx)
@@ -742,8 +744,9 @@
 (defun basic-type-setf-mem-aref (blk idx val)
   ;; give type as constant explicitly for better performance
   (case (memory-block-type blk)
-    (int   (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :int   idx) val))
-    (float (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :float idx) val))
+    (bool  (setf (cffi:mem-aref (memory-block-cffi-ptr blk) '(:boolean :int8) idx) val))
+    (int   (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :int              idx) val))
+    (float (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :float            idx) val))
     (t (error "must not be reached"))))
 
 (defun float3-setf-mem-aref (blk idx val)
@@ -2067,8 +2070,12 @@ and false as values."
     (t (error "invalid expression: ~A" exp))))
 
 (defun literal-p (exp)
-  (or (int-literal-p exp)
+  (or (bool-literal-p exp)
+      (int-literal-p exp)
       (float-literal-p exp)))
+
+(defun bool-literal-p (exp)
+  (typep exp 'boolean))
 
 (defun int-literal-p (exp)
   (typep exp 'fixnum))
@@ -2076,8 +2083,22 @@ and false as values."
 (defun float-literal-p (exp)
   (typep exp 'single-float))
 
-(defun compile-literal (exp)
+(defun compile-bool-literal (exp)
+  (unless (typep exp 'boolean)
+    (error "invalid literal: ~A" exp))
+  (if exp "true" "false"))
+
+(defun compile-int-literal (exp)
   (princ-to-string exp))
+
+(defun compile-float-literal (exp)
+  (princ-to-string exp))
+
+(defun compile-literal (exp)
+  (cond ((bool-literal-p  exp) (compile-bool-literal exp))
+        ((int-literal-p   exp) (compile-int-literal exp))
+        ((float-literal-p exp) (compile-float-literal exp))
+        (t (error "invalid literal: ~A" exp))))
 
 (defun cuda-dimension-p (exp)
   (or (grid-dim-p exp) (block-dim-p exp) (block-idx-p exp) (thread-idx-p exp)))
@@ -2214,7 +2235,8 @@ and false as values."
         (t (error "invalid expression: ~A" exp))))
 
 (defun type-of-literal (exp)
-  (cond ((int-literal-p exp) 'int)
+  (cond ((bool-literal-p exp) 'bool)
+        ((int-literal-p exp) 'int)
         ((float-literal-p exp) 'float)
         (t (error "invalid expression: ~A" exp))))
 
