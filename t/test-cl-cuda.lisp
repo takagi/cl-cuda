@@ -804,9 +804,10 @@
 (diag "test compile-identifier")
 
 ;; test compile-identifier
-(is (cl-cuda::compile-identifier 'x             ) "x"             )
-(is (cl-cuda::compile-identifier 'vec-add-kernel) "vec_add_kernel")
-(is (cl-cuda::compile-identifier 'VecAdd_kernel ) "vecadd_kernel" )
+(is (cl-cuda::compile-identifier 'x             )  "x"             )
+(is (cl-cuda::compile-identifier 'vec-add-kernel)  "vec_add_kernel")
+(is (cl-cuda::compile-identifier '%vec-add-kernel) "_vec_add_kernel")
+(is (cl-cuda::compile-identifier 'VecAdd_kernel )  "vecadd_kernel" )
 
 
 ;;;
