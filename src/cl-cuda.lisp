@@ -1442,7 +1442,7 @@
     (format nil "~A ~A" (compile-type type) (compile-identifier var))))
 
 (defun compile-identifier (idt)
-  (substitute #\_ #\% (substitute #\_ #\- (string-downcase idt))))
+  (substitute #\_ #\% (substitute #\_ #\. (substitute #\_ #\- (string-downcase idt)))))
   
 
 ;;; compile statement
