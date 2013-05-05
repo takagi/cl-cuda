@@ -1565,6 +1565,10 @@
 (defun compile-set (stmt type-env def)
   (let ((place (set-place stmt))
         (exp (set-expression stmt)))
+    (let ((place-type (type-of-expression place type-env def))
+          (exp-type   (type-of-expression exp   type-env def)))
+      (unless (eq place-type exp-type)
+        (error "invalid types: type of the place is ~A but that of the expression is ~A" place-type exp-type)))
     (format nil "~A = ~A;" (compile-place place type-env def)
                            (compile-expression exp type-env def))))
 

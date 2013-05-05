@@ -989,15 +989,18 @@
 (is (cl-cuda::set-p '(set x          1)) t)
 (is (cl-cuda::set-p '(set (aref x i) 1)) t)
 
-;; compile-set
+;; test compile-set
 (cl-cuda::with-type-environment (type-env ((x int)))
-  (is (cl-cuda::compile-set '(set x 1) type-env nil) "x = 1;"))
+  (is (cl-cuda::compile-set '(set x 1) type-env nil) "x = 1;")
+  (is-error (cl-cuda::compile-set '(set x 1.0) type-env nil) simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x int*)))
-  (is (cl-cuda::compile-set '(set (aref x 0) 1) type-env nil) "x[0] = 1;"))
+  (is (cl-cuda::compile-set '(set (aref x 0) 1) type-env nil) "x[0] = 1;")
+  (is-error (cl-cuda::compile-set '(set (aref x 0) 1.0) type-env nil) simple-error))
 
 (cl-cuda::with-type-environment (type-env ((x float3)))
-  (is (cl-cuda::compile-set '(set (float3-x x) 1.0) type-env nil) "x.x = 1.0;"))
+  (is (cl-cuda::compile-set '(set (float3-x x) 1.0) type-env nil) "x.x = 1.0;")
+  (is-error (cl-cuda::compile-set '(set (float3-x x) 1) type-env nil) simple-error))
 
 
 ;;;
