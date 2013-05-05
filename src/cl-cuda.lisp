@@ -1491,6 +1491,9 @@
   (let ((test-exp  (if-test-expression stmt))
         (then-stmt (if-then-statement stmt))
         (else-stmt (if-else-statement stmt)))
+    (let ((test-type (type-of-expression test-exp type-env def)))
+      (unless (eq test-type 'bool)
+        (error "invalid type: type of test-form is ~A, not ~A" test-type 'bool)))
     (unlines (format nil "if (~A) {"
                      (compile-expression test-exp type-env def))
              (indent 2 (compile-statement then-stmt type-env def))
@@ -2222,6 +2225,13 @@ and false as values."
   (let ((test-exp (inline-if-test-expression exp))
         (then-exp (inline-if-then-expression exp))
         (else-exp (inline-if-else-expression exp)))
+    (let ((test-type (type-of-expression test-exp type-env def))
+          (then-type (type-of-expression then-exp type-env def))
+          (else-type (type-of-expression else-exp type-env def)))
+      (unless (eq test-type 'bool)
+        (error "invalid type: type of test-form is ~A, not ~A" test-type 'bool))
+      (unless (eq then-type else-type)
+        (error "invalid types: type of then-form is ~A but that of else-form is ~A" then-type else-type)))
     (format nil "(~A ? ~A : ~A)"
             (compile-expression test-exp type-env def)
             (compile-expression then-exp type-env def)

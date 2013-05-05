@@ -817,25 +817,31 @@
 
 (diag "test compile-if")
 
-(let ((lisp-code '(if 1
+(let ((lisp-code '(if t
                       (return)
                       (return)))
-      (c-code (cl-cuda::unlines "if (1) {"
+      (c-code (cl-cuda::unlines "if (true) {"
                                 "  return;"
                                 "} else {"
                                 "  return;"
                                 "}")))
   (is (cl-cuda::compile-if lisp-code nil nil) c-code))
 
-(let ((lisp-code '(if 1
+(let ((lisp-code '(if t
                       (progn
                         (return 0)
                         (return 0))))
-      (c-code (cl-cuda::unlines "if (1) {"
+      (c-code (cl-cuda::unlines "if (true) {"
                                 "  return 0;"
                                 "  return 0;"
                                 "}")))
   (is (cl-cuda::compile-if lisp-code nil nil) c-code))
+
+(let ((lisp-code '(if 1
+                      (return)
+                      (return))))
+  (cl-cuda::compile-if lisp-code nil nil)
+  (is-error (cl-cuda::compile-if lisp-code nil nil) simple-error))
 
 
 ;;;
@@ -1288,10 +1294,10 @@
 
 ;; test inline-if-p
 (is (cl-cuda::inline-if-p '(if)) nil)
-(is (cl-cuda::inline-if-p '(if 1)) nil)
-(is (cl-cuda::inline-if-p '(if 1 2)) nil)
-(is (cl-cuda::inline-if-p '(if 1 2 3)) t)
-(is (cl-cuda::inline-if-p '(if 1 2 3 4)) nil)
+(is (cl-cuda::inline-if-p '(if t)) nil)
+(is (cl-cuda::inline-if-p '(if t 2)) nil)
+(is (cl-cuda::inline-if-p '(if t 2 3)) t)
+(is (cl-cuda::inline-if-p '(if t 2 3 4)) nil)
 
 ;; test compile-inline-if
 (is-error (cl-cuda::compile-inline-if '(if) nil nil) simple-error)
@@ -1299,6 +1305,8 @@
 (is-error (cl-cuda::compile-inline-if '(if (= 1 1) 1) nil nil) simple-error)
 (is       (cl-cuda::compile-inline-if '(if (= 1 1) 1 2) nil nil) "((1 == 1) ? 1 : 2)")
 (is-error (cl-cuda::compile-inline-if '(if (= 1 1) 1 2 3) nil nil) simple-error)
+(is-error (cl-cuda::compile-inline-if '(if 1 2 3) nil nil) simple-error)
+(is-error (cl-cuda::compile-inline-if '(if t 1 1.0) nil nil) simple-error)
 
 
 ;;;
