@@ -219,7 +219,7 @@
   (case (length args)
     (0 1)
     (1 (car args))
-    (t `(if ,(car args) (and ,@(cdr args)) 0))))
+    (t `(if ,(car args) (and ,@(cdr args)) nil))))
 
 (defkernelmacro do-particles-in-cell ((var nbr info i j k) &body body)
   (alexandria:with-gensyms (n l)
@@ -1014,9 +1014,9 @@
               (verify y))))))))
 
 (defkernel kernel-and (void ((x int*)))
-  (if (and 1 2 3)
+  (if (and t nil nil)
       (set (aref x 0) 1))
-  (if (and 0 0 0)
+  (if (and nil nil nil)
       (set (aref x 1) 1)))
 
 (defun test-and ()
@@ -1028,4 +1028,5 @@
         (memcpy-host-to-device x)
         (kernel-and x)
         (memcpy-device-to-host x)
-        (cl-test-more:is (mem-aref x 0) 1)))))
+        (cl-test-more:is (mem-aref x 0) 1)
+        (cl-test-more:is (mem-aref x 1) 0)))))

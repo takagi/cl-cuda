@@ -840,7 +840,6 @@
 (let ((lisp-code '(if 1
                       (return)
                       (return))))
-  (cl-cuda::compile-if lisp-code nil nil)
   (is-error (cl-cuda::compile-if lisp-code nil nil) simple-error))
 
 
