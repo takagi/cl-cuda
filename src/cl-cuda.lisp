@@ -2344,7 +2344,7 @@ and false as values."
 (defun lookup-type-environment (var type-env)
   (match (assoc var type-env)
     ((_ . type) type)
-    (_ (error "unbound variable: ~A" var))))
+    (_ nil)))
 
 (defmacro with-type-environment ((var bindings) &body body)
   `(let ((,var (bulk-add-type-environment ',bindings (empty-type-environment))))
