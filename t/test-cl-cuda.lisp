@@ -494,7 +494,7 @@
        (progn ,@forms)))
 
 (defkernel test-when (void ())
-  (when 1 (return))
+  (when t (return))
   (return))
 
 (let ((dev-id 0))
