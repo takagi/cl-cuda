@@ -1844,15 +1844,6 @@
             (built-in-function-c-string form type-env def)
             (compile-operands operands type-env def))))
 
-(defun compile-user-function (form type-env def)
-  (let ((operator (function-operator form))
-        (operands (function-operands form)))
-    (let ((func (kernel-definition-function-c-name operator def)))
-      (unless (equal (kernel-definition-function-argument-types operator def)
-                     (type-of-operands operands type-env def))
-        (error "invalid arguments: ~A" form))
-      (format nil "~A (~A)" func (compile-operands operands type-env def)))))
-
 (defun type-of-operands (operands type-env def)
   (mapcar #'(lambda (exp)
               (type-of-expression exp type-env def))
@@ -1862,6 +1853,17 @@
   (join ", " (mapcar #'(lambda (exp)
                          (compile-expression exp type-env def))
                      operands)))
+
+(defun compile-user-function (form type-env def)
+  (let ((operator (function-operator form))
+        (operands (function-operands form)))
+    (let ((expected-types (kernel-definition-function-argument-types operator def))
+          (actual-types (type-of-operands operands type-env def)))
+      (unless (equal expected-types actual-types)
+        (error "invalid arguments: ~A" form)))
+    (let ((func (kernel-definition-function-c-name operator def))
+          (compiled-operands (compile-operands operands type-env def)))
+      (format nil "~A (~A)" func compiled-operands))))
 
 
 ;;; compile macro
