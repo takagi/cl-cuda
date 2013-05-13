@@ -1370,57 +1370,8 @@
 ;;; Compiling
 ;;;
 
-(defun compile-kernel-definition (def)
-  (unlines `("#include \"float3.h\""
-             ""
-             ,@(mapcar #'(lambda (name)
-                           (compile-kernel-function-prototype name def))
-                       (kernel-definition-function-names def))
-             ""
-             ,@(mapcar #'(lambda (name)
-                           (compile-kernel-function name def))
-                       (kernel-definition-function-names def)))))
-
-
-;;; compile kernel function prototype
-
-(defun compile-kernel-function-prototype (name def)
-  (let ((name (kernel-definition-function-c-name name def))
-        (return-type (kernel-definition-function-return-type name def))
-        (arg-bindings (kernel-definition-function-arguments name def)))
-    (format nil "extern \"C\" ~A;"
-            (compile-function-declaration name return-type arg-bindings))))
-
-
-;;; compile kernel function
-
-(defun compile-kernel-function (name def)
-  (let ((c-name (kernel-definition-function-c-name name def))
-        (return-type (kernel-definition-function-return-type name def))
-        (arg-bindings (kernel-definition-function-arguments name def))
-        (stmts (kernel-definition-function-body name def)))
-    (let ((type-env (make-type-environment-with-kernel-definition name def)))
-      (unlines `(,(compile-function-declaration c-name return-type arg-bindings)
-                 "{"
-                 ,@(mapcar #'(lambda (stmt)
-                              (indent 2 (compile-statement stmt type-env def)))
-                           stmts)
-                 "}"
-                  "")))))
-
-(defun make-type-environment-with-kernel-definition (name def)
-  (let ((arg-bindings (kernel-definition-function-arguments name def)))
-    (reduce #'(lambda (type-env arg-binding)
-                (destructuring-bind (var type) arg-binding
-                  (add-type-environment var type type-env)))
-            arg-bindings
-            :initial-value (empty-type-environment))))
-
-(defun compile-function-declaration (name return-type arg-bindings)
-  (format nil "~A ~A ~A (~A)" (compile-function-specifier return-type)
-                              (compile-type return-type)
-                              name
-                              (compile-arg-bindings arg-bindings)))
+(defun compile-identifier (idt)
+  (substitute #\_ #\% (substitute #\_ #\. (substitute #\_ #\- (string-downcase idt)))))
 
 (defun compile-function-specifier (return-type)
   (unless (valid-type-p return-type)
@@ -1434,15 +1385,66 @@
     (error (format nil "invalid type: ~A" type)))
   (compile-identifier (princ-to-string type)))
 
-(defun compile-arg-bindings (arg-bindings)
-  (join ", " (mapcar #'compile-arg-binding arg-bindings)))
-
-(defun compile-arg-binding (arg-binding)
-  (destructuring-bind (var type) arg-binding
+(defun compile-argument (arg)
+  (destructuring-bind (var type) arg
     (format nil "~A ~A" (compile-type type) (compile-identifier var))))
 
-(defun compile-identifier (idt)
-  (substitute #\_ #\% (substitute #\_ #\. (substitute #\_ #\- (string-downcase idt)))))
+(defun compile-arguments (args)
+  (join ", " (mapcar #'compile-argument args)))
+
+(defun compile-function-declaration (name def)
+  (let ((c-name (kernel-definition-function-c-name name def))
+        (arguments (kernel-definition-function-arguments name def))
+        (return-type (kernel-definition-function-return-type name def)))
+    (let ((specifier (compile-function-specifier return-type))
+          (type (compile-type return-type))
+          (args (compile-arguments arguments)))
+      (format nil "~A ~A ~A (~A)" specifier type c-name args))))
+
+(defun compile-kernel-function-prototype (name def)
+  (format nil "extern \"C\" ~A;"
+          (compile-function-declaration name def)))
+
+(defun compile-kernel-function-prototypes (def)
+  (mapcar #'(lambda (name)
+              (compile-kernel-function-prototype name def))
+          (kernel-definition-function-names def)))
+
+(defun make-type-environment-with-kernel-definition (name def)
+  (let ((arg-bindings (kernel-definition-function-arguments name def)))
+    (reduce #'(lambda (type-env arg-binding)
+                (destructuring-bind (var type) arg-binding
+                  (add-type-environment var type type-env)))
+            arg-bindings
+            :initial-value (empty-type-environment))))
+
+(defun compile-function-statements (name def)
+  (let ((type-env (make-type-environment-with-kernel-definition name def)))
+    (mapcar #'(lambda (stmt)
+                (compile-statement stmt type-env def))
+            (kernel-definition-function-body name def))))
+
+(defun compile-kernel-function (name def)
+  (labels ((indent2 (x) (indent 2 x)))
+    (let ((declaration (compile-function-declaration name def))
+          (statements (mapcar #'indent2 (compile-function-statements name def))))
+      (unlines `(,declaration
+                 "{"
+                   ,@statements
+                 "}"
+                 "")))))
+
+(defun compile-kernel-functions (def)
+  (mapcar #'(lambda (name)
+              (compile-kernel-function name def))
+          (kernel-definition-function-names def)))
+
+(defun compile-kernel-definition (def)
+  (unlines `("#include \"float3.h\""
+             ""
+             ,@(compile-kernel-function-prototypes def)
+             ""
+             ,@(compile-kernel-functions def))))
   
 
 ;;; compile statement
