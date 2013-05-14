@@ -1521,32 +1521,36 @@
     (('let _ . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt0))))
 
-(defun compile-let (stmt0 type-env def)
-  (let ((bindings (let-bindings stmt0))
-        (stmts (let-statements stmt0)))
-    (unlines "{"
-             (indent 2 (%compile-let bindings stmts type-env def))
-             "}")))
-
-(defun %compile-let (bindings stmts type-env def)
-  (if (null bindings)
-      (compile-let-statements stmts type-env def)
-      (compile-let-binding bindings stmts type-env def)))
+(defun %compile-assignment (var exp type-env def)
+  (let ((type (type-of-expression exp type-env def)))
+    (format nil "~A ~A = ~A;" (compile-type type)
+                              (compile-identifier var)
+                              (compile-expression exp type-env def))))
 
 (defun compile-let-binding (bindings stmts type-env def)
   (match bindings
     (((var exp) . rest)
-     (let* ((type (type-of-expression exp type-env def))
-            (type-env2 (add-type-environment var type type-env)))
-       (unlines (format nil "~A ~A = ~A;"
-                        (compile-type type)
-                        (compile-identifier var)
-                        (compile-expression exp type-env def))
+     (let ((assignment (%compile-assignment var exp type-env def))
+           (type-env2  (add-type-environment var type type-env)))
+       (unlines assignment
                 (%compile-let rest stmts type-env2 def))))
     (_ (error "invalid bindings: ~A" bindings))))
 
 (defun compile-let-statements (stmts type-env def)
   (compile-progn-statements stmts type-env def))
+
+(defun %compile-let (bindings stmts type-env def)
+  (if bindings
+      (compile-let-binding bindings stmts type-env def)
+      (compile-let-statements stmts type-env def)))
+
+(defun compile-let (stmt type-env def)
+  (let ((bindings  (let-bindings stmt))
+	      (let-stmts (let-statements stmt)))
+    (let ((compiled-stmts (%compile-let bindings let-stmts type-env def)))
+      (unlines "{"
+	             (indent 2 compiled-stmts)
+	             "}"))))
 
 
 ;;; set statement
