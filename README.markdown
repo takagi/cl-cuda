@@ -60,7 +60,7 @@ Before using cl-cuda, you must specify where `libcuda` dynamic library is and wh
 
 I will write more about installation later.
 
-## Rquirements
+## Requirements
 
 * NVIDIA CUDA-enabled GPU
 * CUDA Toolkit, CUDA Drivers and CUDA SDK need to be installed
