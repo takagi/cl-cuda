@@ -1523,12 +1523,6 @@
     (('let _ . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt0))))
 
-(defun %compile-assignment (var exp type-env def)
-  (let ((type (type-of-expression exp type-env def)))
-    (format nil "~A ~A = ~A;" (compile-type type)
-                              (compile-identifier var)
-                              (compile-expression exp type-env def))))
-
 (defun %compile-assignment (var exp type type-env def)
   (format nil "~A ~A = ~A;" (compile-type type)
                             (compile-identifier var)
