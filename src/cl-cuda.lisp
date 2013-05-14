@@ -1426,10 +1426,12 @@
 
 (defun compile-kernel-function (name def)
   (let ((declaration (compile-function-declaration name def))
-        (statements  (compile-function-statements  name def)))
+        (statements  (mapcar #'(lambda (stmt)
+                                 (indent 2 stmt))
+                             (compile-function-statements  name def))))
     (unlines `(,declaration
                "{"
-               ,@(indent 2 statements)
+               ,@statements
                "}"
                ""))))
 
@@ -1527,13 +1529,19 @@
                               (compile-identifier var)
                               (compile-expression exp type-env def))))
 
+(defun %compile-assignment (var exp type type-env def)
+  (format nil "~A ~A = ~A;" (compile-type type)
+                            (compile-identifier var)
+                            (compile-expression exp type-env def)))
+
 (defun compile-let-binding (bindings stmts type-env def)
   (match bindings
     (((var exp) . rest)
-     (let ((assignment (%compile-assignment var exp type-env def))
-           (type-env2  (add-type-environment var type type-env)))
-       (unlines assignment
-                (%compile-let rest stmts type-env2 def))))
+     (let ((type (type-of-expression exp type-env def)))
+       (let ((assignment (%compile-assignment var exp type type-env def))
+             (type-env2  (add-type-environment var type type-env)))
+         (unlines assignment
+                  (%compile-let rest stmts type-env2 def)))))
     (_ (error "invalid bindings: ~A" bindings))))
 
 (defun compile-let-statements (stmts type-env def)
