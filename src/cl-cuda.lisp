@@ -1425,14 +1425,13 @@
             (kernel-definition-function-body name def))))
 
 (defun compile-kernel-function (name def)
-  (labels ((indent2 (x) (indent 2 x)))
-    (let ((declaration (compile-function-declaration name def))
-          (statements (mapcar #'indent2 (compile-function-statements name def))))
-      (unlines `(,declaration
-                 "{"
-                   ,@statements
-                 "}"
-                 "")))))
+  (let ((declaration (compile-function-declaration name def))
+        (statements  (compile-function-statements  name def)))
+    (unlines `(,declaration
+               "{"
+               ,@(indent 2 statements)
+               "}"
+               ""))))
 
 (defun compile-kernel-functions (def)
   (mapcar #'(lambda (name)
