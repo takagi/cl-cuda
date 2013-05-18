@@ -2363,11 +2363,11 @@ and false as values."
 ;;;
 
 (defun varenv-name (elem)
-  (match elem
-    ((name :variable _) name)
-    ((name :constant _) name)
-    ((name :symbol-macro _) name)
-    (_ (error "invalid variable environment element: ~A" elem))))
+  (cond
+    ((varenv-variable-p elem) (varenv-variable-name elem))
+    ((varenv-constant-p elem) (varenv-constant-name elem))
+    ((varenv-symbol-macro-p elem) (varenv-symbol-macro-name elem))
+    (t (error "invalid variable environment element: ~A" elem))))
 
 (defun make-varenv-variable (name type)
   (assert (symbolp name))
