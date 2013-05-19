@@ -2445,14 +2445,14 @@ and false as values."
 
 (defun bulk-add-variable-environment (bindings var-env)
   (reduce #'(lambda (var-env2 binding)
-              (destructuring-bind (name kind type-or-expansion) binding
-                (ecase kind
-                  (:variable
-                   (add-variable-to-variable-environment name type-or-expansion var-env2))
-                  (:constant
-                   (add-constant-to-variable-environment name type-or-expansion var-env2))
-                  (:symbol-macro
-                   (add-symbol-macro-to-variable-environment name type-or-expansion var-env2)))))
+              (match binding
+                ((name :variable type)
+                 (add-variable-to-variable-environment name type var-env2))
+                ((name :constant type)
+                 (add-constant-to-variable-environment name type var-env2))
+                ((name :symbol-macro expansion)
+                 (add-symbol-macro-to-variable-environment name expansion var-env2))
+                (_ (error "invalid variable environment element: ~A" binding))))
           bindings :initial-value var-env))
 
 (defmacro with-variable-environment ((var-env bindings) &body body)
@@ -2578,18 +2578,19 @@ and false as values."
 
 (defun bulk-add-function-environment (bindings func-env)
   (reduce #'(lambda (func-env2 binding)
-              (destructuring-bind (name kind arg1 arg2 arg3) binding
-                (ecase kind
-                  (:function
-                   (add-function-to-function-environment name arg1 arg2 arg3 func-env2))
-                  (:macro
-                   (add-macro-to-function-environment name arg1 arg2 arg3 func-env2)))))
+              (match binding
+                ((name :function return-type args body)
+                 (add-function-to-function-environment name return-type args body func-env2))
+                ((name :macro args body expander)
+                 (add-macro-to-function-environment name args body expander func-env2))
+                (_ (error "invalid function environment element: ~A" binding))))
           bindings :initial-value func-env))
 
 (defmacro with-function-environment ((func-env bindings) &body body)
   (labels ((aux (binding)
              (match binding
-               ((name :macro args body) `(list ',name :macro ',args ',body (lambda ,args ,body)))
+               ((name :function return-type args body) `(list ',name :function ',return-type ',args ',body))
+               ((name :macro args body) `(list ',name :macro ',args ',body (lambda ,args ,@body)))
                (_ `',binding))))
     (let ((bindings2 `(list ,@(mapcar #'aux bindings))))
       `(let ((,func-env (bulk-add-function-environment ,bindings2 (empty-function-environment))))
