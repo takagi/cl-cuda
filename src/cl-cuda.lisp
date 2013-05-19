@@ -2367,59 +2367,59 @@ and false as values."
   (assert (valid-type-p type))
   (list name :variable type))
 
-(defun varenv-variable-p (var)
-  (match var
+(defun varenv-variable-p (elem)
+  (match elem
     ((_ :variable _) t)
     (_ nil)))
 
-(defun varenv-variable-name (var)
-  (match var
+(defun varenv-variable-name (elem)
+  (match elem
     ((name :variable _) name)
-    (_ (error "invalid variable environment variable: ~A" var))))
+    (_ (error "invalid variable environment variable: ~A" elem))))
 
-(defun varenv-variable-type (var)
-  (match var
+(defun varenv-variable-type (elem)
+  (match elem
     ((_ :variable type) type)
-    (_ (error "invalid variable environment variable: ~A" var))))
+    (_ (error "invalid variable environment variable: ~A" elem))))
 
 (defun make-varenv-constant (name type)
   (assert (symbolp name))
   (assert (valid-type-p type))
   (list name :constant type))
 
-(defun varenv-constant-p (const)
-  (match const
+(defun varenv-constant-p (elem)
+  (match elem
     ((_ :constant _) t)
     (_ nil)))
 
-(defun varenv-constant-name (const)
-  (match const
+(defun varenv-constant-name (elem)
+  (match elem
     ((name :constant _) name)
-    (_ (error "invalid variable environment constant: ~A" const))))
+    (_ (error "invalid variable environment constant: ~A" elem))))
 
-(defun varenv-constant-type (const)
-  (match const
+(defun varenv-constant-type (elem)
+  (match elem
     ((_ :constant type) type)
-    (_ (error "invalid variable environment constant: ~A" const))))
+    (_ (error "invalid variable environment constant: ~A" elem))))
 
 (defun make-varenv-symbol-macro (name expansion)
   (assert (symbolp name))
   (list name :symbol-macro expansion))
 
-(defun varenv-symbol-macro-p (sym-mac)
-  (match sym-mac
+(defun varenv-symbol-macro-p (elem)
+  (match elem
     ((_ :symbol-macro _) t)
     (_ nil)))
 
-(defun varenv-symbol-macro-name (sym-mac)
-  (match sym-mac
+(defun varenv-symbol-macro-name (elem)
+  (match elem
     ((name :symbol-macro _) name)
-    (_ (error "invalid variable environment symbol macro: ~A" sym-mac))))
+    (_ (error "invalid variable environment symbol macro: ~A" elem))))
 
-(defun varenv-symbol-macro-expansion (sym-mac)
-  (match sym-mac
+(defun varenv-symbol-macro-expansion (elem)
+  (match elem
     ((_ :symbol-macro expansion) expansion)
-    (_ (error "invalid variable environment symbol macro: ~A" sym-mac))))
+    (_ (error "invalid variable environment symbol macro: ~A" elem))))
 
 (defun varenv-name (elem)
   (cond
@@ -2473,21 +2473,23 @@ and false as values."
 
 (defun variable-environment-type-of-variable (name var-env)
   (unless (variable-environment-variable-exists-p name var-env)
-    (error "invalid varialbe: ~A" name))
+    (error "invalid varialbe name: ~A" name))
   (varenv-variable-type (lookup-variable-environment name var-env)))
 
 (defun variable-environment-type-of-constant (name var-env)
   (unless (variable-environment-constant-exists-p name var-env)
-    (error "invalid constant: ~A" name))
+    (error "invalid constant name: ~A" name))
   (varenv-constant-type (lookup-variable-environment name var-env)))
 
 (defun variable-environment-symbol-macro-expansion (name var-env)
   (unless (variable-environment-symbol-macro-exists-p name var-env)
-    (error "invalid symbol macro: ~A" name))
+    (error "invalid symbol macro name: ~A" name))
   (varenv-symbol-macro-expansion (lookup-variable-environment name var-env)))
 
 
+;;;
 ;;; Timer
+;;;
 
 (defstruct timer-object
   start-event stop-event)

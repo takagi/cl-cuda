@@ -1406,25 +1406,34 @@
   (is       (cl-cuda::varenv-name sym-mac) 'z)
   (is-error (cl-cuda::varenv-name nil) simple-error)
   ;; test variable
+  (is       (cl-cuda::varenv-variable-p var) t)
   (is       (cl-cuda::varenv-variable-name var) 'x)
   (is       (cl-cuda::varenv-variable-type var) 'int)
+  (is       (cl-cuda::varenv-variable-p const) nil)
   (is-error (cl-cuda::varenv-variable-name const) simple-error)
   (is-error (cl-cuda::varenv-variable-type const) simple-error)
   ;; test constant
+  (is       (cl-cuda::varenv-constant-p const) t)
   (is       (cl-cuda::varenv-constant-name const) 'y)
   (is       (cl-cuda::varenv-constant-type const) 'float)
+  (is       (cl-cuda::varenv-constant-p var) nil)
   (is-error (cl-cuda::varenv-constant-name var) simple-error)
   (is-error (cl-cuda::varenv-constant-type var) simple-error)
   ;; test symbol macro
+  (is       (cl-cuda::varenv-symbol-macro-p sym-mac) t)
   (is       (cl-cuda::varenv-symbol-macro-name sym-mac) 'z)
   (is       (cl-cuda::varenv-symbol-macro-expansion sym-mac) '(expanded z))
+  (is       (cl-cuda::varenv-symbol-macro-p var) nil)
   (is-error (cl-cuda::varenv-symbol-macro-name var) simple-error)
   (is-error (cl-cuda::varenv-symbol-macro-expansion var) simple-error))
 
-;; name must be symbol
+;; test making varialbe environment elements
 (is-error (cl-cuda::make-varenv-variable '(x) 'int) simple-error)
+(is-error (cl-cuda::make-varenv-variable '(x) 'invalid-type) simple-error)
 (is-error (cl-cuda::make-varenv-constant '(x) 'int) simple-error)
+(is-error (cl-cuda::make-varenv-constant '(x) 'invalid-type) simple-error)
 (is-error (cl-cuda::make-varenv-symbol-macro '(x) 'int) simple-error)
+(is-error (cl-cuda::bulk-add-variable-environment '((x :invalid-keyword int)) (cl-cuda::empty-variable-environment)) type-error)
 
 ;; test variable environment
 (cl-cuda::with-variable-environment (var-env ((x :variable int)
@@ -1452,11 +1461,6 @@
   (is-error (cl-cuda::variable-environment-type-of-variable 'x var-env) simple-error)
   (is       (cl-cuda::variable-environment-symbol-macro-exists-p 'x var-env) t)
   (is       (cl-cuda::variable-environment-symbol-macro-expansion 'x var-env) '(expanded-x)))
-
-;; test other error cases in variable environment
-(is-error (cl-cuda::with-variable-environment (var-env ((x :invalid-keyword int))) var-env) type-error)
-(is-error (cl-cuda::with-variable-environment (var-env ((x :variable invalid-type))) var-env) simple-error)
-(is-error (cl-cuda::with-variable-environment (var-env ((x :constant invalid-type))) var-env) simple-error)
 
 
 ;;;
