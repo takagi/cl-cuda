@@ -1516,7 +1516,7 @@
 
 ;; test function environment
 (cl-cuda::with-function-environment (func-env ((f :function int ((x int)) ((return x)))
-                                               (g :macro (x) `(expanded ,x) (lambda (x) `(expanded ,x)))))
+                                               (g :macro (x) `(expanded ,x))))
   ;; test predicates
   (is       (cl-cuda::function-environment-function-exists-p 'f func-env) t)
   (is       (cl-cuda::function-environment-function-exists-p 'g func-env) nil)
@@ -1538,7 +1538,7 @@
 
 ;; test shadowing in function environment
 (cl-cuda::with-function-environment (func-env ((f :function int ((x int)) ((return x)))
-                                               (f :macro (x) `(expanded ,x) (lambda (x) `(expanded ,x)))))
+                                               (f :macro (x) `(expanded ,x))))
   (is       (cl-cuda::function-environment-function-exists-p 'f func-env) nil)
   (is-error (cl-cuda::function-environment-function-return-type 'f func-env) simple-error)
   (is-error (cl-cuda::function-environment-function-arguments 'f func-env) simple-error)

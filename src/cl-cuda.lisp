@@ -2588,11 +2588,9 @@ and false as values."
 
 (defmacro with-function-environment ((func-env bindings) &body body)
   (labels ((aux (binding)
-             (destructuring-bind (name kind arg1 arg2 arg3) binding
-                 (case kind
-                   (:function `(list ',name :function ',arg1 ',arg2 ',arg3))
-                   (:macro `(list ',name :macro ',arg1 ',arg2 ,arg3))
-                   (t `',binding)))))
+             (match binding
+               ((name :macro args body) `(list ',name :macro ',args ',body (lambda ,args ,body)))
+               (_ `',binding))))
     (let ((bindings2 `(list ,@(mapcar #'aux bindings))))
       `(let ((,func-env (bulk-add-function-environment ,bindings2 (empty-function-environment))))
          ,@body))))
