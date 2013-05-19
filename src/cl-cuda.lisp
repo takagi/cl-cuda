@@ -2488,6 +2488,156 @@ and false as values."
 
 
 ;;;
+;;; Function environment
+;;;
+
+(defun make-funcenv-function (name return-type args body)
+  (assert (symbolp name))
+  (assert (valid-type-p return-type))
+  (dolist (arg args)
+    (match arg
+      ((var type) (assert (symbolp var)) (assert (valid-type-p type)))
+      (_ (error "invalid argument: ~A" arg))))
+  (assert (listp body))
+  (list name :function return-type args body))
+
+(defun funcenv-function-p (elem)
+  (match elem
+    ((_ :function _ _ _) t)
+    (_ nil)))
+
+(defun funcenv-function-name (elem)
+  (match elem
+    ((name :function _ _ _) name)
+    (_ (error "invalid function environment function: ~A" elem))))
+
+(defun funcenv-function-return-type (elem)
+  (match elem
+    ((_ :function return-type _ _) return-type)
+    (_ (error "invalid function environment function: ~A" elem))))
+
+(defun funcenv-function-arguments (elem)
+  (match elem
+    ((_ :function _ arguments _) arguments)
+    (_ (error "invalid function environment function: ~A" elem))))
+
+(defun funcenv-function-body (elem)
+  (match elem
+    ((_ :function _ _ body) body)
+    (_ (error "invalid function environment function: ~A" elem))))
+
+(defun make-funcenv-macro (name args body expander)
+  (assert (symbolp name))
+  (assert (listp args))
+  (dolist (arg args) (assert (symbolp arg)))
+  (assert (listp body))
+  (assert (functionp expander))
+  (list name :macro args body expander))
+
+(defun funcenv-macro-p (elem)
+  (match elem
+    ((_ :macro _ _ _) t)
+    (_ nil)))
+
+(defun funcenv-macro-name (elem)
+  (match elem
+    ((name :macro _ _ _) name)
+    (_ (error "invalid function environment macro: ~A" elem))))
+
+(defun funcenv-macro-arguments (elem)
+  (match elem
+    ((_ :macro arguments _ _) arguments)
+    (_ (error "invalid function environment macro: ~A" elem))))
+
+(defun funcenv-macro-body (elem)
+  (match elem
+    ((_ :macro _ body _) body)
+    (_ (error "invalid function environment macro: ~A" elem))))
+
+(defun funcenv-macro-expander (elem)
+  (match elem
+    ((_ :macro _ _ expander) expander)
+    (_ (error "invalid function environment macro: ~A" elem))))
+
+(defun funcenv-name (elem)
+  (cond
+    ((funcenv-function-p elem) (funcenv-function-name elem))
+    ((funcenv-macro-p elem) (funcenv-macro-name elem))
+    (t (error "invalid function environment element: ~A" elem))))
+
+(defun empty-function-environment ()
+  '())
+
+(defun add-function-to-function-environment (name return-type arguments body func-env)
+  (let ((elem (make-funcenv-function name return-type arguments body)))
+    (cons elem func-env)))
+
+(defun add-macro-to-function-environment (name arguments body expander func-env)
+  (let ((elem (make-funcenv-macro name arguments body expander)))
+    (cons elem func-env)))
+
+(defun bulk-add-function-environment (bindings func-env)
+  (reduce #'(lambda (func-env2 binding)
+              (destructuring-bind (name kind arg1 arg2 arg3) binding
+                (ecase kind
+                  (:function
+                   (add-function-to-function-environment name arg1 arg2 arg3 func-env2))
+                  (:macro
+                   (add-macro-to-function-environment name arg1 arg2 arg3 func-env2)))))
+          bindings :initial-value func-env))
+
+(defmacro with-function-environment ((func-env bindings) &body body)
+  (labels ((aux (binding)
+             (destructuring-bind (name kind arg1 arg2 arg3) binding
+                 (case kind
+                   (:function `(list ',name :function ',arg1 ',arg2 ',arg3))
+                   (:macro `(list ',name :macro ',arg1 ',arg2 ,arg3))
+                   (t `',binding)))))
+    (let ((bindings2 `(list ,@(mapcar #'aux bindings))))
+      `(let ((,func-env (bulk-add-function-environment ,bindings2 (empty-function-environment))))
+         ,@body))))
+
+(defun lookup-function-environment (name func-env)
+  (find name func-env :key #'funcenv-name))
+
+(defun function-environment-function-exists-p (name func-env)
+  (funcenv-function-p (lookup-function-environment name func-env)))
+
+(defun function-environment-macro-exists-p (name func-env)
+  (funcenv-macro-p (lookup-function-environment name func-env)))
+
+(defun function-environment-function-return-type (name func-env)
+  (unless (function-environment-function-exists-p name func-env)
+    (error "invalid function name: ~A" name))
+  (funcenv-function-return-type (lookup-function-environment name func-env)))
+
+(defun function-environment-function-arguments (name func-env)
+  (unless (function-environment-function-exists-p name func-env)
+    (error "invalid function name: ~A" name))
+  (funcenv-function-arguments (lookup-function-environment name func-env)))
+
+(defun function-environment-function-body (name func-env)
+  (unless (function-environment-function-exists-p name func-env)
+    (error "invalid function name: ~A" name))
+  (funcenv-function-body (lookup-function-environment name func-env)))
+
+(defun function-environment-macro-arguments (name func-env)
+  (unless (function-environment-macro-exists-p name func-env)
+    (error "invalid macro name: ~A" name))
+  (funcenv-macro-arguments (lookup-function-environment name func-env)))
+
+(defun function-environment-macro-body (name func-env)
+  (unless (function-environment-macro-exists-p name func-env)
+    (error "invalid macro name: ~A" name))
+  (funcenv-macro-body (lookup-function-environment name func-env)))
+
+(defun function-environment-macro-expander (name func-env)
+  (unless (function-environment-macro-exists-p name func-env)
+    (error "invalid macro name: ~A" name))
+  (funcenv-macro-expander (lookup-function-environment name func-env)))
+
+
+;;;
 ;;; Timer
 ;;;
 

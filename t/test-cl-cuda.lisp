@@ -1464,6 +1464,92 @@
 
 
 ;;;
+;;; test function environment
+;;;
+
+(diag "test function environment")
+
+;; test function environment elements
+(let ((func  (cl-cuda::make-funcenv-function 'f 'int '((x int)) '((return x))))
+      (macro (cl-cuda::make-funcenv-macro 'g '(x) '`(expanded ,x) (lambda (x) `(expanded ,x)))))
+  ;; test funcenv-name
+  (is       (cl-cuda::funcenv-name func) 'f)
+  (is       (cl-cuda::funcenv-name macro) 'g)
+  (is-error (cl-cuda::funcenv-name nil) simple-error)
+  ;; test function
+  (is       (cl-cuda::funcenv-function-p func) t)
+  (is       (cl-cuda::funcenv-function-name func) 'f)
+  (is       (cl-cuda::funcenv-function-return-type func) 'int)
+  (is       (cl-cuda::funcenv-function-arguments func) '((x int)))
+  (is       (cl-cuda::funcenv-function-body func) '((return x)))
+  (is       (cl-cuda::funcenv-function-p macro) nil)
+  (is-error (cl-cuda::funcenv-function-name macro) simple-error)
+  (is-error (cl-cuda::funcenv-function-return-type macro) simple-error)
+  (is-error (cl-cuda::funcenv-function-arguments macro) simple-error)
+  (is-error (cl-cuda::funcenv-function-body macro) simple-error)
+  ;; test macro
+  (is       (cl-cuda::funcenv-macro-p macro) t)
+  (is       (cl-cuda::funcenv-macro-name macro) 'g)
+  (is       (cl-cuda::funcenv-macro-arguments macro) '(x))
+  (is       (cl-cuda::funcenv-macro-body macro) '`(expanded ,x))
+  (is       (funcall (cl-cuda::funcenv-macro-expander macro) 'x) '(expanded x))
+  (is       (cl-cuda::funcenv-macro-p func) nil)
+  (is-error (cl-cuda::funcenv-macro-name func) simple-error)
+  (is-error (cl-cuda::funcenv-macro-arguments func) simple-error)
+  (is-error (cl-cuda::funcenv-macro-body func) simple-error)
+  (is-error (cl-cuda::funcenv-macro-expander func) simple-error))
+
+;; test making function environment elements
+(is-error (cl-cuda::make-funcenv-function '(f) 'int '((x int)) '((return x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function '(g) '(x) '`(expanded ,x) (lambda (x) `(expanded ,x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function 'f 'invalid-type '((x int)) '((return x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function 'f 'int '(x) '((return x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function 'f 'int '(((x) int)) '((return x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function 'f 'int '((x invalid-type)) '((return x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function 'f 'int '((x int y)) '((return x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function 'f 'int '((x int)) 'x) simple-error)
+(is-error (cl-cuda::make-funcenv-macro 'g 'x '`(expanded ,x) (lambda (x) `(expanded ,x))) simple-error)
+(is-error (cl-cuda::make-funcenv-macro 'g '((x)) '`(expanded ,x) (lambda (x) `(expanded ,x))) simple-error)
+(is-error (cl-cuda::make-funcenv-macro 'g '(x) 'x (lambda (x) `(expanded ,x))) simple-error)
+(is-error (cl-cuda::make-funcenv-macro 'g '(x) '`(expanded ,x) nil) simple-error)
+(is-error (cl-cuda::bulk-add-function-environment '((f :invalid-keyword int ((x int)) ((return x)))) (cl-cuda::empty-function-environment)) type-error)
+
+;; test function environment
+(cl-cuda::with-function-environment (func-env ((f :function int ((x int)) ((return x)))
+                                               (g :macro (x) `(expanded ,x) (lambda (x) `(expanded ,x)))))
+  ;; test predicates
+  (is       (cl-cuda::function-environment-function-exists-p 'f func-env) t)
+  (is       (cl-cuda::function-environment-function-exists-p 'g func-env) nil)
+  (is       (cl-cuda::function-environment-macro-exists-p 'g func-env) t)
+  (is       (cl-cuda::function-environment-macro-exists-p 'f func-env) nil)
+  ;; test selectors
+  (is       (cl-cuda::function-environment-function-return-type 'f func-env) 'int)
+  (is-error (cl-cuda::function-environment-function-return-type 'g func-env) simple-error)
+  (is       (cl-cuda::function-environment-function-arguments 'f func-env) '((x int)))
+  (is-error (cl-cuda::function-environment-function-arguments 'g func-env) simple-error)
+  (is       (cl-cuda::function-environment-function-body 'f func-env) '((return x)))
+  (is-error (cl-cuda::function-environment-function-body 'g func-env) simple-error)
+  (is       (cl-cuda::function-environment-macro-arguments 'g func-env) '(x))
+  (is-error (cl-cuda::function-environment-macro-arguments 'f func-env) simple-error)
+  (is       (cl-cuda::function-environment-macro-body 'g func-env) '`(expanded ,x))
+  (is-error (cl-cuda::function-environment-macro-body 'f func-env) simple-error)
+  (is       (funcall (cl-cuda::function-environment-macro-expander 'g func-env) 'x) '(expanded x))
+  (is-error (cl-cuda::function-environment-macro-expander 'f func-env) simple-error))
+
+;; test shadowing in function environment
+(cl-cuda::with-function-environment (func-env ((f :function int ((x int)) ((return x)))
+                                               (f :macro (x) `(expanded ,x) (lambda (x) `(expanded ,x)))))
+  (is       (cl-cuda::function-environment-function-exists-p 'f func-env) nil)
+  (is-error (cl-cuda::function-environment-function-return-type 'f func-env) simple-error)
+  (is-error (cl-cuda::function-environment-function-arguments 'f func-env) simple-error)
+  (is-error (cl-cuda::function-environment-function-body 'f func-env) simple-error)
+  (is       (cl-cuda::function-environment-macro-exists-p 'f func-env) t)
+  (is       (cl-cuda::function-environment-macro-arguments 'f func-env) '(x))
+  (is       (cl-cuda::function-environment-macro-body 'f func-env)  '`(expanded ,x))
+  (is       (funcall (cl-cuda::function-environment-macro-expander 'f func-env) 'x) '(expanded x)))
+
+
+;;;
 ;;; test utilities
 ;;;
 
