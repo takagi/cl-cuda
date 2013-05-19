@@ -2362,13 +2362,6 @@ and false as values."
 ;;; Variable environment
 ;;;
 
-(defun varenv-name (elem)
-  (cond
-    ((varenv-variable-p elem) (varenv-variable-name elem))
-    ((varenv-constant-p elem) (varenv-constant-name elem))
-    ((varenv-symbol-macro-p elem) (varenv-symbol-macro-name elem))
-    (t (error "invalid variable environment element: ~A" elem))))
-
 (defun make-varenv-variable (name type)
   (assert (symbolp name))
   (assert (valid-type-p type))
@@ -2427,6 +2420,13 @@ and false as values."
   (match sym-mac
     ((_ :symbol-macro expansion) expansion)
     (_ (error "invalid variable environment symbol macro: ~A" sym-mac))))
+
+(defun varenv-name (elem)
+  (cond
+    ((varenv-variable-p elem) (varenv-variable-name elem))
+    ((varenv-constant-p elem) (varenv-constant-name elem))
+    ((varenv-symbol-macro-p elem) (varenv-symbol-macro-name elem))
+    (t (error "invalid variable environment element: ~A" elem))))
 
 (defun empty-variable-environment ()
   '())
