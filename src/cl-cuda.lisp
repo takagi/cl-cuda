@@ -1619,13 +1619,15 @@
     (('progn . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-progn (stmt type-env def)
-  (compile-progn-statements (progn-statements stmt) type-env def))
+(defun compile-progn-statements (stmts var-env def)
+  (let ((compiled-stmts (mapcar #'(lambda (stmt)
+                                    (compile-statement stmt var-env def))
+                                stmts)))
+    (unlines compiled-stmts stmts)))
 
-(defun compile-progn-statements (stmts type-env def)
-  (unlines (mapcar #'(lambda (stmt2)
-                       (compile-statement stmt2 type-env def))
-                   stmts)))
+(defun compile-progn (stmt var-env def)
+  (let ((stmts (progn-statements stmt)))
+    (compile-progn-statements stmts var-env def)))
 
 
 ;;; return statement
