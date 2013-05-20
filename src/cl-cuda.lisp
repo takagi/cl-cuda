@@ -2001,11 +2001,11 @@ and false as values."
   (or (getf +built-in-functions+ op)
       (error "invalid function: ~A" op)))
 
-(defun inferred-function (form type-env def)
+(defun inferred-function (form var-env def)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
     (let ((candidates (function-candidates operator))
-          (types (type-of-operands operands type-env def)))
+          (types (type-of-operands operands var-env def)))
       (or (find types candidates :key #'car :test #'equal)
           (error "invalid function application: ~A" form)))))
 
@@ -2024,20 +2024,20 @@ and false as values."
 (defun inferred-function-c-string (fun)
   (cadddr fun))
 
-(defun built-in-function-argument-types (form type-env def)
-  (inferred-function-argument-types (inferred-function form type-env def)))
+(defun built-in-function-argument-types (form var-env def)
+  (inferred-function-argument-types (inferred-function form var-env def)))
 
-(defun built-in-function-return-type (form type-env def)
-  (inferred-function-return-type (inferred-function form type-env def)))
+(defun built-in-function-return-type (form var-env def)
+  (inferred-function-return-type (inferred-function form var-env def)))
 
-(defun built-in-function-infix-p (form type-env def)
-  (inferred-function-infix-p (inferred-function form type-env def)))
+(defun built-in-function-infix-p (form var-env def)
+  (inferred-function-infix-p (inferred-function form var-env def)))
 
-(defun built-in-function-prefix-p (form type-env def)
-  (inferred-function-prefix-p (inferred-function form type-env def)))
+(defun built-in-function-prefix-p (form var-env def)
+  (inferred-function-prefix-p (inferred-function form var-env def)))
 
-(defun built-in-function-c-string (form type-env def)
-  (inferred-function-c-string (inferred-function form type-env def)))
+(defun built-in-function-c-string (form var-env def)
+  (inferred-function-c-string (inferred-function form var-env def)))
 
 
 ;;; built-in macros
