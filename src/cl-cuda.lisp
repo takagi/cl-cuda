@@ -2076,15 +2076,15 @@ and false as values."
 
 ;;; compile expression
 
-(defun compile-expression (exp type-env def)
+(defun compile-expression (exp var-env def)
   (cond
-    ((macro-form-p exp def) (compile-macro exp type-env def))
+    ((macro-form-p exp def) (compile-macro exp var-env def))
     ((literal-p exp) (compile-literal exp))
     ((cuda-dimension-p exp) (compile-cuda-dimension exp))
     ((variable-reference-p exp)
-     (compile-variable-reference exp type-env def))
-    ((inline-if-p exp) (compile-inline-if exp type-env def))
-    ((function-p exp) (compile-function exp type-env def))
+     (compile-variable-reference exp var-env def))
+    ((inline-if-p exp) (compile-inline-if exp var-env def))
+    ((function-p exp) (compile-function exp var-env def))
     (t (error "invalid expression: ~A" exp))))
 
 (defun literal-p (exp)
