@@ -1410,18 +1410,17 @@
               (compile-kernel-function-prototype name def))
           (kernel-definition-function-names def)))
 
-(defun make-type-environment-with-kernel-definition (name def)
+(defun make-variable-environment-with-kernel-definition (name def)
   (let ((arg-bindings (kernel-definition-function-arguments name def)))
-    (reduce #'(lambda (type-env arg-binding)
+    (reduce #'(lambda (var-env arg-binding)
                 (destructuring-bind (var type) arg-binding
-                  (add-type-environment var type type-env)))
-            arg-bindings
-            :initial-value (empty-type-environment))))
+                  (add-variable-to-variable-environment var type var-env)))
+            arg-bindings :initial-value (empty-variable-environment))))
 
 (defun compile-function-statements (name def)
-  (let ((type-env (make-type-environment-with-kernel-definition name def)))
+  (let ((var-env (make-variable-environment-with-kernel-definition name def)))
     (mapcar #'(lambda (stmt)
-                (compile-statement stmt type-env def))
+                (compile-statement stmt var-env def))
             (kernel-definition-function-body name def))))
 
 (defun compile-kernel-function (name def)
