@@ -2231,21 +2231,21 @@ and false as values."
     (('if _ _ else-exp) else-exp)
     (_ (error "invalid expression: ~A" exp))))
 
-(defun compile-inline-if (exp type-env def)
+(defun compile-inline-if (exp var-env def)
   (let ((test-exp (inline-if-test-expression exp))
         (then-exp (inline-if-then-expression exp))
         (else-exp (inline-if-else-expression exp)))
-    (let ((test-type (type-of-expression test-exp type-env def))
-          (then-type (type-of-expression then-exp type-env def))
-          (else-type (type-of-expression else-exp type-env def)))
+    (let ((test-type (type-of-expression test-exp var-env def))
+          (then-type (type-of-expression then-exp var-env def))
+          (else-type (type-of-expression else-exp var-env def)))
       (unless (eq test-type 'bool)
         (error "invalid type: type of test-form is ~A, not ~A" test-type 'bool))
       (unless (eq then-type else-type)
         (error "invalid types: type of then-form is ~A but that of else-form is ~A" then-type else-type)))
     (format nil "(~A ? ~A : ~A)"
-            (compile-expression test-exp type-env def)
-            (compile-expression then-exp type-env def)
-            (compile-expression else-exp type-env def))))
+            (compile-expression test-exp var-env def)
+            (compile-expression then-exp var-env def)
+            (compile-expression else-exp var-env def))))
 
 ;;;
 ;;; Type of expression
