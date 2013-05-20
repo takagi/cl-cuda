@@ -1442,18 +1442,18 @@
 
 ;;; compile statement
 
-(defun compile-statement (stmt type-env def)
+(defun compile-statement (stmt var-env def)
   (cond
-    ((macro-form-p stmt def) (compile-macro stmt type-env def :statement-p t))
-    ((if-p stmt) (compile-if stmt type-env def))
-    ((let-p stmt) (compile-let stmt type-env def))
-    ((do-p stmt) (compile-do stmt type-env def))
-    ((with-shared-memory-p stmt) (compile-with-shared-memory stmt type-env def))
-    ((set-p stmt) (compile-set stmt type-env def))
-    ((progn-p stmt) (compile-progn stmt type-env def))
-    ((return-p stmt) (compile-return stmt type-env def))
+    ((macro-form-p stmt def) (compile-macro stmt var-env def :statement-p t))
+    ((if-p stmt) (compile-if stmt var-env def))
+    ((let-p stmt) (compile-let stmt var-env def))
+    ((do-p stmt) (compile-do stmt var-env def))
+    ((with-shared-memory-p stmt) (compile-with-shared-memory stmt var-env def))
+    ((set-p stmt) (compile-set stmt var-env def))
+    ((progn-p stmt) (compile-progn stmt var-env def))
+    ((return-p stmt) (compile-return stmt var-env def))
     ((syncthreads-p stmt) (compile-syncthreads stmt))
-    ((function-p stmt) (compile-function stmt type-env def :statement-p t))
+    ((function-p stmt) (compile-function stmt var-env def :statement-p t))
     (t (error "invalid statement: ~A" stmt))))
 
 ;;; if statement
