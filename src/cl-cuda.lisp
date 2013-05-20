@@ -1749,34 +1749,34 @@
     (('with-shared-memory _ . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-with-shared-memory (stmt type-env def)
-  (let ((specs (with-shared-memory-specs stmt))
-        (stmts (with-shared-memory-statements stmt)))
-    (unlines "{"
-             (indent 2 (%compile-with-shared-memory specs stmts type-env def))
-             "}")))
+(defun compile-with-shared-memory-statements (stmts var-env def)
+  (compile-let-statements stmts var-env def))
 
-(defun %compile-with-shared-memory (specs stmts type-env def)
-  (if (null specs)
-      (compile-with-shared-memory-statements stmts type-env def)
-      (compile-with-shared-memory-spec specs stmts type-env def)))
-
-(defun compile-with-shared-memory-spec (specs stmts type-env def)
+(defun compile-with-shared-memory-spec (specs stmts var-env def)
   (match specs
     (((var type . sizes) . rest)
-     (let* ((type-env2 (add-type-environment var (add-star type (length sizes))
-                                             type-env)))
+     (let* ((type2 (add-star type (length sizes)))
+            (var-env2 (add-variable-to-variable-environment var type2 var-env)))
        (unlines (format nil "__shared__ ~A ~A~{[~A]~};"
                             (compile-type type)
                             (compile-identifier var)
                             (mapcar #'(lambda (exp)
-                                        (compile-expression exp type-env def))
+                                        (compile-expression exp var-env def))
                                     sizes))
-                (%compile-with-shared-memory rest stmts type-env2 def))))
+                (%compile-with-shared-memory rest stmts var-env2 def))))
     (_ (error "invalid shared memory specs: ~A" specs))))
 
-(defun compile-with-shared-memory-statements (stmts type-env def)
-  (compile-let-statements stmts type-env def))
+(defun %compile-with-shared-memory (specs stmts var-env def)
+  (if (null specs)
+      (compile-with-shared-memory-statements stmts var-env def)
+      (compile-with-shared-memory-spec specs stmts var-env def)))
+
+(defun compile-with-shared-memory (stmt var-env def)
+  (let ((specs (with-shared-memory-specs stmt))
+        (stmts (with-shared-memory-statements stmt)))
+    (unlines "{"
+             (indent 2 (%compile-with-shared-memory specs stmts var-env def))
+             "}")))
 
 
 ;;; compile syncthreads
