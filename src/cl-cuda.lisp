@@ -1881,8 +1881,7 @@
 (defun macro-form-p (form def)
   "Returns t if the given form is a macro form. The macro used in the
 form may be an user-defined macro under the given kernel definition or
-a built-in macro.
-TODO: consider symbol macros"
+a built-in macro."
   (or (built-in-macro-p form)
       (user-macro-p form def)))
 
@@ -1906,12 +1905,12 @@ TODO: consider symbol macros"
     (error "undefined macro form: ~A" form))
   (cdr form))
 
-(defun compile-macro (form type-env def &key (statement-p nil))
+(defun compile-macro (form var-env def &key (statement-p nil))
   (unless (macro-form-p form def)
     (error "undefined macro: ~A" form))
   (if statement-p
-      (compile-statement  (%expand-macro-1 form def) type-env def)
-      (compile-expression (%expand-macro-1 form def) type-env def)))
+      (compile-statement  (%expand-macro-1 form def) var-env def)
+      (compile-expression (%expand-macro-1 form def) var-env def)))
 
 (defun %expand-macro-1 (form def)
   (labels ((expand (form def)
