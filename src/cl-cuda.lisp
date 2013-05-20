@@ -1656,10 +1656,11 @@
     (('do bindings . _) bindings)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun do-var-types (stmt type-def def)
+(defun do-var-types (stmt var-def def)
   (labels ((do-var-type (binding)
              (list (do-binding-var binding)
-                   (do-binding-type binding type-def def))))
+                   :variable
+                   (do-binding-type binding var-def def))))
     (mapcar #'do-var-type (do-bindings stmt))))
 
 (defun do-binding-var (binding)
@@ -1668,8 +1669,8 @@
     ((var _ _) var)
     (_ (error "invalid binding: ~A" binding))))
 
-(defun do-binding-type (binding type-env def)
-  (type-of-expression (do-binding-init-form binding) type-env def))
+(defun do-binding-type (binding var-env def)
+  (type-of-expression (do-binding-init-form binding) var-env def))
 
 (defun do-binding-init-form (binding)
   (match binding
@@ -1693,40 +1694,40 @@
     (('do _ _ . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-do (stmt type-env def)
-  (let ((type-env2 (bulk-add-type-environment (do-var-types stmt type-env def) type-env)))
-    (let ((init-part (compile-do-init-part stmt type-env def))
-          (test-part (compile-do-test-part stmt type-env2 def))
-          (step-part (compile-do-step-part stmt type-env2 def)))
+(defun compile-do (stmt var-env def)
+  (let ((var-env2 (bulk-add-variable-environment (do-var-types stmt var-env def) var-env)))
+    (let ((init-part (compile-do-init-part stmt var-env def))
+          (test-part (compile-do-test-part stmt var-env2 def))
+          (step-part (compile-do-step-part stmt var-env2 def)))
       (unlines (format nil "for ( ~A; ~A; ~A )" init-part test-part step-part)
                "{"
-               (indent 2 (compile-do-statements stmt type-env2 def))
+               (indent 2 (compile-do-statements stmt var-env2 def))
                "}"))))
 
-(defun compile-do-init-part (stmt type-env def)
+(defun compile-do-init-part (stmt var-env def)
   (labels ((aux (binding)
              (let ((var (do-binding-var binding))
-                   (type (do-binding-type binding type-env def))
+                   (type (do-binding-type binding var-env def))
                    (init-form (do-binding-init-form binding)))
                (format nil "~A ~A = ~A" (compile-type type)
                                         (compile-identifier var)
-                                        (compile-expression init-form type-env def)))))
+                                        (compile-expression init-form var-env def)))))
     (join ", " (mapcar #'aux (do-bindings stmt)))))
 
-(defun compile-do-test-part (stmt type-env def)
+(defun compile-do-test-part (stmt var-env def)
   (let ((test-form (do-test-form stmt)))
-    (format nil "! ~A" (compile-expression test-form type-env def))))
+    (format nil "! ~A" (compile-expression test-form var-env def))))
 
-(defun compile-do-step-part (stmt type-env def)
+(defun compile-do-step-part (stmt var-env def)
   (labels ((aux (binding)
              (let ((var (do-binding-var binding))
                    (step-form (do-binding-step-form binding)))
                (format nil "~A = ~A" (compile-identifier var)
-                                     (compile-expression step-form type-env def)))))
+                                     (compile-expression step-form var-env def)))))
     (join ", " (mapcar #'aux (remove-if-not #'do-binding-step-form (do-bindings stmt))))))
 
-(defun compile-do-statements (stmt type-env def)
-  (compile-progn-statements (do-statements stmt) type-env def))
+(defun compile-do-statements (stmt var-env def)
+  (compile-progn-statements (do-statements stmt) var-env def))
 
 
 ;;; with-shared-memory statement

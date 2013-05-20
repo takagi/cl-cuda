@@ -875,18 +875,17 @@
                   ((> a 15))
                 (return)))
        (binding (first (cl-cuda::do-bindings code))))
-  (cl-cuda::with-type-environment (type-env ((a int) (b int)))
+  (cl-cuda::with-variable-environment (var-env ((a :variable int) (b :variable int)))
     (is (cl-cuda::do-p code)                    t)
     (is (cl-cuda::do-bindings code)             '((a 0 (+ a 1))
                                                   (b 0 (+ b 1))))
     (is (cl-cuda::do-var-types code nil nil)    '((a int) (b int)))
     (is (cl-cuda::do-binding-var binding)       'a)
-    (is (cl-cuda::do-binding-type binding type-env nil) 'int)
+    (is (cl-cuda::do-binding-type binding var-env nil) 'int)
     (is (cl-cuda::do-binding-init-form binding) 0)
     (is (cl-cuda::do-binding-step-form binding) '(+ a 1))
     (is (cl-cuda::do-test-form code)            '(> a 15))
     (is (cl-cuda::do-statements code)           '((return)))))
-
 
 ;; test compile-do
 (let ((lisp-code '(do ((a 0 (+ a 1))
@@ -897,10 +896,10 @@
                                 "{"
                                 "  return;"
                                 "}")))
-  (cl-cuda::with-type-environment (type-env ((a int) (b int)))
-    (is (cl-cuda::compile-do-init-part lisp-code nil      nil) "int a = 0, int b = 0")
-    (is (cl-cuda::compile-do-test-part lisp-code type-env nil) "! (a > 15)")
-    (is (cl-cuda::compile-do-step-part lisp-code type-env nil) "a = (a + 1), b = (b + 1)")
+  (cl-cuda::with-variable-environment (var-env ((a :variable int) (b :variable int)))
+    (is (cl-cuda::compile-do-init-part lisp-code nil     nil) "int a = 0, int b = 0")
+    (is (cl-cuda::compile-do-test-part lisp-code var-env nil) "! (a > 15)")
+    (is (cl-cuda::compile-do-step-part lisp-code var-env nil) "a = (a + 1), b = (b + 1)")
     (is (cl-cuda::compile-do lisp-code nil nil) c-code)))
 
 (let ((lisp-code '(do ((a 0.0 (+ a 1.0)))
