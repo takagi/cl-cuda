@@ -2246,15 +2246,17 @@ and false as values."
             (compile-expression then-exp type-env def)
             (compile-expression else-exp type-env def))))
 
-;;; type of expression
+;;;
+;;; Type of expression
+;;;
 
-(defun type-of-expression (exp type-env def)
-  (cond ((macro-form-p exp def) (type-of-macro-form exp type-env def))
+(defun type-of-expression (exp var-env def)
+  (cond ((macro-form-p exp def) (type-of-macro-form exp var-env def))
         ((literal-p exp) (type-of-literal exp))
         ((cuda-dimension-p exp) 'int)
-        ((variable-reference-p exp) (type-of-variable-reference exp type-env def))
-        ((inline-if-p exp) (type-of-inline-if exp type-env def))
-        ((function-p exp) (type-of-function exp type-env def))
+        ((variable-reference-p exp) (type-of-variable-reference exp var-env def))
+        ((inline-if-p exp) (type-of-inline-if exp var-env def))
+        ((function-p exp) (type-of-function exp var-env def))
         (t (error "invalid expression: ~A" exp))))
 
 (defun type-of-literal (exp)
@@ -2263,67 +2265,65 @@ and false as values."
         ((float-literal-p exp) 'float)
         (t (error "invalid expression: ~A" exp))))
 
-(defun type-of-variable-reference (exp type-env def)
+(defun type-of-variable-reference (exp var-env def)
   (cond ((scalar-variable-reference-p exp)
-         (type-of-scalar-variable-reference exp type-env))
+         (type-of-scalar-variable-reference exp var-env))
         ((vector-variable-reference-p exp)
-         (type-of-vector-variable-reference exp type-env def))
+         (type-of-vector-variable-reference exp var-env def))
         ((array-variable-reference-p exp)
-         (type-of-array-variable-reference exp type-env def))
+         (type-of-array-variable-reference exp var-env def))
         (t (error "invalid expression: ~A" exp))))
 
-(defun type-of-scalar-variable-reference (var type-env)
-  (let ((type (lookup-type-environment var type-env)))
-    (unless type
-      (error "unbound variable: ~A" var))
-    type))
+(defun type-of-scalar-variable-reference (var var-env)
+  (unless (variable-environment-variable-exists-p var var-env)
+    (error "unbound variable: ~A" var))
+  (variable-environment-type-of-variable var var-env))
 
-(defun type-of-vector-variable-reference (exp type-env def)
+(defun type-of-vector-variable-reference (exp var-env def)
   (match exp
     ((selector exp2)
      (let ((selector-type (vector-type-selector-type selector))
-           (exp-type      (type-of-expression exp2 type-env def)))
+           (exp-type      (type-of-expression exp2 var-env def)))
        (unless (eq selector-type exp-type)
          (error "invalid variable reference: ~A" exp))
        (vector-type-base-type exp-type)))
     (_ (error "invalid variable reference: ~A" exp))))
 
-(defun type-of-array-variable-reference (exp type-env def)
+(defun type-of-array-variable-reference (exp var-env def)
   (match exp
     (('aref _) (error "invalid variable reference: ~A" exp))
     (('aref exp2 . idxs)
-     (let ((type (type-of-expression exp2 type-env def)))
+     (let ((type (type-of-expression exp2 var-env def)))
        (unless (= (array-type-dimension type) (length idxs))
          (error "invalid dimension: ~A" exp))
        (remove-star type)))
     (_ (error "invalid variable reference: ~A" exp))))
 
-
-(defun type-of-inline-if (exp type-env def)
+(defun type-of-inline-if (exp var-env def)
   (let ((test-exp (inline-if-test-expression exp))
         (then-exp (inline-if-then-expression exp))
         (else-exp (inline-if-else-expression exp)))
-    (let ((test-exp-type (type-of-expression test-exp type-env def))
-          (then-exp-type (type-of-expression then-exp type-env def))
-          (else-exp-type (type-of-expression else-exp type-env def)))
+    (let ((test-exp-type (type-of-expression test-exp var-env def))
+          (then-exp-type (type-of-expression then-exp var-env def))
+          (else-exp-type (type-of-expression else-exp var-env def)))
       (when (not (eq test-exp-type 'bool))
         (error "type of the test part of the inline if expression is not bool: ~A" exp))
       (when (not (eq then-exp-type else-exp-type))
         (error "types of the then part and the else part of the inline if expression are not same: ~A" exp))
       then-exp-type)))
 
-(defun type-of-macro-form (exp type-env def)
-  (type-of-expression (%expand-macro-1 exp def) type-env def))
+(defun type-of-macro-form (exp var-env def)
+  (type-of-expression (%expand-macro-1 exp def) var-env def))
 
-(defun type-of-function (exp type-env def)
+(defun type-of-function (exp var-env def)
   (cond ((built-in-function-p exp)
-         (type-of-built-in-function exp type-env def))
+         (type-of-built-in-function exp var-env def))
         ((user-function-p exp def)
          (type-of-user-function exp def))
         (t (error "invalid expression: ~A" exp))))
 
-(defun type-of-built-in-function (exp type-env def)
-  (built-in-function-return-type exp type-env def))
+(defun type-of-built-in-function (exp var-env def)
+  (built-in-function-return-type exp var-env def))
 
 (defun type-of-user-function (exp def)
   (let ((operator (function-operator exp)))
