@@ -2166,19 +2166,18 @@ and false as values."
     (('aref . _) t)
     (_ nil)))
 
-(defun compile-variable-reference (exp type-env def)
+(defun compile-variable-reference (exp var-env def)
   (cond ((scalar-variable-reference-p exp)
-         (compile-scalar-variable-reference exp type-env))
+         (compile-scalar-variable-reference exp var-env))
         ((vector-variable-reference-p exp)
-         (compile-vector-variable-reference exp type-env def))
+         (compile-vector-variable-reference exp var-env def))
         ((array-variable-reference-p exp)
-         (compile-array-variable-reference exp type-env def))
+         (compile-array-variable-reference exp var-env def))
         (t (error "invalid expression: ~A" exp))))
 
-(defun compile-scalar-variable-reference (var type-env)
-  (let ((type (lookup-type-environment var type-env)))
-    (unless type
-      (error "unbound variable: ~A" var)))
+(defun compile-scalar-variable-reference (var var-env)
+  (unless (variable-environment-variable-exists-p var var-env)
+    (error "unbound variable: ~A" var))
   (compile-identifier var))
 
 (defun compile-vector-selector (selector)
@@ -2186,29 +2185,29 @@ and false as values."
     (error "invalid selector: ~A" selector))
   (string-downcase (subseq (reverse (princ-to-string selector)) 0 1)))
 
-(defun compile-vector-variable-reference (form type-env def)
+(defun compile-vector-variable-reference (form var-env def)
   (match form
     ((selector exp)
      (let ((selector-type (vector-type-selector-type selector))
-           (exp-type      (type-of-expression exp type-env def)))
+           (exp-type      (type-of-expression exp var-env def)))
        (unless (eq selector-type exp-type)
          (error "invalid variable reference: ~A" form))
-       (format nil "~A.~A" (compile-expression exp type-env def)
+       (format nil "~A.~A" (compile-expression exp var-env def)
                            (compile-vector-selector selector))))
     (_ (error "invalid variable reference: ~A" form))))
 
-(defun compile-array-variable-reference (form type-env def)
+(defun compile-array-variable-reference (form var-env def)
   (match form
     (('aref _)
      (error "invalid variable reference: ~A" form))
     (('aref exp . idxs)
-     (let ((type (type-of-expression exp type-env def)))
+     (let ((type (type-of-expression exp var-env def)))
        (unless (= (array-type-dimension type) (length idxs))
          (error "invalid dimension: ~A" form))
        (format nil "~A~{[~A]~}"
-                   (compile-expression exp type-env def)
+                   (compile-expression exp var-env def)
                    (mapcar #'(lambda (idx)
-                               (compile-expression idx type-env def)) idxs))))
+                               (compile-expression idx var-env def)) idxs))))
     (_ (error "invalid variable reference: ~A" form))))
 
 (defun inline-if-p (exp)

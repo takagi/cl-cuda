@@ -1251,37 +1251,37 @@
 ;; test compile-variable-reference
 (is-error (cl-cuda::compile-variable-reference 'x nil nil) simple-error)
 
-(cl-cuda::with-type-environment (type-env ((x int)))
-  (is       (cl-cuda::compile-variable-reference 'x          type-env nil) "x"         )
-  (is-error (cl-cuda::compile-variable-reference '(aref x)   type-env nil) simple-error)
-  (is-error (cl-cuda::compile-variable-reference '(aref x 0) type-env nil) simple-error))
+(cl-cuda::with-variable-environment (var-env ((x :variable int)))
+  (is       (cl-cuda::compile-variable-reference 'x          var-env nil) "x"         )
+  (is-error (cl-cuda::compile-variable-reference '(aref x)   var-env nil) simple-error)
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0) var-env nil) simple-error))
 
-(cl-cuda::with-type-environment (type-env ((x int*)))
-  (is       (cl-cuda::compile-variable-reference 'x            type-env nil) "x"         )
-  (is       (cl-cuda::compile-variable-reference '(aref x 0)   type-env nil) "x[0]"      )
-  (is-error (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil) simple-error))
+(cl-cuda::with-variable-environment (var-env ((x :variable int*)))
+  (is       (cl-cuda::compile-variable-reference 'x            var-env nil) "x"         )
+  (is       (cl-cuda::compile-variable-reference '(aref x 0)   var-env nil) "x[0]"      )
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0 0) var-env nil) simple-error))
 
-(cl-cuda::with-type-environment (type-env ((x int**)))
-  (is       (cl-cuda::compile-variable-reference 'x            type-env nil) "x"         )
-  (is-error (cl-cuda::compile-variable-reference '(aref x 0)   type-env nil) simple-error)
-  (is       (cl-cuda::compile-variable-reference '(aref x 0 0) type-env nil) "x[0][0]"   ))
+(cl-cuda::with-variable-environment (var-env ((x :variable int**)))
+  (is       (cl-cuda::compile-variable-reference 'x            var-env nil) "x"         )
+  (is-error (cl-cuda::compile-variable-reference '(aref x 0)   var-env nil) simple-error)
+  (is       (cl-cuda::compile-variable-reference '(aref x 0 0) var-env nil) "x[0][0]"   ))
 
-(cl-cuda::with-type-environment (type-env ((x float3)))
-  (is (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) "x.x")
-  (is (cl-cuda::compile-variable-reference '(float3-y x) type-env nil) "x.y")
-  (is (cl-cuda::compile-variable-reference '(float3-z x) type-env nil) "x.z"))
+(cl-cuda::with-variable-environment (var-env ((x :variable float3)))
+  (is (cl-cuda::compile-variable-reference '(float3-x x) var-env nil) "x.x")
+  (is (cl-cuda::compile-variable-reference '(float3-y x) var-env nil) "x.y")
+  (is (cl-cuda::compile-variable-reference '(float3-z x) var-env nil) "x.z"))
 
-(cl-cuda::with-type-environment (type-env ((x float4)))
-  (is (cl-cuda::compile-variable-reference '(float4-x x) type-env nil) "x.x")
-  (is (cl-cuda::compile-variable-reference '(float4-y x) type-env nil) "x.y")
-  (is (cl-cuda::compile-variable-reference '(float4-z x) type-env nil) "x.z")
-  (is (cl-cuda::compile-variable-reference '(float4-w x) type-env nil) "x.w"))
+(cl-cuda::with-variable-environment (var-env ((x :variable float4)))
+  (is (cl-cuda::compile-variable-reference '(float4-x x) var-env nil) "x.x")
+  (is (cl-cuda::compile-variable-reference '(float4-y x) var-env nil) "x.y")
+  (is (cl-cuda::compile-variable-reference '(float4-z x) var-env nil) "x.z")
+  (is (cl-cuda::compile-variable-reference '(float4-w x) var-env nil) "x.w"))
 
-(cl-cuda::with-type-environment (type-env ((x float)))
-  (is-error (cl-cuda::compile-variable-reference '(float3-x x) type-env nil) simple-error))
+(cl-cuda::with-variable-environment (var-env ((x :variable float)))
+  (is-error (cl-cuda::compile-variable-reference '(float3-x x) var-env nil) simple-error))
 
-(cl-cuda::with-type-environment (type-env ((x float3*)))
-  (is (cl-cuda::compile-vector-variable-reference '(float3-x (aref x 0)) type-env nil) "x[0].x"))
+(cl-cuda::with-variable-environment (var-env ((x :variable float3*)))
+  (is (cl-cuda::compile-vector-variable-reference '(float3-x (aref x 0)) var-env nil) "x[0].x"))
 
 
 ;;;
