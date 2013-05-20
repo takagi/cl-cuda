@@ -1490,19 +1490,19 @@
     (('if _ _ else-stmt) else-stmt)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-if (stmt type-env def)
+(defun compile-if (stmt var-env def)
   (let ((test-exp  (if-test-expression stmt))
         (then-stmt (if-then-statement stmt))
         (else-stmt (if-else-statement stmt)))
-    (let ((test-type (type-of-expression test-exp type-env def)))
+    (let ((test-type (type-of-expression test-exp var-env def)))
       (unless (eq test-type 'bool)
         (error "invalid type: type of test-form is ~A, not ~A" test-type 'bool)))
     (unlines (format nil "if (~A) {"
-                     (compile-expression test-exp type-env def))
-             (indent 2 (compile-statement then-stmt type-env def))
+                     (compile-expression test-exp var-env def))
+             (indent 2 (compile-statement then-stmt var-env def))
              (and else-stmt "} else {")
              (and else-stmt
-                  (indent 2 (compile-statement else-stmt type-env def)))
+                  (indent 2 (compile-statement else-stmt var-env def)))
              "}")))
 
 
