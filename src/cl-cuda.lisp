@@ -2323,34 +2323,6 @@ and false as values."
     (kernel-definition-function-return-type operator def)))
 
 
-;;; type environment
-;;; type-environment ::= (<type-pair>*)
-;;; type-pair        ::= (<variable> . <type>)
-
-(defun empty-type-environment ()
-  '())
-
-(defun add-type-environment (var type type-env)
-  (assert (valid-type-p type))
-  (cons (cons var type) type-env))
-
-(defun bulk-add-type-environment (bindings type-env)
-  (reduce #'(lambda (type-env2 binding)
-              (destructuring-bind (var type) binding
-                (add-type-environment var type type-env2)))
-          bindings
-          :initial-value type-env))
-
-(defun lookup-type-environment (var type-env)
-  (match (assoc var type-env)
-    ((_ . type) type)
-    (_ nil)))
-
-(defmacro with-type-environment ((var bindings) &body body)
-  `(let ((,var (bulk-add-type-environment ',bindings (empty-type-environment))))
-     ,@body))
-
-
 ;;;
 ;;; Variable environment
 ;;;
