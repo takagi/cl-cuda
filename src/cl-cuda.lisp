@@ -1410,13 +1410,6 @@
               (compile-kernel-function-prototype name def))
           (kernel-definition-function-names def)))
 
-(defun make-variable-environment-with-kernel-definition (name def)
-  (let ((arg-bindings (kernel-definition-function-arguments name def)))
-    (reduce #'(lambda (var-env arg-binding)
-                (destructuring-bind (var type) arg-binding
-                  (add-variable-to-variable-environment var type var-env)))
-            arg-bindings :initial-value (empty-variable-environment))))
-
 (defun compile-function-statements (name def)
   (let ((var-env (make-variable-environment-with-kernel-definition name def)))
     (mapcar #'(lambda (stmt)
@@ -2454,6 +2447,13 @@ and false as values."
                  (add-symbol-macro-to-variable-environment name expansion var-env2))
                 (_ (error "invalid variable environment element: ~A" binding))))
           bindings :initial-value var-env))
+
+(defun make-variable-environment-with-kernel-definition (name def)
+  (let ((arg-bindings (kernel-definition-function-arguments name def)))
+    (reduce #'(lambda (var-env arg-binding)
+                (destructuring-bind (var type) arg-binding
+                  (add-variable-to-variable-environment var type var-env)))
+            arg-bindings :initial-value (empty-variable-environment))))
 
 (defmacro with-variable-environment ((var-env bindings) &body body)
   `(let ((,var-env (bulk-add-variable-environment ',bindings (empty-variable-environment))))
