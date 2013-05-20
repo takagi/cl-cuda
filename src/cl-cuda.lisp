@@ -1638,11 +1638,11 @@
     (('return _) t)
     (_ nil)))
 
-(defun compile-return (stmt type-env def)
+(defun compile-return (stmt var-env def)
   (match stmt
     (('return) "return;")
     (('return exp) (format nil "return ~A;"
-                               (compile-expression exp type-env def)))
+                               (compile-expression exp var-env def)))
     (_ (error "invalid statement: ~A" stmt))))
 
 
