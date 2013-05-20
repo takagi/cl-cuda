@@ -1572,20 +1572,20 @@
     (('set _ exp) exp)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-set (stmt type-env def)
+(defun compile-set (stmt var-env def)
   (let ((place (set-place stmt))
         (exp (set-expression stmt)))
-    (let ((place-type (type-of-expression place type-env def))
-          (exp-type   (type-of-expression exp   type-env def)))
+    (let ((place-type (type-of-expression place var-env def))
+          (exp-type   (type-of-expression exp   var-env def)))
       (unless (eq place-type exp-type)
         (error "invalid types: type of the place is ~A but that of the expression is ~A" place-type exp-type)))
-    (format nil "~A = ~A;" (compile-place place type-env def)
-                           (compile-expression exp type-env def))))
+    (format nil "~A = ~A;" (compile-place place var-env def)
+                           (compile-expression exp var-env def))))
 
-(defun compile-place (place type-env def)
-  (cond ((scalar-place-p place) (compile-scalar-place place type-env))
-        ((vector-place-p place) (compile-vector-place place type-env def))
-        ((array-place-p place)  (compile-array-place place type-env def))
+(defun compile-place (place var-env def)
+  (cond ((scalar-place-p place) (compile-scalar-place place var-env))
+        ((vector-place-p place) (compile-vector-place place var-env def))
+        ((array-place-p place)  (compile-array-place place var-env def))
         (t (error "invalid place: ~A" place))))
 
 (defun scalar-place-p (place)
@@ -1597,14 +1597,14 @@
 (defun array-place-p (place)
   (array-variable-reference-p place))
 
-(defun compile-scalar-place (var type-env)
-  (compile-scalar-variable-reference var type-env))
+(defun compile-scalar-place (var var-env)
+  (compile-scalar-variable-reference var var-env))
 
-(defun compile-vector-place (place type-env def)
-  (compile-vector-variable-reference place type-env def))
+(defun compile-vector-place (place var-env def)
+  (compile-vector-variable-reference place var-env def))
 
-(defun compile-array-place (place type-env def)
-  (compile-array-variable-reference place type-env def))
+(defun compile-array-place (place var-env def)
+  (compile-array-variable-reference place var-env def))
 
 
 ;;; progn statement

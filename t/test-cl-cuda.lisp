@@ -879,7 +879,7 @@
     (is (cl-cuda::do-p code)                    t)
     (is (cl-cuda::do-bindings code)             '((a 0 (+ a 1))
                                                   (b 0 (+ b 1))))
-    (is (cl-cuda::do-var-types code nil nil)    '((a int) (b int)))
+    (is (cl-cuda::do-var-types code nil nil)    '((a :variable int) (b :variable int)))
     (is (cl-cuda::do-binding-var binding)       'a)
     (is (cl-cuda::do-binding-type binding var-env nil) 'int)
     (is (cl-cuda::do-binding-init-form binding) 0)
@@ -994,17 +994,17 @@
 (is (cl-cuda::set-p '(set (aref x i) 1)) t)
 
 ;; test compile-set
-(cl-cuda::with-type-environment (type-env ((x int)))
-  (is (cl-cuda::compile-set '(set x 1) type-env nil) "x = 1;")
-  (is-error (cl-cuda::compile-set '(set x 1.0) type-env nil) simple-error))
+(cl-cuda::with-variable-environment (var-env ((x :variable int)))
+  (is (cl-cuda::compile-set '(set x 1) var-env nil) "x = 1;")
+  (is-error (cl-cuda::compile-set '(set x 1.0) var-env nil) simple-error))
 
-(cl-cuda::with-type-environment (type-env ((x int*)))
-  (is (cl-cuda::compile-set '(set (aref x 0) 1) type-env nil) "x[0] = 1;")
-  (is-error (cl-cuda::compile-set '(set (aref x 0) 1.0) type-env nil) simple-error))
+(cl-cuda::with-variable-environment (var-env ((x :variable int*)))
+  (is (cl-cuda::compile-set '(set (aref x 0) 1) var-env nil) "x[0] = 1;")
+  (is-error (cl-cuda::compile-set '(set (aref x 0) 1.0) var-env nil) simple-error))
 
-(cl-cuda::with-type-environment (type-env ((x float3)))
-  (is (cl-cuda::compile-set '(set (float3-x x) 1.0) type-env nil) "x.x = 1.0;")
-  (is-error (cl-cuda::compile-set '(set (float3-x x) 1) type-env nil) simple-error))
+(cl-cuda::with-variable-environment (var-env ((x :variable float3)))
+  (is (cl-cuda::compile-set '(set (float3-x x) 1.0) var-env nil) "x.x = 1.0;")
+  (is-error (cl-cuda::compile-set '(set (float3-x x) 1) var-env nil) simple-error))
 
 
 ;;;
