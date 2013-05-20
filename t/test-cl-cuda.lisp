@@ -1127,8 +1127,8 @@
 (is (cl-cuda::compile-function '(float3 1.0 1.0 1.0)     nil nil) "make_float3 (1.0, 1.0, 1.0)"     )
 (is (cl-cuda::compile-function '(float4 1.0 1.0 1.0 1.0) nil nil) "make_float4 (1.0, 1.0, 1.0, 1.0)")
 
-(cl-cuda::with-type-environment (type-env ((x int)))
-  (is (cl-cuda::compile-function '(pointer x) type-env nil) "& (x)"))
+(cl-cuda::with-variable-environment (var-env ((x :variable int)))
+  (is (cl-cuda::compile-function '(pointer x) var-env nil) "& (x)"))
 
 (is (cl-cuda::compile-function '(floor 1.0) nil nil) "floorf (1.0)")
 
