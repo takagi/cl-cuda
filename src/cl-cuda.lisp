@@ -1523,33 +1523,33 @@
     (('let _ . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt0))))
 
-(defun %compile-assignment (var exp type type-env def)
+(defun %compile-assignment (var exp type var-env def)
   (format nil "~A ~A = ~A;" (compile-type type)
                             (compile-identifier var)
-                            (compile-expression exp type-env def)))
+                            (compile-expression exp var-env def)))
 
-(defun compile-let-binding (bindings stmts type-env def)
+(defun compile-let-binding (bindings stmts var-env def)
   (match bindings
     (((var exp) . rest)
-     (let ((type (type-of-expression exp type-env def)))
-       (let ((assignment (%compile-assignment var exp type type-env def))
-             (type-env2  (add-type-environment var type type-env)))
+     (let ((type (type-of-expression exp var-env def)))
+       (let ((assignment (%compile-assignment var exp type var-env def))
+             (var-env2 (add-variable-to-variable-environment var type var-env)))
          (unlines assignment
-                  (%compile-let rest stmts type-env2 def)))))
+                  (%compile-let rest stmts var-env2 def)))))
     (_ (error "invalid bindings: ~A" bindings))))
 
-(defun compile-let-statements (stmts type-env def)
-  (compile-progn-statements stmts type-env def))
+(defun compile-let-statements (stmts var-env def)
+  (compile-progn-statements stmts var-env def))
 
-(defun %compile-let (bindings stmts type-env def)
+(defun %compile-let (bindings stmts var-env def)
   (if bindings
-      (compile-let-binding bindings stmts type-env def)
-      (compile-let-statements stmts type-env def)))
+      (compile-let-binding bindings stmts var-env def)
+      (compile-let-statements stmts var-env def)))
 
-(defun compile-let (stmt type-env def)
+(defun compile-let (stmt var-env def)
   (let ((bindings  (let-bindings stmt))
 	      (let-stmts (let-statements stmt)))
-    (let ((compiled-stmts (%compile-let bindings let-stmts type-env def)))
+    (let ((compiled-stmts (%compile-let bindings let-stmts var-env def)))
       (unlines "{"
 	             (indent 2 compiled-stmts)
 	             "}"))))
