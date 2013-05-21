@@ -1327,10 +1327,9 @@
 (is-error (cl-cuda::type-of-literal '1.0d0) simple-error)
 
 ;; test type-of-function
-(let ((def (cl-cuda::define-kernel-function 'foo 'int '((x int) (y int)) '()
-             (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::type-of-function '(cl-cuda::%add 1 1) nil nil) 'int)
-  (is (cl-cuda::type-of-function '(foo 1 1) nil def) 'int))
+(cl-cuda::with-function-environment (func-env ((foo :function int ((x int) (y int)) ())))
+  (is (cl-cuda::type-of-function '(cl-cuda::%add 1 1) nil func-env) 'int)
+  (is (cl-cuda::type-of-function '(foo 1 1) nil func-env) 'int))
 
 ;; test type-of-function
 (is       (cl-cuda::type-of-function '(cl-cuda::%add 1 1)     nil nil) 'int        )
