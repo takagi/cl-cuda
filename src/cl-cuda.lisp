@@ -937,174 +937,285 @@
 
        
 ;;;
-;;; Definition of Kernel Manager
+;;; Definition of kernel definition
 ;;;
 
-;;; function-info
-;;; <function-info> ::= (<name> <return-type> <arguments> <body>)
+(defun make-kerdef-function (name return-type args body)
+  (assert (symbolp name))
+  (assert (valid-type-p return-type))
+  (dolist (arg args)
+    (match arg
+      ((var type) (assert (symbolp var)) (assert (valid-type-p type)))
+      (_ (error "invalid argument: ~A" arg))))
+  (assert (listp body))
+  (list name :function return-type args body))
 
-(defun make-function-info (name return-type args body)
-  (list name return-type args body))
+(defun kerdef-function-p (elem)
+  (match elem
+    ((_ :function _ _ _) t)
+    (_ nil)))
 
-(defun function-name (info)
-  (car info))
+(defun kerdef-function-name (elem)
+  (match elem
+    ((name :function _ _ _) name)
+    (_ (error "invalid kernel definition function: ~A" elem))))
 
-(defun function-c-name (info)
-  (let ((name (function-name info)))
-    (let ((package-name (compile-identifier (package-name (symbol-package name))))
-          (function-name (compile-identifier name)))
-      (concatenate 'string package-name "_" function-name))))
+(defun kerdef-function-c-name (elem)
+  (compile-identifier-with-package-name (kerdef-function-name elem)))
 
-(defun function-return-type (info)
-  (cadr info))
+(defun kerdef-function-return-type (elem)
+  (match elem
+    ((_ :function return-type _ _) return-type)
+    (_ (error "invalid kernel definition function: ~A" elem))))
 
-(defun function-arguments (info)
-  (caddr info))
+(defun kerdef-function-arguments (elem)
+  (match elem
+    ((_ :function _ args _) args)
+    (_ (error "invalid kernel definition function: ~A" elem))))
 
-(defun function-argument-types (info)
-  (mapcar #'cadr (function-arguments info)))
+(defun kerdef-function-argument-types (elem)
+  (mapcar #'cadr (kerdef-function-arguments elem)))
 
-(defun function-body (info)
-  (cadddr info))
+(defun kerdef-function-body (elem)
+  (match elem
+    ((_ :function _ _ body) body)
+    (_ (error "invalid kernel definition function: ~A" elem))))
 
+(defun make-kerdef-macro (name args body expander)
+  (assert (symbolp name))
+  (assert (listp args))
+  (dolist (arg args) (assert (symbolp arg)))
+  (assert (listp body))
+  (assert (functionp expander))
+  (list name :macro args body expander))
 
-;;; macro-info
-;;; <macro-info> ::= (<name> <arguments> <body> <expander>)
+(defun kerdef-macro-p (elem)
+  (match elem
+    ((_ :macro _ _ _) t)
+    (_ nil)))
 
-(defun make-macro-info (name args body expander)
-  (list name args body expander))
+(defun kerdef-macro-name (elem)
+  (match elem
+    ((name :macro _ _ _) name)
+    (_ (error "invalid kernel definition macro: ~A" elem))))
 
-(defun macro-name (info)
-  (car info))
+(defun kerdef-macro-arguments (elem)
+  (match elem
+    ((_ :macro args _ _) args)
+    (_ (error "invalid kernel definition macro: ~A" elem))))
 
-(defun macro-arguments (info)
-  (cadr info))
+(defun kerdef-macro-body (elem)
+  (match elem
+    ((_ :macro _ body _) body)
+    (_ (error "invalid kernel definition macro: ~A" elem))))
 
-(defun macro-body (info)
-  (caddr info))
+(defun kerdef-macro-expander (elem)
+  (match elem
+    ((_ :macro _ _ expander) expander)
+    (_ (error "invalid kernel definition macro: ~A" elem))))
 
-(defun macro-expander (info)
-  (cadddr info))
+(defun make-kerdef-constant (name type expression)
+  (assert (symbolp name))
+  (assert (valid-type-p type))
+  (list name :constant type expression))
 
+(defun kerdef-constant-p (elem)
+  (match elem
+    ((_ :constant _ _) t)
+    (_ nil)))
 
-;;; kernel-definition
-;;; <kernel-definition>     ::= (<kernel-function-table> <kernel-macro-table> <kernel-constant-table>)
-;;; <kernel-function-table> ::= alist { <function-name> => <function-info> }
-;;; <kernel-macro-table>    ::= alist { <macro-name>    => <macro-info> }
-;;; <kernel-constant-table> ::= alist { <constant-name> => <constant-info> }
+(defun kerdef-constant-name (elem)
+  (match elem
+    ((name :constant _ _) name)
+    (_ (error "invalid kernel definition constant: ~A" elem))))
+
+(defun kerdef-constant-type (elem)
+  (match elem
+    ((_ :constant type _) type)
+    (_ (error "invalid kernel definition constant: ~A" elem))))
+
+(defun kerdef-constant-expression (elem)
+  (match elem
+    ((_ :constant _ exp) exp)
+    (_ (error "invalid kernel definition constant: ~A" elem))))
+
+(defun kerdef-name (elem)
+  (match elem
+    ((name :function _ _ _) name)
+    ((name :macro _ _ _) name)
+    ((name :constant _ _) name)
+    (_ (error "invalid kernel definition element: ~A" elem))))
 
 (defun empty-kernel-definition ()
-  (list nil nil nil))
+  (list nil nil))
 
-(defun function-table (def)
-  (car def))
+(defun add-function-to-kernel-definition (name return-type arguments body def)
+  (destructuring-bind (func-table var-table) def
+    (let ((elem (make-kerdef-function name return-type arguments body)))
+      ; needs to remove duplication
+      (list (cons elem func-table) var-table))))
 
-(defun macro-table (def)
-  (cadr def))
-
-(defun constant-table (def)
-  (caddr def))
-
-(defun function-info (name def)
-  (or (assoc name (function-table def))
-      (error (format nil "undefined kernel function: ~A" name))))
-
-(defun macro-info (name def)
-  (or (assoc name (macro-table def))
-      (error (format nil "undefined kernel macro: ~A" name))))
-
-(defun constant-info (name def)
-  (or (assoc name (constant-table def))
-      (error (format nil "undefined kernel constant: ~A" name))))
-
-(defun define-kernel-function (name return-type args body def)
-  (let ((func-table  (function-table def))
-        (macro-table (macro-table    def))
-        (const-table (constant-table def)))
-    (let ((func (make-function-info name return-type args body))
-          (rest (remove name func-table :key #'car)))
-      (list (cons func rest) macro-table const-table))))
-
-(defun undefine-kernel-function (name def)
+(defun remove-function-from-kernel-definition (name def)
   (unless (kernel-definition-function-exists-p name def)
-    (error (format nil "undefined kernel function: ~A" name)))
-  (let ((func-table  (function-table def))
-        (macro-table (macro-table    def))
-        (const-table (constant-table def)))
-    (list (remove name func-table :key #'car) macro-table const-table)))
+    (error "undefined kernel definition function: ~A" name))
+  (destructuring-bind (func-table var-table) def
+    (list (remove name func-table :key #'kerdef-name) var-table)))
 
-(defun define-kernel-macro (name args body expander def)
-  (let ((func-table  (function-table def))
-        (macro-table (macro-table    def))
-        (const-table (constant-table def)))
-    (let ((macro (make-macro-info name args body expander))
-          (rest  (remove name macro-table :key #'car)))
-      (list func-table (cons macro rest) const-table))))
+(defun add-macro-to-kernel-definition (name arguments body expander def)
+  (destructuring-bind (func-table var-table) def
+    (let ((elem (make-kerdef-macro name arguments body expander)))
+      ; needs to remove duplication
+      (list (cons elem func-table) var-table))))
 
-(defun undefine-kernel-macro (name def)
+(defun remove-macro-from-kernel-definition (name def)
   (unless (kernel-definition-macro-exists-p name def)
-    (error (format nil "undefined kernel macro: ~A" name)))
-  (let ((func-table  (function-table def))
-        (macro-table (macro-table    def))
-        (const-table (constant-table def)))
-    (list func-table (remove name macro-table :key #'car) const-table)))
+    (error "undefined kernel definition macro: ~A" name))
+  (destructuring-bind (func-table var-table) def
+    (list (remove name func-table :key #'kerdef-name) var-table)))
 
-(defun define-kernel-constant (name value def)
-  (declare (ignorable name value def))
-  (undefined))
+(defun add-constant-to-kernel-definition (name type expression def)
+  (destructuring-bind (func-table var-table) def
+    (let ((elem (make-kerdef-constant name type expression)))
+      ; needs to remove duplication
+      (list func-table (cons elem var-table)))))
 
-(defun undefine-kernel-constant (name def)
-  (declare (ignorable name def))
-  (undefined))
+(defun remove-constant-from-kernel-definition (name def)
+  (unless (kernel-definition-constant-exists-p name def)
+    (error "undefined kernek definition constant: ~A" name))
+  (destructuring-bind (func-table var-table) def
+    (list func-table (remove name var-table :key #'kerdef-name))))
+
+(defun bulk-add-kernel-definition (bindings def)
+  (reduce #'(lambda (def2 binding)
+              (match binding
+                ((name :function return-type args body)
+                 (add-function-to-kernel-definition name return-type args body def2))
+                ((name :macro args body expander)
+                 (add-macro-to-kernel-definition name args body expander def2))
+                ((name :constant type exp)
+                 (add-constant-to-kernel-definition name type exp def2))
+                (_ (error "invalid kernel definition element: ~A" binding))))
+          bindings :initial-value def))
+
+(defmacro with-kernel-definition ((def bindings) &body body)
+  (labels ((aux (binding)
+             (match binding
+               ((name :function return-type args body) `(list ',name :function ',return-type ',args ',body))
+               ((name :macro args body) `(list ',name :macro ',args ',body (lambda ,args ,@body)))
+               ((name :constant type exp) `(list ',name :constant ',type ',exp))
+               (_ `',binding))))
+    (let ((bindings2 `(list ,@(mapcar #'aux bindings))))
+      `(let ((,def (bulk-add-kernel-definition ,bindings2 (empty-kernel-definition))))
+         ,@body))))
+
+(defun lookup-kernel-definition (kind name def)
+  (destructuring-bind (func-table var-table) def
+    (case kind
+      (:function (let ((elem (find name func-table :key #'kerdef-name)))
+                   (when (kerdef-function-p elem)
+                     elem)))
+      (:macro (let ((elem (find name func-table :key #'kerdef-name)))
+                (when (kerdef-macro-p elem)
+                  elem)))
+      (:constant (find name var-table :key #'kerdef-name))
+      (t (error "invalid kernel definition element kind: ~A" kind)))))
 
 (defun kernel-definition-function-exists-p (name def)
-  (and (assoc name (function-table def))
+  (and (lookup-kernel-definition :function name def)
        t))
-
-(defun kernel-definition-function-names (def)
-  (mapcar #'function-name (function-table def)))
-
-(defun kernel-definition-function-name (name def)
-  (function-name (function-info name def)))
-
-(defun kernel-definition-function-c-name (name def)
-  (function-c-name (function-info name def)))
-
-(defun kernel-definition-function-return-type (name def)
-  (function-return-type (function-info name def)))
-
-(defun kernel-definition-function-arguments (name def)
-  (function-arguments (function-info name def)))
-
-(defun kernel-definition-function-argument-types (name def)
-  (function-argument-types (function-info name def)))
-
-(defun kernel-definition-function-body (name def)
-  (function-body (function-info name def)))
 
 (defun kernel-definition-macro-exists-p (name def)
-  (and (assoc name (macro-table def))
+  (and (lookup-kernel-definition :macro name def)
        t))
 
-(defun kernel-definition-macro-names (def)
-  (mapcar #'macro-name (macro-table def)))
+(defun kernel-definition-constant-exists-p (name def)
+  (and (lookup-kernel-definition :constant name def)
+       t))
+
+(defun kernel-definition-function-name (name def)
+  (unless (kernel-definition-function-exists-p name def)
+    (error "undefined kernel definition function: ~A" name))
+  (kerdef-function-name (lookup-kernel-definition :function name def)))
+
+(defun kernel-definition-function-c-name (name def)
+  (unless (kernel-definition-function-exists-p name def)
+    (error "undefined kernel definition function: ~A" name))
+  (kerdef-function-c-name (lookup-kernel-definition :function name def)))
+
+(defun kernel-definition-function-names (def)
+  (destructuring-bind (func-table _) def
+    (declare (ignorable _))
+    (mapcar #'kerdef-name (remove-if-not #'kerdef-function-p func-table))))
+
+(defun kernel-definition-function-return-type (name def)
+  (unless (kernel-definition-function-exists-p name def)
+    (error "undefined kernel definition function: ~A" name))
+  (kerdef-function-return-type (lookup-kernel-definition :function name def)))
+
+(defun kernel-definition-function-arguments (name def)
+  (unless (kernel-definition-function-exists-p name def)
+    (error "undefined kernel definition function: ~A" name))
+  (kerdef-function-arguments (lookup-kernel-definition :function name def)))
+
+(defun kernel-definition-function-argument-types (name def)
+  (unless (kernel-definition-function-exists-p name def)
+    (error "undefined kernel definition function: ~A" name))
+  (kerdef-function-argument-types (lookup-kernel-definition :function name def)))
+
+(defun kernel-definition-function-body (name def)
+  (unless (kernel-definition-function-exists-p name def)
+    (error "undefined kernel definition function: ~A" name))
+  (kerdef-function-body (lookup-kernel-definition :function name def)))
 
 (defun kernel-definition-macro-name (name def)
-  (macro-name (macro-info name def)))
+  (unless (kernel-definition-macro-exists-p name def)
+    (error "undefined kernel definition macro: ~A" name))
+  (kerdef-macro-name (lookup-kernel-definition :macro name def)))
+
+(defun kernel-definition-macro-names (def)
+  (destructuring-bind (func-table _) def
+    (declare (ignorable _))
+    (mapcar #'kerdef-name (remove-if-not #'kerdef-macro-p func-table))))
 
 (defun kernel-definition-macro-arguments (name def)
-  (macro-arguments (macro-info name def)))
+  (unless (kernel-definition-macro-exists-p name def)
+    (error "undefined kernel definition macro: ~A" name))
+  (kerdef-macro-arguments (lookup-kernel-definition :macro name def)))
 
 (defun kernel-definition-macro-body (name def)
-  (macro-body (macro-info name def)))
+  (unless (kernel-definition-macro-exists-p name def)
+    (error "undefined kernel definition macro: ~A" name))
+  (kerdef-macro-body (lookup-kernel-definition :macro name def)))
 
 (defun kernel-definition-macro-expander (name def)
-  (macro-expander (macro-info name def)))
+  (unless (kernel-definition-macro-exists-p name def)
+    (error "undefined kernel definition macro: ~A" name))
+  (kerdef-macro-expander (lookup-kernel-definition :macro name def)))
+
+(defun kernel-definition-constant-name (name def)
+  (unless (kernel-definition-constant-exists-p name def)
+    (error "undefined kernel definition constant: ~A" name))
+  (kerdef-constant-name (lookup-kernel-definition :constant name def)))
+
+(defun kernel-definition-constant-names (def)
+  (destructuring-bind (_ var-table) def
+    (declare (ignorable _))
+    (mapcar #'kerdef-name (remove-if-not #'kerdef-constant-p var-table))))
+
+(defun kernel-definition-constant-type (name def)
+  (unless (kernel-definition-constant-exists-p name def)
+    (error "undefined kernel definition constant: ~A" name))
+  (kerdef-constant-type (lookup-kernel-definition :constant name def)))
+
+(defun kernel-definition-constant-expression (name def)
+  (unless (kernel-definition-constant-exists-p name def)
+    (error "undefined kernel definition constant: ~A" name))
+  (kerdef-constant-expression (lookup-kernel-definition :constant name def)))
 
 
-;;; module-info
-;;; <module-info> ::= (<module-handle> <module-path> <module-compilation-needed> <function-handles>)
-;;; <function-handles> ::= hashtable { <function-name> => <function-handle> }
+;;;
+;;; Definition of module info
+;;;
 
 (defun make-module-info ()
   (list nil nil t (make-hash-table)))
@@ -1137,8 +1248,9 @@
   (setf (gethash name (function-handles info)) handle))
 
 
-;;; kernel-manager
-;;; <kernel-manager> ::= (<module-info> <kernel-definition>)
+;;;
+;;; Definition of kernel manager
+;;;
 
 (defun make-kernel-manager()
   (list (make-module-info) (empty-kernel-definition)))
@@ -1204,7 +1316,7 @@
   (when (or (not (kernel-manager-function-exists-p mgr name))
             (function-modified-p mgr name return-type args body))
     (setf (kernel-definition mgr)
-          (define-kernel-function name return-type args body (kernel-definition mgr)))
+          (add-function-to-kernel-definition name return-type args body (kernel-definition mgr)))
     (setf (kernel-manager-module-compilation-needed mgr) t)))
 
 (defun function-modified-p (mgr name return-type args body)
@@ -1234,7 +1346,7 @@
   (when (or (not (kernel-manager-macro-exists-p mgr name))
             (macro-modified-p mgr name args body))
     (setf (kernel-definition mgr)
-          (define-kernel-macro name args body expander (kernel-definition mgr)))
+          (add-macro-to-kernel-definition name args body expander (kernel-definition mgr)))
     (setf (kernel-manager-module-compilation-needed mgr) t)))
 
 (defun macro-modified-p (mgr name args body)
@@ -1370,9 +1482,6 @@
 ;;; Compiling
 ;;;
 
-(defun compile-identifier (idt)
-  (substitute #\_ #\% (substitute #\_ #\. (substitute #\_ #\- (string-downcase idt)))))
-
 (defun compile-function-specifier (return-type)
   (unless (valid-type-p return-type)
     (error (format nil "invalid return type: ~A" return-type)))
@@ -1411,16 +1520,17 @@
           (kernel-definition-function-names def)))
 
 (defun compile-function-statements (name def)
-  (let ((var-env (make-variable-environment-with-kernel-definition name def)))
+  (let ((var-env  (make-variable-environment-with-kernel-definition name def))
+        (func-env (make-function-environment-with-kernel-definition def)))
     (mapcar #'(lambda (stmt)
-                (compile-statement stmt var-env def))
+                (compile-statement stmt var-env func-env))
             (kernel-definition-function-body name def))))
 
 (defun compile-kernel-function (name def)
   (let ((declaration (compile-function-declaration name def))
         (statements  (mapcar #'(lambda (stmt)
                                  (indent 2 stmt))
-                             (compile-function-statements  name def))))
+                             (compile-function-statements name def))))
     (unlines `(,declaration
                "{"
                ,@statements
@@ -1442,19 +1552,20 @@
 
 ;;; compile statement
 
-(defun compile-statement (stmt var-env def)
+(defun compile-statement (stmt var-env func-env)
   (cond
-    ((macro-form-p stmt def) (compile-macro stmt var-env def :statement-p t))
-    ((if-p stmt) (compile-if stmt var-env def))
-    ((let-p stmt) (compile-let stmt var-env def))
-    ((do-p stmt) (compile-do stmt var-env def))
-    ((with-shared-memory-p stmt) (compile-with-shared-memory stmt var-env def))
-    ((set-p stmt) (compile-set stmt var-env def))
-    ((progn-p stmt) (compile-progn stmt var-env def))
-    ((return-p stmt) (compile-return stmt var-env def))
+    ((macro-form-p stmt func-env) (compile-macro stmt var-env func-env :statement-p t))
+    ((if-p stmt) (compile-if stmt var-env func-env))
+    ((let-p stmt) (compile-let stmt var-env func-env))
+    ((do-p stmt) (compile-do stmt var-env func-env))
+    ((with-shared-memory-p stmt) (compile-with-shared-memory stmt var-env func-env))
+    ((set-p stmt) (compile-set stmt var-env func-env))
+    ((progn-p stmt) (compile-progn stmt var-env func-env))
+    ((return-p stmt) (compile-return stmt var-env func-env))
     ((syncthreads-p stmt) (compile-syncthreads stmt))
-    ((function-p stmt) (compile-function stmt var-env def :statement-p t))
+    ((function-p stmt) (compile-function stmt var-env func-env :statement-p t))
     (t (error "invalid statement: ~A" stmt))))
+
 
 ;;; if statement
 
@@ -1482,19 +1593,19 @@
     (('if _ _ else-stmt) else-stmt)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-if (stmt var-env def)
+(defun compile-if (stmt var-env func-env)
   (let ((test-exp  (if-test-expression stmt))
         (then-stmt (if-then-statement stmt))
         (else-stmt (if-else-statement stmt)))
-    (let ((test-type (type-of-expression test-exp var-env def)))
+    (let ((test-type (type-of-expression test-exp var-env func-env)))
       (unless (eq test-type 'bool)
         (error "invalid type: type of test-form is ~A, not ~A" test-type 'bool)))
     (unlines (format nil "if (~A) {"
-                     (compile-expression test-exp var-env def))
-             (indent 2 (compile-statement then-stmt var-env def))
+                     (compile-expression test-exp var-env func-env))
+             (indent 2 (compile-statement then-stmt var-env func-env))
              (and else-stmt "} else {")
              (and else-stmt
-                  (indent 2 (compile-statement else-stmt var-env def)))
+                  (indent 2 (compile-statement else-stmt var-env func-env)))
              "}")))
 
 
@@ -1515,33 +1626,33 @@
     (('let _ . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt0))))
 
-(defun %compile-assignment (var exp type var-env def)
+(defun %compile-assignment (var exp type var-env func-env)
   (format nil "~A ~A = ~A;" (compile-type type)
                             (compile-identifier var)
-                            (compile-expression exp var-env def)))
+                            (compile-expression exp var-env func-env)))
 
-(defun compile-let-binding (bindings stmts var-env def)
+(defun compile-let-binding (bindings stmts var-env func-env)
   (match bindings
     (((var exp) . rest)
-     (let ((type (type-of-expression exp var-env def)))
-       (let ((assignment (%compile-assignment var exp type var-env def))
+     (let ((type (type-of-expression exp var-env func-env)))
+       (let ((assignment (%compile-assignment var exp type var-env func-env))
              (var-env2 (add-variable-to-variable-environment var type var-env)))
          (unlines assignment
-                  (%compile-let rest stmts var-env2 def)))))
+                  (%compile-let rest stmts var-env2 func-env)))))
     (_ (error "invalid bindings: ~A" bindings))))
 
-(defun compile-let-statements (stmts var-env def)
-  (compile-progn-statements stmts var-env def))
+(defun compile-let-statements (stmts var-env func-env)
+  (compile-progn-statements stmts var-env func-env))
 
-(defun %compile-let (bindings stmts var-env def)
+(defun %compile-let (bindings stmts var-env func-env)
   (if bindings
-      (compile-let-binding bindings stmts var-env def)
-      (compile-let-statements stmts var-env def)))
+      (compile-let-binding bindings stmts var-env func-env)
+      (compile-let-statements stmts var-env func-env)))
 
-(defun compile-let (stmt var-env def)
+(defun compile-let (stmt var-env func-env)
   (let ((bindings  (let-bindings stmt))
 	      (let-stmts (let-statements stmt)))
-    (let ((compiled-stmts (%compile-let bindings let-stmts var-env def)))
+    (let ((compiled-stmts (%compile-let bindings let-stmts var-env func-env)))
       (unlines "{"
 	             (indent 2 compiled-stmts)
 	             "}"))))
@@ -1564,20 +1675,20 @@
     (('set _ exp) exp)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-set (stmt var-env def)
+(defun compile-set (stmt var-env func-env)
   (let ((place (set-place stmt))
         (exp (set-expression stmt)))
-    (let ((place-type (type-of-expression place var-env def))
-          (exp-type   (type-of-expression exp   var-env def)))
+    (let ((place-type (type-of-expression place var-env func-env))
+          (exp-type   (type-of-expression exp   var-env func-env)))
       (unless (eq place-type exp-type)
         (error "invalid types: type of the place is ~A but that of the expression is ~A" place-type exp-type)))
-    (format nil "~A = ~A;" (compile-place place var-env def)
-                           (compile-expression exp var-env def))))
+    (format nil "~A = ~A;" (compile-place place var-env func-env)
+                           (compile-expression exp var-env func-env))))
 
-(defun compile-place (place var-env def)
+(defun compile-place (place var-env func-env)
   (cond ((scalar-place-p place) (compile-scalar-place place var-env))
-        ((vector-place-p place) (compile-vector-place place var-env def))
-        ((array-place-p place)  (compile-array-place place var-env def))
+        ((vector-place-p place) (compile-vector-place place var-env func-env))
+        ((array-place-p place)  (compile-array-place place var-env func-env))
         (t (error "invalid place: ~A" place))))
 
 (defun scalar-place-p (place)
@@ -1592,11 +1703,11 @@
 (defun compile-scalar-place (var var-env)
   (compile-scalar-variable-reference var var-env))
 
-(defun compile-vector-place (place var-env def)
-  (compile-vector-variable-reference place var-env def))
+(defun compile-vector-place (place var-env func-env)
+  (compile-vector-variable-reference place var-env func-env))
 
-(defun compile-array-place (place var-env def)
-  (compile-array-variable-reference place var-env def))
+(defun compile-array-place (place var-env func-env)
+  (compile-array-variable-reference place var-env func-env))
 
 
 ;;; progn statement
@@ -1611,15 +1722,15 @@
     (('progn . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-progn-statements (stmts var-env def)
+(defun compile-progn-statements (stmts var-env func-env)
   (let ((compiled-stmts (mapcar #'(lambda (stmt)
-                                    (compile-statement stmt var-env def))
+                                    (compile-statement stmt var-env func-env))
                                 stmts)))
     (unlines compiled-stmts stmts)))
 
-(defun compile-progn (stmt var-env def)
+(defun compile-progn (stmt var-env func-env)
   (let ((stmts (progn-statements stmt)))
-    (compile-progn-statements stmts var-env def)))
+    (compile-progn-statements stmts var-env func-env)))
 
 
 ;;; return statement
@@ -1630,11 +1741,11 @@
     (('return _) t)
     (_ nil)))
 
-(defun compile-return (stmt var-env def)
+(defun compile-return (stmt var-env func-env)
   (match stmt
     (('return) "return;")
     (('return exp) (format nil "return ~A;"
-                               (compile-expression exp var-env def)))
+                               (compile-expression exp var-env func-env)))
     (_ (error "invalid statement: ~A" stmt))))
 
 
@@ -1650,11 +1761,11 @@
     (('do bindings . _) bindings)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun do-var-types (stmt var-def def)
+(defun do-var-types (stmt var-env func-env)
   (labels ((do-var-type (binding)
              (list (do-binding-var binding)
                    :variable
-                   (do-binding-type binding var-def def))))
+                   (do-binding-type binding var-env func-env))))
     (mapcar #'do-var-type (do-bindings stmt))))
 
 (defun do-binding-var (binding)
@@ -1663,8 +1774,8 @@
     ((var _ _) var)
     (_ (error "invalid binding: ~A" binding))))
 
-(defun do-binding-type (binding var-env def)
-  (type-of-expression (do-binding-init-form binding) var-env def))
+(defun do-binding-type (binding var-env func-env)
+  (type-of-expression (do-binding-init-form binding) var-env func-env))
 
 (defun do-binding-init-form (binding)
   (match binding
@@ -1688,40 +1799,40 @@
     (('do _ _ . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-do (stmt var-env def)
-  (let ((var-env2 (bulk-add-variable-environment (do-var-types stmt var-env def) var-env)))
-    (let ((init-part (compile-do-init-part stmt var-env def))
-          (test-part (compile-do-test-part stmt var-env2 def))
-          (step-part (compile-do-step-part stmt var-env2 def)))
+(defun compile-do (stmt var-env func-env)
+  (let ((var-env2 (bulk-add-variable-environment (do-var-types stmt var-env func-env) var-env)))
+    (let ((init-part (compile-do-init-part stmt var-env func-env))
+          (test-part (compile-do-test-part stmt var-env2 func-env))
+          (step-part (compile-do-step-part stmt var-env2 func-env)))
       (unlines (format nil "for ( ~A; ~A; ~A )" init-part test-part step-part)
                "{"
-               (indent 2 (compile-do-statements stmt var-env2 def))
+               (indent 2 (compile-do-statements stmt var-env2 func-env))
                "}"))))
 
-(defun compile-do-init-part (stmt var-env def)
+(defun compile-do-init-part (stmt var-env func-env)
   (labels ((aux (binding)
              (let ((var (do-binding-var binding))
-                   (type (do-binding-type binding var-env def))
+                   (type (do-binding-type binding var-env func-env))
                    (init-form (do-binding-init-form binding)))
                (format nil "~A ~A = ~A" (compile-type type)
                                         (compile-identifier var)
-                                        (compile-expression init-form var-env def)))))
+                                        (compile-expression init-form var-env func-env)))))
     (join ", " (mapcar #'aux (do-bindings stmt)))))
 
-(defun compile-do-test-part (stmt var-env def)
+(defun compile-do-test-part (stmt var-env func-env)
   (let ((test-form (do-test-form stmt)))
-    (format nil "! ~A" (compile-expression test-form var-env def))))
+    (format nil "! ~A" (compile-expression test-form var-env func-env))))
 
-(defun compile-do-step-part (stmt var-env def)
+(defun compile-do-step-part (stmt var-env func-env)
   (labels ((aux (binding)
              (let ((var (do-binding-var binding))
                    (step-form (do-binding-step-form binding)))
                (format nil "~A = ~A" (compile-identifier var)
-                                     (compile-expression step-form var-env def)))))
+                                     (compile-expression step-form var-env func-env)))))
     (join ", " (mapcar #'aux (remove-if-not #'do-binding-step-form (do-bindings stmt))))))
 
-(defun compile-do-statements (stmt var-env def)
-  (compile-progn-statements (do-statements stmt) var-env def))
+(defun compile-do-statements (stmt var-env func-env)
+  (compile-progn-statements (do-statements stmt) var-env func-env))
 
 
 ;;; with-shared-memory statement
@@ -1741,10 +1852,10 @@
     (('with-shared-memory _ . stmts) stmts)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun compile-with-shared-memory-statements (stmts var-env def)
-  (compile-let-statements stmts var-env def))
+(defun compile-with-shared-memory-statements (stmts var-env func-env)
+  (compile-let-statements stmts var-env func-env))
 
-(defun compile-with-shared-memory-spec (specs stmts var-env def)
+(defun compile-with-shared-memory-spec (specs stmts var-env func-env)
   (match specs
     (((var type . sizes) . rest)
      (let* ((type2 (add-star type (length sizes)))
@@ -1753,21 +1864,21 @@
                             (compile-type type)
                             (compile-identifier var)
                             (mapcar #'(lambda (exp)
-                                        (compile-expression exp var-env def))
+                                        (compile-expression exp var-env func-env))
                                     sizes))
-                (%compile-with-shared-memory rest stmts var-env2 def))))
+                (%compile-with-shared-memory rest stmts var-env2 func-env))))
     (_ (error "invalid shared memory specs: ~A" specs))))
 
-(defun %compile-with-shared-memory (specs stmts var-env def)
+(defun %compile-with-shared-memory (specs stmts var-env func-env)
   (if (null specs)
-      (compile-with-shared-memory-statements stmts var-env def)
-      (compile-with-shared-memory-spec specs stmts var-env def)))
+      (compile-with-shared-memory-statements stmts var-env func-env)
+      (compile-with-shared-memory-spec specs stmts var-env func-env)))
 
-(defun compile-with-shared-memory (stmt var-env def)
+(defun compile-with-shared-memory (stmt var-env func-env)
   (let ((specs (with-shared-memory-specs stmt))
         (stmts (with-shared-memory-statements stmt)))
     (unlines "{"
-             (indent 2 (%compile-with-shared-memory specs stmts var-env def))
+             (indent 2 (%compile-with-shared-memory specs stmts var-env func-env))
              "}")))
 
 
@@ -1790,9 +1901,9 @@
        (car form)
        (symbolp (car form))))
 
-(defun defined-function-p (form def)
+(defun defined-function-p (form func-env)
   (or (built-in-function-p form)
-      (user-function-p form def)))
+      (user-function-p form func-env)))
 
 (defun built-in-function-p (form)
   (match form
@@ -1814,118 +1925,126 @@
     (error "invalid statement or expression: ~A" form))
   (cdr form))
 
-(defun compile-function (form var-env def &key (statement-p nil))
-  (unless (defined-function-p form def)
+(defun compile-function (form var-env func-env &key (statement-p nil))
+  (unless (defined-function-p form func-env)
     (error "undefined function: ~A" form))
   (let ((code (if (built-in-function-p form)
-                  (compile-built-in-function form var-env def)
-                  (compile-user-function form var-env def))))
+                  (compile-built-in-function form var-env func-env)
+                  (compile-user-function form var-env func-env))))
     (if statement-p
         (format nil "~A;" code)
         code)))
 
-(defun compile-built-in-function (form var-env def)
+(defun compile-built-in-function (form var-env func-env)
   (let ((op (function-operator form)))
     (cond
-      ((built-in-function-infix-p form var-env def)
-       (compile-built-in-infix-function form var-env def))
-      ((built-in-function-prefix-p form var-env def)
-       (compile-built-in-prefix-function form var-env def))
+      ((built-in-function-infix-p form var-env func-env)
+       (compile-built-in-infix-function form var-env func-env))
+      ((built-in-function-prefix-p form var-env func-env)
+       (compile-built-in-prefix-function form var-env func-env))
       (t (error "invalid built-in function: ~A" op)))))
 
-(defun compile-built-in-infix-function (form var-env def)
+(defun compile-built-in-infix-function (form var-env func-env)
   (let ((operands (function-operands form)))
-    (let ((op  (built-in-function-c-string form var-env def))
-          (lhe (compile-expression (car operands) var-env def))
-          (rhe (compile-expression (cadr operands) var-env def)))
+    (let ((op  (built-in-function-c-string form var-env func-env))
+          (lhe (compile-expression (car operands) var-env func-env))
+          (rhe (compile-expression (cadr operands) var-env func-env)))
       (format nil "(~A ~A ~A)" lhe op rhe))))
 
-(defun compile-built-in-prefix-function (form var-env def)
+(defun compile-built-in-prefix-function (form var-env func-env)
   (let ((operands (function-operands form)))
     (format nil "~A (~A)"
-            (built-in-function-c-string form var-env def)
-            (compile-operands operands var-env def))))
+            (built-in-function-c-string form var-env func-env)
+            (compile-operands operands var-env func-env))))
 
-(defun type-of-operands (operands var-env def)
+(defun type-of-operands (operands var-env func-env)
   (mapcar #'(lambda (exp)
-              (type-of-expression exp var-env def))
+              (type-of-expression exp var-env func-env))
           operands))
 
-(defun compile-operands (operands var-env def)
+(defun compile-operands (operands var-env func-env)
   (join ", " (mapcar #'(lambda (exp)
-                         (compile-expression exp var-env def))
+                         (compile-expression exp var-env func-env))
                      operands)))
 
-(defun compile-user-function (form var-env def)
+(defun compile-user-function (form var-env func-env)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
-    (let ((expected-types (kernel-definition-function-argument-types operator def))
-          (actual-types (type-of-operands operands var-env def)))
+    (let ((expected-types (function-environment-function-argument-types operator func-env))
+          (actual-types (type-of-operands operands var-env func-env)))
       (unless (equal expected-types actual-types)
         (error "invalid arguments: ~A" form)))
-    (let ((func (kernel-definition-function-c-name operator def))
-          (compiled-operands (compile-operands operands var-env def)))
+    (let ((func (function-environment-function-c-name operator func-env))
+          (compiled-operands (compile-operands operands var-env func-env)))
       (format nil "~A (~A)" func compiled-operands))))
 
 
 ;;; compile macro
 
-(defun macro-form-p (form def)
+(defun macro-form-p (form func-env)
   "Returns t if the given form is a macro form. The macro used in the
 form may be an user-defined macro under the given kernel definition or
 a built-in macro."
   (or (built-in-macro-p form)
-      (user-macro-p form def)))
+      (user-macro-p form func-env)))
 
 (defun built-in-macro-p (form)
   (match form
     ((op . _) (and (getf +built-in-macros+ op) t))
     (_ nil)))
 
-(defun user-macro-p (form def)
+(defun user-macro-p (form func-env)
   (match form
-    ((op . _) (kernel-definition-macro-exists-p op def))
+    ((op . _) (function-environment-macro-exists-p op func-env))
     (_ nil)))
 
-(defun macro-operator (form def)
-  (unless (macro-form-p form def)
+(defun macro-operator (form func-env)
+  (unless (macro-form-p form func-env)
     (error "undefined macro form: ~A" form))
   (car form))
 
-(defun macro-operands (form def)
-  (unless (macro-form-p form def)
+(defun macro-operands (form func-env)
+  (unless (macro-form-p form func-env)
     (error "undefined macro form: ~A" form))
   (cdr form))
 
-(defun compile-macro (form var-env def &key (statement-p nil))
-  (unless (macro-form-p form def)
+(defun compile-macro (form var-env func-env &key (statement-p nil))
+  (unless (macro-form-p form func-env)
     (error "undefined macro: ~A" form))
   (if statement-p
-      (compile-statement  (%expand-macro-1 form def) var-env def)
-      (compile-expression (%expand-macro-1 form def) var-env def)))
+      (compile-statement  (%expand-macro-1 form func-env) var-env func-env)
+      (compile-expression (%expand-macro-1 form func-env) var-env func-env)))
 
-(defun %expand-macro-1 (form def)
-  (labels ((expand (form def)
-             (let ((operator (macro-operator form def))
-                   (operands (macro-operands form def)))
-               (let ((expander (if (built-in-macro-p form)
-                                   (built-in-macro-expander operator)
-                                   (kernel-definition-macro-expander operator def))))
-                 (funcall expander operands)))))
-    (if (macro-form-p form def)
-        (values (expand form def) t)
-        (values form nil))))
+(defun %expand-built-in-macro-1 (form func-env)
+  (let ((operator (macro-operator form func-env))
+        (operands (macro-operands form func-env)))
+    (let ((expander (built-in-macro-expander operator)))
+      (values (funcall expander operands) t))))
+
+(defun %expand-user-macro-1 (form func-env)
+  (let ((operator (macro-operator form func-env))
+        (operands (macro-operands form func-env)))
+    (let ((expander (function-environment-macro-expander operator func-env)))
+      (values (funcall expander operands) t))))
+
+(defun %expand-macro-1 (form func-env)
+  (if (macro-form-p form func-env)
+      (if (built-in-macro-p form)
+          (%expand-built-in-macro-1 form func-env)
+          (%expand-user-macro-1 form func-env))
+      (values form nil)))
 
 (defun expand-macro-1 (form)
   "If a form is a macro form, then EXPAND-MACRO-1 expands the macro
 form call once, and returns the macro expansion and true as values.
 Otherwise, returns the given form and false as values."
   (let ((def (kernel-definition *kernel-manager*)))
-    (%expand-macro-1 form def)))
+    (let ((func-env (make-function-environment-with-kernel-definition def)))
+      (%expand-macro-1 form func-env))))
 
-(defun %expand-macro (form def)
-  (if (macro-form-p form def)
-      (values (%expand-macro (%expand-macro-1 form def) def) t)
+(defun %expand-macro (form func-env)
+  (if (macro-form-p form func-env)
+      (values (%expand-macro (%expand-macro-1 form func-env) func-env) t)
       (values form nil)))
 
 (defun expand-macro (form)
@@ -1934,7 +2053,8 @@ the macro form until it is no longer a macro form, and returns the
 macro expansion and true as values. Otherwise, returns the given form
 and false as values."
   (let ((def (kernel-definition *kernel-manager*)))
-    (%expand-macro form def)))
+    (let ((func-env (make-function-environment-with-kernel-definition def)))
+      (%expand-macro form func-env))))
 
 
 ;;; built-in functions
@@ -1993,11 +2113,11 @@ and false as values."
   (or (getf +built-in-functions+ op)
       (error "invalid function: ~A" op)))
 
-(defun inferred-function (form var-env def)
+(defun inferred-function (form var-env func-env)
   (let ((operator (function-operator form))
         (operands (function-operands form)))
     (let ((candidates (function-candidates operator))
-          (types (type-of-operands operands var-env def)))
+          (types (type-of-operands operands var-env func-env)))
       (or (find types candidates :key #'car :test #'equal)
           (error "invalid function application: ~A" form)))))
 
@@ -2016,20 +2136,20 @@ and false as values."
 (defun inferred-function-c-string (fun)
   (cadddr fun))
 
-(defun built-in-function-argument-types (form var-env def)
-  (inferred-function-argument-types (inferred-function form var-env def)))
+(defun built-in-function-argument-types (form var-env func-env)
+  (inferred-function-argument-types (inferred-function form var-env func-env)))
 
-(defun built-in-function-return-type (form var-env def)
-  (inferred-function-return-type (inferred-function form var-env def)))
+(defun built-in-function-return-type (form var-env func-env)
+  (inferred-function-return-type (inferred-function form var-env func-env)))
 
-(defun built-in-function-infix-p (form var-env def)
-  (inferred-function-infix-p (inferred-function form var-env def)))
+(defun built-in-function-infix-p (form var-env func-env)
+  (inferred-function-infix-p (inferred-function form var-env func-env)))
 
-(defun built-in-function-prefix-p (form var-env def)
-  (inferred-function-prefix-p (inferred-function form var-env def)))
+(defun built-in-function-prefix-p (form var-env func-env)
+  (inferred-function-prefix-p (inferred-function form var-env func-env)))
 
-(defun built-in-function-c-string (form var-env def)
-  (inferred-function-c-string (inferred-function form var-env def)))
+(defun built-in-function-c-string (form var-env func-env)
+  (inferred-function-c-string (inferred-function form var-env func-env)))
 
 
 ;;; built-in macros
@@ -2068,15 +2188,15 @@ and false as values."
 
 ;;; compile expression
 
-(defun compile-expression (exp var-env def)
+(defun compile-expression (exp var-env func-env)
   (cond
-    ((macro-form-p exp def) (compile-macro exp var-env def))
+    ((macro-form-p exp func-env) (compile-macro exp var-env func-env))
     ((literal-p exp) (compile-literal exp))
     ((cuda-dimension-p exp) (compile-cuda-dimension exp))
     ((variable-reference-p exp)
-     (compile-variable-reference exp var-env def))
-    ((inline-if-p exp) (compile-inline-if exp var-env def))
-    ((function-p exp) (compile-function exp var-env def))
+     (compile-variable-reference exp var-env func-env))
+    ((inline-if-p exp) (compile-inline-if exp var-env func-env))
+    ((function-p exp) (compile-function exp var-env func-env))
     (t (error "invalid expression: ~A" exp))))
 
 (defun literal-p (exp)
@@ -2159,13 +2279,13 @@ and false as values."
     (('aref . _) t)
     (_ nil)))
 
-(defun compile-variable-reference (exp var-env def)
+(defun compile-variable-reference (exp var-env func-env)
   (cond ((scalar-variable-reference-p exp)
          (compile-scalar-variable-reference exp var-env))
         ((vector-variable-reference-p exp)
-         (compile-vector-variable-reference exp var-env def))
+         (compile-vector-variable-reference exp var-env func-env))
         ((array-variable-reference-p exp)
-         (compile-array-variable-reference exp var-env def))
+         (compile-array-variable-reference exp var-env func-env))
         (t (error "invalid expression: ~A" exp))))
 
 (defun compile-scalar-variable-reference (var var-env)
@@ -2178,29 +2298,29 @@ and false as values."
     (error "invalid selector: ~A" selector))
   (string-downcase (subseq (reverse (princ-to-string selector)) 0 1)))
 
-(defun compile-vector-variable-reference (form var-env def)
+(defun compile-vector-variable-reference (form var-env func-env)
   (match form
     ((selector exp)
      (let ((selector-type (vector-type-selector-type selector))
-           (exp-type      (type-of-expression exp var-env def)))
+           (exp-type      (type-of-expression exp var-env func-env)))
        (unless (eq selector-type exp-type)
          (error "invalid variable reference: ~A" form))
-       (format nil "~A.~A" (compile-expression exp var-env def)
+       (format nil "~A.~A" (compile-expression exp var-env func-env)
                            (compile-vector-selector selector))))
     (_ (error "invalid variable reference: ~A" form))))
 
-(defun compile-array-variable-reference (form var-env def)
+(defun compile-array-variable-reference (form var-env func-env)
   (match form
     (('aref _)
      (error "invalid variable reference: ~A" form))
     (('aref exp . idxs)
-     (let ((type (type-of-expression exp var-env def)))
+     (let ((type (type-of-expression exp var-env func-env)))
        (unless (= (array-type-dimension type) (length idxs))
          (error "invalid dimension: ~A" form))
        (format nil "~A~{[~A]~}"
-                   (compile-expression exp var-env def)
+                   (compile-expression exp var-env func-env)
                    (mapcar #'(lambda (idx)
-                               (compile-expression idx var-env def)) idxs))))
+                               (compile-expression idx var-env func-env)) idxs))))
     (_ (error "invalid variable reference: ~A" form))))
 
 (defun inline-if-p (exp)
@@ -2223,21 +2343,22 @@ and false as values."
     (('if _ _ else-exp) else-exp)
     (_ (error "invalid expression: ~A" exp))))
 
-(defun compile-inline-if (exp var-env def)
+(defun compile-inline-if (exp var-env func-env)
   (let ((test-exp (inline-if-test-expression exp))
         (then-exp (inline-if-then-expression exp))
         (else-exp (inline-if-else-expression exp)))
-    (let ((test-type (type-of-expression test-exp var-env def))
-          (then-type (type-of-expression then-exp var-env def))
-          (else-type (type-of-expression else-exp var-env def)))
+    (let ((test-type (type-of-expression test-exp var-env func-env))
+          (then-type (type-of-expression then-exp var-env func-env))
+          (else-type (type-of-expression else-exp var-env func-env)))
       (unless (eq test-type 'bool)
         (error "invalid type: type of test-form is ~A, not ~A" test-type 'bool))
       (unless (eq then-type else-type)
         (error "invalid types: type of then-form is ~A but that of else-form is ~A" then-type else-type)))
     (format nil "(~A ? ~A : ~A)"
-            (compile-expression test-exp var-env def)
-            (compile-expression then-exp var-env def)
-            (compile-expression else-exp var-env def))))
+            (compile-expression test-exp var-env func-env)
+            (compile-expression then-exp var-env func-env)
+            (compile-expression else-exp var-env func-env))))
+
 
 ;;;
 ;;; Type of expression
@@ -2422,12 +2543,26 @@ and false as values."
                 (_ (error "invalid variable environment element: ~A" binding))))
           bindings :initial-value var-env))
 
-(defun make-variable-environment-with-kernel-definition (name def)
+(defun %add-function-arguments (name def var-env)
   (let ((arg-bindings (kernel-definition-function-arguments name def)))
     (reduce #'(lambda (var-env arg-binding)
                 (destructuring-bind (var type) arg-binding
                   (add-variable-to-variable-environment var type var-env)))
-            arg-bindings :initial-value (empty-variable-environment))))
+            arg-bindings :initial-value var-env)))
+
+(defun %add-constants (def var-env)
+  (labels ((%constant-binding (name)
+             (let ((name (kernel-definition-constant-name name def))
+                   (type (kernel-definition-constant-type name def)))
+               (list name :constant type))))
+    (let ((constant-bindings (mapcar #'%constant-binding
+                                     (kernel-definition-constant-names def))))
+      (bulk-add-variable-environment constant-bindings var-env))))
+
+(defun make-variable-environment-with-kernel-definition (name def)
+  (%add-function-arguments name def
+    (%add-constants def
+      (empty-variable-environment))))
 
 (defmacro with-variable-environment ((var-env bindings) &body body)
   `(let ((,var-env (bulk-add-variable-environment ',bindings (empty-variable-environment))))
@@ -2447,17 +2582,17 @@ and false as values."
 
 (defun variable-environment-type-of-variable (name var-env)
   (unless (variable-environment-variable-exists-p name var-env)
-    (error "invalid varialbe name: ~A" name))
+    (error "undefined varialbe name: ~A" name))
   (varenv-variable-type (lookup-variable-environment name var-env)))
 
 (defun variable-environment-type-of-constant (name var-env)
   (unless (variable-environment-constant-exists-p name var-env)
-    (error "invalid constant name: ~A" name))
+    (error "undefined constant name: ~A" name))
   (varenv-constant-type (lookup-variable-environment name var-env)))
 
 (defun variable-environment-symbol-macro-expansion (name var-env)
   (unless (variable-environment-symbol-macro-exists-p name var-env)
-    (error "invalid symbol macro name: ~A" name))
+    (error "undefined symbol macro name: ~A" name))
   (varenv-symbol-macro-expansion (lookup-variable-environment name var-env)))
 
 
@@ -2485,6 +2620,9 @@ and false as values."
     ((name :function _ _ _) name)
     (_ (error "invalid function environment function: ~A" elem))))
 
+(defun funcenv-function-c-name (elem)
+  (compile-identifier-with-package-name (funcenv-function-name elem)))
+
 (defun funcenv-function-return-type (elem)
   (match elem
     ((_ :function return-type _ _) return-type)
@@ -2494,6 +2632,9 @@ and false as values."
   (match elem
     ((_ :function _ arguments _) arguments)
     (_ (error "invalid function environment function: ~A" elem))))
+
+(defun funcenv-function-argument-types (elem)
+  (mapcar #'cadr (funcenv-function-arguments elem)))
 
 (defun funcenv-function-body (elem)
   (match elem
@@ -2560,6 +2701,27 @@ and false as values."
                 (_ (error "invalid function environment element: ~A" binding))))
           bindings :initial-value func-env))
 
+(defun make-function-environment-with-kernel-definition (def)
+  (labels ((%function-binding (name)
+             (let ((name (kernel-definition-function-name name def))
+                   (return-type (kernel-definition-function-return-type name def))
+                   (args (kernel-definition-function-arguments name def))
+                   (body (kernel-definition-function-body name def)))
+               (list name :function return-type args body)))
+           (%macro-binding (name)
+             (let ((name (kernel-definition-macro-name name def))
+                   (args (kernel-definition-macro-arguments name def))
+                   (body (kernel-definition-macro-body name def))
+                   (expander (kernel-definition-macro-expander name def)))
+               (list name :macro args body expander))))
+    (let ((function-bindings (mapcar #'%function-binding
+                                     (kernel-definition-function-names def)))
+          (macro-bindings (mapcar #'%macro-binding
+                                  (kernel-definition-macro-names def))))
+      (bulk-add-function-environment macro-bindings
+        (bulk-add-function-environment function-bindings
+          (empty-function-environment))))))
+
 (defmacro with-function-environment ((func-env bindings) &body body)
   (labels ((aux (binding)
              (match binding
@@ -2579,34 +2741,44 @@ and false as values."
 (defun function-environment-macro-exists-p (name func-env)
   (funcenv-macro-p (lookup-function-environment name func-env)))
 
+(defun function-environment-function-c-name (name func-env)
+  (unless (function-environment-function-exists-p name func-env)
+    (error "undefined function name: ~A" name))
+  (funcenv-function-c-name (lookup-function-environment name func-env)))
+
 (defun function-environment-function-return-type (name func-env)
   (unless (function-environment-function-exists-p name func-env)
-    (error "invalid function name: ~A" name))
+    (error "undefined function name: ~A" name))
   (funcenv-function-return-type (lookup-function-environment name func-env)))
 
 (defun function-environment-function-arguments (name func-env)
   (unless (function-environment-function-exists-p name func-env)
-    (error "invalid function name: ~A" name))
+    (error "undefined function name: ~A" name))
   (funcenv-function-arguments (lookup-function-environment name func-env)))
+
+(defun function-environment-function-argument-types (name func-env)
+  (unless (function-environment-function-exists-p name func-env)
+    (error "undefined function name: ~A" name))
+  (funcenv-function-argument-types (lookup-function-environment name func-env)))
 
 (defun function-environment-function-body (name func-env)
   (unless (function-environment-function-exists-p name func-env)
-    (error "invalid function name: ~A" name))
+    (error "undefined function name: ~A" name))
   (funcenv-function-body (lookup-function-environment name func-env)))
 
 (defun function-environment-macro-arguments (name func-env)
   (unless (function-environment-macro-exists-p name func-env)
-    (error "invalid macro name: ~A" name))
+    (error "undefined macro name: ~A" name))
   (funcenv-macro-arguments (lookup-function-environment name func-env)))
 
 (defun function-environment-macro-body (name func-env)
   (unless (function-environment-macro-exists-p name func-env)
-    (error "invalid macro name: ~A" name))
+    (error "undefined macro name: ~A" name))
   (funcenv-macro-body (lookup-function-environment name func-env)))
 
 (defun function-environment-macro-expander (name func-env)
   (unless (function-environment-macro-exists-p name func-env)
-    (error "invalid macro name: ~A" name))
+    (error "undefined macro name: ~A" name))
   (funcenv-macro-expander (lookup-function-environment name func-env)))
 
 
@@ -2684,7 +2856,17 @@ and false as values."
     milliseconds))
 
 
-;;; utilities
+;;;
+;;; Utilities
+;;;
+
+(defun compile-identifier (idt)
+  (substitute #\_ #\% (substitute #\_ #\. (substitute #\_ #\- (string-downcase idt)))))
+
+(defun compile-identifier-with-package-name (name)
+  (let ((package-name (compile-identifier (package-name (symbol-package name))))
+        (function-name (compile-identifier name)))
+    (concatenate 'string package-name "_" function-name)))
 
 (defun join (str xs &key (remove-nil nil))
   (let ((xs2 (if remove-nil (remove-if #'null xs) xs)))

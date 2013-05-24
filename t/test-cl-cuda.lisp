@@ -682,59 +682,122 @@
 
 (diag "test kernel definition")
 
-(is (cl-cuda::empty-kernel-definition) '(nil nil nil))
+;; test making empty kernel definition
+(is (cl-cuda::empty-kernel-definition) '(nil nil))
 
-(is (cl-cuda::define-kernel-function 'foo 'void '() '((return))
-      (cl-cuda::empty-kernel-definition))
-    '(((foo void () ((return)))) () ()))
-
-(is-error (cl-cuda::define-kernel-constant 'foo 1
-            (cl-cuda::empty-kernel-definition))
-          simple-error)
-
-(is (cl-cuda::undefine-kernel-function 'foo
-      (cl-cuda::define-kernel-function 'foo 'void '() '((return))
-        (cl-cuda::empty-kernel-definition)))
-    (cl-cuda::empty-kernel-definition))
-
-(is-error (cl-cuda::undefine-kernel-function 'foo
-            (cl-cuda::empty-kernel-definition))
-          simple-error)
-
-(is-error (cl-cuda::undefine-kernel-constant 'foo
-            (cl-cuda::define-kernel-constant 'foo 1
-              (cl-cuda::empty-kernel-definition)))
-          simple-error)
-
-(is-error (cl-cuda::undefine-kernel-constant 'foo
-            (cl-cuda::empty-kernel-definition))
-          simple-error)
-
-(let ((def (cl-cuda::empty-kernel-definition)))
-  (is (cl-cuda::kernel-definition-function-exists-p 'foo def) nil))
-
-(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
+;; test adding function to kernel definition
+(let ((def (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition))))
   (is (cl-cuda::kernel-definition-function-exists-p 'foo def) t))
 
-(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
-             (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::kernel-definition-function-name        'foo def) 'foo              )
-  (is (cl-cuda::kernel-definition-function-c-name      'foo def) "cl_cuda_test_foo")
-  (is (cl-cuda::kernel-definition-function-return-type 'foo def) 'void             )
-  (is (cl-cuda::kernel-definition-function-arguments   'foo def) '()               )
-  (is (cl-cuda::kernel-definition-function-body        'foo def) '((return)))      )
-
-(let ((def (cl-cuda::empty-kernel-definition)))
-  (is-error (cl-cuda::kernel-definition-function-name 'foo def) simple-error))
-
-(let ((def (cl-cuda::empty-kernel-definition)))
-  (is (cl-cuda::kernel-definition-function-names def) nil))
-
-(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
-             (cl-cuda::define-kernel-function 'bar 'int '() '((return 1))
+;; test removing function from kernel definition
+(let ((def (cl-cuda::remove-function-from-kernel-definition 'foo
+             (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
                (cl-cuda::empty-kernel-definition)))))
-  (is (cl-cuda::kernel-definition-function-names def) '(foo bar)))
+  (is def (cl-cuda::empty-kernel-definition)))
+
+;; can not remove function which does not exist in kernel definition
+(is-error (cl-cuda::remove-function-from-kernel-definition 'foo
+            (cl-cuda::empty-kernel-definition)) simple-error)
+
+;; test adding macro to kernel definition
+(let ((def (cl-cuda::add-macro-to-kernel-definition 'foo '(x) '(`(expanded ,x)) (lambda (x) `(expanded ,x))
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::kernel-definition-macro-exists-p 'foo def) t))
+
+;; test removing macro from kernel definition
+(let ((def (cl-cuda::remove-macro-from-kernel-definition 'foo
+             (cl-cuda::add-macro-to-kernel-definition 'foo '() '(`(expanded ,x)) (lambda (x) `(expanded ,x))
+               (cl-cuda::empty-kernel-definition)))))
+  (is def (cl-cuda::empty-kernel-definition)))
+
+;; can not remove macro which does not exist in kernel definition
+(is-error (cl-cuda::remove-macro-from-kernel-definition 'foo
+            (cl-cuda::empty-kernel-definition)) simple-error)
+
+;; test adding constant to kernel definition
+(let ((def (cl-cuda::add-constant-to-kernel-definition 'x 'float 1.0
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::kernel-definition-constant-exists-p 'x def) t))
+
+;; test removing constant from kernel definition
+(let ((def (cl-cuda::remove-constant-from-kernel-definition 'x
+             (cl-cuda::add-constant-to-kernel-definition 'x 'float 1.0
+               (cl-cuda::empty-kernel-definition)))))
+  (is def (cl-cuda::empty-kernel-definition)))
+
+;; can not remove constant which does not exist in kernel definition
+(is-error (cl-cuda::remove-constant-from-kernel-definition 'x
+            (cl-cuda::empty-kernel-definition)) simple-error)
+
+;; test kernel definition
+(cl-cuda::with-kernel-definition (def ((f :function int ((x int)) ((return x)))
+                                       (g :macro (x) (`(expanded ,x)))
+                                       (x :constant float 1.0)))
+  ;; test predicates
+  (is       (cl-cuda::kernel-definition-function-exists-p 'f def) t)
+  (is       (cl-cuda::kernel-definition-function-exists-p 'g def) nil)
+  (is       (cl-cuda::kernel-definition-macro-exists-p 'g def) t)
+  (is       (cl-cuda::kernel-definition-macro-exists-p 'f def) nil)
+  (is       (cl-cuda::kernel-definition-constant-exists-p 'x def) t)
+  (is       (cl-cuda::kernel-definition-constant-exists-p 'f def) nil)
+  ;; test selectors
+  (is       (cl-cuda::kernel-definition-function-name 'f def) 'f)
+  (is-error (cl-cuda::kernel-definition-function-name 'g def) simple-error)
+  (is       (cl-cuda::kernel-definition-function-c-name 'f def) "cl_cuda_test_f")
+  (is-error (cl-cuda::kernel-definition-function-c-name 'g def) simple-error)
+  (is       (cl-cuda::kernel-definition-function-names def) '(f))
+  (is       (cl-cuda::kernel-definition-function-return-type 'f def) 'int)
+  (is-error (cl-cuda::kernel-definition-function-return-type 'g def) simple-error)
+  (is       (cl-cuda::kernel-definition-function-arguments 'f def) '((x int)))
+  (is-error (cl-cuda::kernel-definition-function-arguments 'g def) simple-error)
+  (is       (cl-cuda::kernel-definition-function-argument-types 'f def) '(int))
+  (is-error (cl-cuda::kernel-definition-function-argument-types 'g def) simple-error)
+  (is       (cl-cuda::kernel-definition-function-body 'f def) '((return x )))
+  (is-error (cl-cuda::kernel-definition-function-body 'g def) simple-error)
+  (is       (cl-cuda::kernel-definition-macro-name 'g def) 'g)
+  (is-error (cl-cuda::kernel-definition-macro-name 'f def) simple-error)
+  (is       (cl-cuda::kernel-definition-macro-names def) '(g))
+  (is       (cl-cuda::kernel-definition-macro-arguments 'g def) '(x))
+  (is-error (cl-cuda::kernel-definition-macro-arguments 'f def) simple-error)
+  (is       (cl-cuda::kernel-definition-macro-body 'g def) '(`(expanded ,x)))
+  (is-error (cl-cuda::kernel-definition-macro-body 'f def) simple-error)
+  (is       (funcall (cl-cuda::kernel-definition-macro-expander 'g def) 'x) '(expanded x))
+  (is-error (funcall (cl-cuda::kernel-definition-macro-expander 'f def) 'x) simple-error)
+  (is       (cl-cuda::kernel-definition-constant-name 'x def) 'x)
+  (is-error (cl-cuda::kernel-definition-constant-name 'f def) simple-error)
+  (is       (cl-cuda::kernel-definition-constant-names def) '(x))
+  (is       (cl-cuda::kernel-definition-constant-type 'x def) 'float)
+  (is-error (cl-cuda::kernel-definition-constant-type 'f def) simple-error)
+  (is       (cl-cuda::kernel-definition-constant-expression 'x def) 1.0)
+  (is-error (cl-cuda::kernel-definition-constant-expression 'f def) simple-error))
+
+;; kernel definition does not shadow its elements, just overwrites
+(cl-cuda::with-kernel-definition (def ((f :function void () ((return)))
+                                       (f :function int ((x int)) ((return x)))
+                                       (g :macro () ('(return)))
+                                       (g :macro (x) (`(expanded ,x)))
+                                       (h :function void () ((return)))
+                                       (h :macro (x) (`(expanded ,x)))
+                                       (x :constant float 1.0)
+                                       (x :constant float 2.0)))
+  (is (cl-cuda::kernel-definition-function-return-type 'f def) 'int)
+  (is (cl-cuda::kernel-definition-macro-arguments 'g def) '(x))
+  (is (cl-cuda::kernel-definition-function-exists-p 'h def) nil)
+  (is (cl-cuda::kernel-definition-macro-exists-p 'h def) t)
+  (is (cl-cuda::kernel-definition-constant-expression 'x def) 2.0))
+
+;; kernel definition can accept element depending on others
+(cl-cuda::with-kernel-definition (def ((x :constant float 1.0)
+                                       (y :constant float (* x 2.0))))
+  (is (cl-cuda::kernel-definition-constant-exists-p 'x def) t)
+  (is (cl-cuda::kernel-definition-constant-exists-p 'y def) t))
+
+;; kernel definition does not accept variables
+(is-error (cl-cuda::with-kernel-definition (def ((x :variable int 1))) def) simple-error)
+
+;; kernel definition does not accept symbol macros
+(is-error (cl-cuda::with-kernel-definition (def ((x :symbol-macro (expanded-x)))) def) simple-error)
 
 
 ;;;
@@ -743,7 +806,7 @@
 
 (diag "test compile-kernel-definition")
 
-(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+(let ((def (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
       (c-code (cl-cuda::unlines "#include \"float3.h\""
                                 ""
@@ -763,7 +826,7 @@
 
 (diag "test compile-kernel-function-prototype")
 
-(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+(let ((def (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
       (c-code (cl-cuda::unlines "extern \"C\" __global__ void cl_cuda_test_foo ();")))
   (is (cl-cuda::compile-kernel-function-prototype 'foo def) c-code))
@@ -775,7 +838,7 @@
 
 (diag "test compile-kernel-function")
 
-(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '((return))
+(let ((def (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
       (c-code (cl-cuda::unlines "__global__ void cl_cuda_test_foo ()"
                                 "{"
@@ -1114,15 +1177,13 @@
 (is (cl-cuda::compile-function '(cl-cuda::%recip (float3 2.0 2.0 2.0)) nil nil)
     "float3_recip (make_float3 (2.0, 2.0, 2.0))")
 
-(let ((def (cl-cuda::define-kernel-function 'foo 'void '() '()
-             (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::compile-function '(foo) nil def :statement-p t) "cl_cuda_test_foo ();"))
+(cl-cuda::with-function-environment (func-env ((foo :function void () ())))
+  (is (cl-cuda::compile-function '(foo) nil func-env :statement-p t) "cl_cuda_test_foo ();"))
 
-(let ((def (cl-cuda::define-kernel-function 'foo 'void '((x int) (y int)) '()
-             (cl-cuda::empty-kernel-definition))))
-  (is-error (cl-cuda::compile-function '(foo 1 1)   nil nil               ) simple-error              )
-  (is       (cl-cuda::compile-function '(foo 1 1)   nil def :statement-p t) "cl_cuda_test_foo (1, 1);")
-  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil def :statement-p t) simple-error              ))
+(cl-cuda::with-function-environment (func-env ((foo :function void ((x int) (y int)) ())))
+  (is-error (cl-cuda::compile-function '(foo 1 1)   nil nil) simple-error)
+  (is       (cl-cuda::compile-function '(foo 1 1)   nil func-env :statement-p t) "cl_cuda_test_foo (1, 1);")
+  (is-error (cl-cuda::compile-function '(foo 1 1 1) nil func-env :statement-p t) simple-error))
 
 (is (cl-cuda::compile-function '(float3 1.0 1.0 1.0)     nil nil) "make_float3 (1.0, 1.0, 1.0)"     )
 (is (cl-cuda::compile-function '(float4 1.0 1.0 1.0 1.0) nil nil) "make_float4 (1.0, 1.0, 1.0, 1.0)")
@@ -1142,20 +1203,16 @@
 (diag "test compile-macro")
 
 ;; test macro-form-p
-(let ((def (cl-cuda::define-kernel-macro 'foo '(x) '`(progn ,x)
-             (lambda (form-body)
-               (destructuring-bind (x) form-body
-                 `(progn ,x)))
-             (cl-cuda::empty-kernel-definition))))
-  (is (cl-cuda::macro-form-p '(+ 1 1) def) t)
-  (is (cl-cuda::macro-form-p '(foo 1) def) t)
-  (is (cl-cuda::macro-form-p 'bar def) nil))
+(cl-cuda::with-function-environment (func-env ((foo :macro (x) (`(progn ,x)))))
+  (is (cl-cuda::macro-form-p '(+ 1 1) func-env) t)
+  (is (cl-cuda::macro-form-p '(foo 1) func-env) t)
+  (is (cl-cuda::macro-form-p 'bar func-env) nil))
 
 ;; test macro-operator
-(is (cl-cuda::macro-operator '(+ 1 1) (cl-cuda::empty-kernel-definition)) '+)
+(is (cl-cuda::macro-operator '(+ 1 1) (cl-cuda::empty-function-environment)) '+)
 
 ;; test macro-operands
-(is (cl-cuda::macro-operands '(+ 1 1) (cl-cuda::empty-kernel-definition)) '(1 1))
+(is (cl-cuda::macro-operands '(+ 1 1) (cl-cuda::empty-function-environment)) '(1 1))
 
 ;; test expand-macro-1 and expand-macro
 (defkernelmacro foo (x)
@@ -1431,7 +1488,8 @@
 (is-error (cl-cuda::make-varenv-constant '(x) 'int) simple-error)
 (is-error (cl-cuda::make-varenv-constant '(x) 'invalid-type) simple-error)
 (is-error (cl-cuda::make-varenv-symbol-macro '(x) 'int) simple-error)
-(is-error (cl-cuda::bulk-add-variable-environment '((x :invalid-keyword int)) (cl-cuda::empty-variable-environment)) simple-error)
+(is-error (cl-cuda::bulk-add-variable-environment '((x :invalid-keyword int)) (cl-cuda::empty-variable-environment))
+          simple-error)
 
 ;; test variable environment
 (cl-cuda::with-variable-environment (var-env ((x :variable int)
@@ -1459,6 +1517,13 @@
   (is-error (cl-cuda::variable-environment-type-of-variable 'x var-env) simple-error)
   (is       (cl-cuda::variable-environment-symbol-macro-exists-p 'x var-env) t)
   (is       (cl-cuda::variable-environment-symbol-macro-expansion 'x var-env) '(expanded-x)))
+
+;; test making variable environment with kernel definition
+(cl-cuda::with-kernel-definition (def ((f :function void () ((return)))
+                                       (y :constant float 1.0)))
+  (let ((var-env (cl-cuda::make-variable-environment-with-kernel-definition 'f def)))
+    (is (cl-cuda::variable-environment-constant-exists-p 'y var-env) t)
+    (is (cl-cuda::variable-environment-type-of-constant 'y var-env) 'float)))
 
 
 ;;;
@@ -1510,7 +1575,9 @@
 (is-error (cl-cuda::make-funcenv-macro 'g '((x)) '(`(expanded ,x)) (lambda (x) `(expanded ,x))) simple-error)
 (is-error (cl-cuda::make-funcenv-macro 'g '(x) 'x (lambda (x) `(expanded ,x))) simple-error)
 (is-error (cl-cuda::make-funcenv-macro 'g '(x) '(`(expanded ,x)) nil) simple-error)
-(is-error (cl-cuda::bulk-add-function-environment '((f :invalid-keyword int ((x int)) ((return x)))) (cl-cuda::empty-function-environment)) simple-error)
+(is-error (cl-cuda::bulk-add-function-environment '((f :invalid-keyword int ((x int)) ((return x))))
+                                                  (cl-cuda::empty-function-environment))
+          simple-error)
 
 ;; test function environment
 (cl-cuda::with-function-environment (func-env ((f :function int ((x int)) ((return x)))
@@ -1521,10 +1588,14 @@
   (is       (cl-cuda::function-environment-macro-exists-p 'g func-env) t)
   (is       (cl-cuda::function-environment-macro-exists-p 'f func-env) nil)
   ;; test selectors
+  (is       (cl-cuda::function-environment-function-c-name 'f func-env) "cl_cuda_test_f")
+  (is-error (cl-cuda::function-environment-function-c-name 'g func-env) simple-error)
   (is       (cl-cuda::function-environment-function-return-type 'f func-env) 'int)
   (is-error (cl-cuda::function-environment-function-return-type 'g func-env) simple-error)
   (is       (cl-cuda::function-environment-function-arguments 'f func-env) '((x int)))
   (is-error (cl-cuda::function-environment-function-arguments 'g func-env) simple-error)
+  (is       (cl-cuda::function-environment-function-argument-types 'f func-env) '(int))
+  (is-error (cl-cuda::function-environment-function-argument-types 'g func-env) simple-error)
   (is       (cl-cuda::function-environment-function-body 'f func-env) '((return x)))
   (is-error (cl-cuda::function-environment-function-body 'g func-env) simple-error)
   (is       (cl-cuda::function-environment-macro-arguments 'g func-env) '(x))
@@ -1545,6 +1616,20 @@
   (is       (cl-cuda::function-environment-macro-arguments 'f func-env) '(x))
   (is       (cl-cuda::function-environment-macro-body 'f func-env)  '(`(expanded ,x)))
   (is       (funcall (cl-cuda::function-environment-macro-expander 'f func-env) 'x) '(expanded x)))
+
+;; test making function environment with kernel definition
+(cl-cuda::with-kernel-definition (def ((f :function int ((x int)) ((return x)))
+                                       (g :macro (x) (`(expanded ,x)))))
+  (let ((func-env (cl-cuda::make-function-environment-with-kernel-definition def)))
+    (is (cl-cuda::function-environment-function-exists-p 'f func-env) t)
+    (is (cl-cuda::function-environment-function-return-type 'f func-env) 'int)
+    (is (cl-cuda::function-environment-function-arguments 'f func-env) '((x int)))
+    (is (cl-cuda::function-environment-function-argument-types 'f func-env) '(int))
+    (is (cl-cuda::function-environment-function-body 'f func-env) '((return x)))
+    (is (cl-cuda::function-environment-macro-exists-p 'g func-env) t)
+    (is (cl-cuda::function-environment-macro-arguments 'g func-env) '(x))
+    (is (cl-cuda::function-environment-macro-body 'g func-env) '(`(expanded ,x)))
+    (is (funcall (cl-cuda::function-environment-macro-expander 'g func-env) 'x) '(expanded x))))
 
 
 ;;;
