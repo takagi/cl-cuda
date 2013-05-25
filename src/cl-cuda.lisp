@@ -1110,15 +1110,14 @@
 
 (defun lookup-kernel-definition (kind name def)
   (destructuring-bind (func-table var-table) def
-    (case kind
+    (ecase kind
       (:function (let ((elem (find name func-table :key #'kerdef-name)))
                    (when (kerdef-function-p elem)
                      elem)))
       (:macro (let ((elem (find name func-table :key #'kerdef-name)))
                 (when (kerdef-macro-p elem)
                   elem)))
-      (:constant (find name var-table :key #'kerdef-name))
-      (t (error "invalid kernel definition element kind: ~A" kind)))))
+      (:constant (find name var-table :key #'kerdef-name)))))
 
 (defun kernel-definition-function-exists-p (name def)
   (and (lookup-kernel-definition :function name def)
