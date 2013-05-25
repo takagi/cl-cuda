@@ -432,6 +432,7 @@
       (memcpy-device-to-host a)
       (is (mem-aref a 0) 6.0))))
 
+;; test DO statement
 (defkernel test-do-kernel (void ((x int*)))
   (do ((i 0 (+ i 1)))
       ((> i 15))
@@ -446,6 +447,7 @@
       (memcpy-device-to-host x)
       (is (mem-aref x 0) 16))))
 
+;; test multi-argument arithmetic
 (defkernel test-add (void ((x int*)))
   (set (aref x 0) (+ 1 1 1)))
 
@@ -458,6 +460,7 @@
       (memcpy-device-to-host x)
       (is (mem-aref x 0) 3))))
 
+;; test atomic function
 (defkernel test-atomic-add (void ((x int*)))
   (atomic-add (pointer (aref x 0)) 1))
 
@@ -477,6 +480,7 @@
       (is   (mem-aref x 0) 256)
       (isnt (mem-aref y 0) 256))))
 
+;; test built-in vector type
 (defkernel test-float3-add (void ((x float3*)))
   (set (aref x 0) (+ (aref x 0) (float3 1.0 1.0 1.0))))
 
@@ -489,6 +493,7 @@
       (memcpy-device-to-host x)
       (is (mem-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=))))
 
+;; test kernel macro
 (defkernelmacro when (test &body forms)
   `(if ,test
        (progn ,@forms)))
@@ -500,6 +505,18 @@
 (let ((dev-id 0))
   (with-cuda-context (dev-id)
     (test-when :grid-dim '(1 1 1) :block-dim '(1 1 1))))
+
+;; test kernel constant
+(defkernelconst x int 1)
+
+(defkernel test-const (void ((ret int*)))
+  (set (aref ret 0) x)
+  (return))
+
+(let ((dev-id 0))
+  (with-cuda-context (dev-id)
+    (with-memory-blocks ((x 'int 1))
+      (test-const x :grid-dim '(1 1 1) :block-dim '(1 1 1)))))
 
 
 ;;;
@@ -700,20 +717,38 @@
 (is-error (cl-cuda::remove-function-from-kernel-definition 'foo
             (cl-cuda::empty-kernel-definition)) simple-error)
 
+;; kernel definition does not shadow its elements, just overwrites
+(let ((def (cl-cuda::remove-function-from-kernel-definition 'foo
+             (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
+               (cl-cuda::add-function-to-kernel-definition 'foo 'int '() '((return 1))
+                 (cl-cuda::empty-kernel-definition))))))
+  (is def (cl-cuda::empty-kernel-definition)))
+
 ;; test adding macro to kernel definition
-(let ((def (cl-cuda::add-macro-to-kernel-definition 'foo '(x) '(`(expanded ,x)) (lambda (args) (destructuring-bind (x) args `(expanded ,x)))
+(let ((def (cl-cuda::add-macro-to-kernel-definition 'foo '(x) '(`(expanded ,x))
+                                                    (lambda (args) (destructuring-bind (x) args `(expanded ,x)))
              (cl-cuda::empty-kernel-definition))))
   (is (cl-cuda::kernel-definition-macro-exists-p 'foo def) t))
 
 ;; test removing macro from kernel definition
 (let ((def (cl-cuda::remove-macro-from-kernel-definition 'foo
-             (cl-cuda::add-macro-to-kernel-definition 'foo '() '(`(expanded ,x)) (lambda (args) (destructuring-bind (x) args `(expanded ,x)))
+             (cl-cuda::add-macro-to-kernel-definition 'foo '() '(`(expanded ,x))
+                                                      (lambda (args) (destructuring-bind (x) args `(expanded ,x)))
                (cl-cuda::empty-kernel-definition)))))
   (is def (cl-cuda::empty-kernel-definition)))
 
 ;; can not remove macro which does not exist in kernel definition
 (is-error (cl-cuda::remove-macro-from-kernel-definition 'foo
             (cl-cuda::empty-kernel-definition)) simple-error)
+
+;; kernel definition does not shadow its elements, just overwrites
+(let ((def (cl-cuda::remove-macro-from-kernel-definition 'foo
+             (cl-cuda::add-macro-to-kernel-definition 'foo '(x) '(`(expanded ,x))
+                                                      (lambda (args) (destructuring-bind (x) args `(expanded ,x)))
+               (cl-cuda::add-macro-to-kernel-definition 'foo '() '('(return))
+                                                        (lambda (args) (destructuring-bind () args '(return)))
+                 (cl-cuda::empty-kernel-definition))))))
+  (is def (cl-cuda::empty-kernel-definition)))
 
 ;; test adding constant to kernel definition
 (let ((def (cl-cuda::add-constant-to-kernel-definition 'x 'float 1.0
@@ -729,6 +764,13 @@
 ;; can not remove constant which does not exist in kernel definition
 (is-error (cl-cuda::remove-constant-from-kernel-definition 'x
             (cl-cuda::empty-kernel-definition)) simple-error)
+
+;; kernel definition does not shadow its elements, just overwrites
+(let ((def (cl-cuda::remove-constant-from-kernel-definition 'x
+             (cl-cuda::add-constant-to-kernel-definition 'x 'int 1
+               (cl-cuda::add-constant-to-kernel-definition 'x 'float 1.0
+                 (cl-cuda::empty-kernel-definition))))))
+  (is def (cl-cuda::empty-kernel-definition)))
 
 ;; test kernel definition
 (cl-cuda::with-kernel-definition (def ((f :function int ((x int)) ((return x)))
@@ -809,6 +851,7 @@
 (let ((def (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
       (c-code (cl-cuda::unlines "#include \"float3.h\""
+                                ""
                                 ""
                                 "extern \"C\" __global__ void cl_cuda_test_foo ();"
                                 ""

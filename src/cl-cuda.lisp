@@ -799,7 +799,7 @@
 
 
 ;;;
-;;; Definition of defkernel macro
+;;; Definition of DEFKERNEL macro
 ;;;
 
 (defun var-ptr (var)
@@ -925,7 +925,7 @@
 
 
 ;;;
-;;; Definition of defkernelmacro macro
+;;; Definition of DEFKERNELMACRO macro
 ;;;
 
 (defmacro defkernelmacro (name args &body body)
@@ -935,7 +935,15 @@
          (destructuring-bind ,args ,form-body
            ,@body)))))
 
-       
+
+;;;
+;;; Definition of DEFKERNELCONST macro
+;;;
+
+(defmacro defkernelconst (name type exp)
+  `(kernel-manager-define-constant *kernel-manager* ',name ',type ',exp))
+
+
 ;;;
 ;;; Definition of kernel definition
 ;;;
@@ -1051,8 +1059,8 @@
 (defun add-function-to-kernel-definition (name return-type arguments body def)
   (destructuring-bind (func-table var-table) def
     (let ((elem (make-kerdef-function name return-type arguments body)))
-      ; needs to remove duplication
-      (list (cons elem func-table) var-table))))
+      (list (remove-duplicates (cons elem func-table) :key #'kerdef-name :from-end t)
+            var-table))))
 
 (defun remove-function-from-kernel-definition (name def)
   (unless (kernel-definition-function-exists-p name def)
@@ -1063,8 +1071,8 @@
 (defun add-macro-to-kernel-definition (name arguments body expander def)
   (destructuring-bind (func-table var-table) def
     (let ((elem (make-kerdef-macro name arguments body expander)))
-      ; needs to remove duplication
-      (list (cons elem func-table) var-table))))
+      (list (remove-duplicates (cons elem func-table) :key #'kerdef-name :from-end t)
+            var-table))))
 
 (defun remove-macro-from-kernel-definition (name def)
   (unless (kernel-definition-macro-exists-p name def)
@@ -1075,8 +1083,8 @@
 (defun add-constant-to-kernel-definition (name type expression def)
   (destructuring-bind (func-table var-table) def
     (let ((elem (make-kerdef-constant name type expression)))
-      ; needs to remove duplication
-      (list func-table (cons elem var-table)))))
+      (list func-table
+            (remove-duplicates (cons elem var-table) :key #'kerdef-name :from-end t)))))
 
 (defun remove-constant-from-kernel-definition (name def)
   (unless (kernel-definition-constant-exists-p name def)
@@ -1334,6 +1342,18 @@
       (setf def (add-macro-to-kernel-definition name args body expander def)
             (module-compilation-needed info) t))))
 
+(defun constant-modified-p (name type exp def)
+  (not (and (equal type (kernel-definition-constant-type name def))
+            (equal exp (kernel-definition-constant-exists-p name def)))))
+
+(defun kernel-manager-define-constant (mgr name type exp)
+  (symbol-macrolet ((def (kernel-definition mgr))
+                    (info (module-info mgr)))
+    (when (or (not (kernel-definition-constant-exists-p name def))
+              (constant-modified-p name type exp def))
+      (setf def (add-constant-to-kernel-definition name type exp def)
+            (module-compilation-needed info) t))))
+
 (defun kernel-manager-load-function (mgr name)
   (unless (kernel-manager-module-handle mgr)
     (error "kernel module is not loaded yet."))
@@ -1491,6 +1511,21 @@
           (args (compile-arguments arguments)))
       (format nil "~A ~A ~A (~A)" specifier type c-name args))))
 
+(defun compile-kernel-constant (name def)
+  (let ((type (kernel-definition-constant-type name def))
+        (exp (kernel-definition-constant-expression name def)))
+    (let ((var-env  (make-variable-environment-with-kernel-definition nil def))
+          (func-env (make-function-environment-with-kernel-definition def)))
+      (let ((type2 (compile-type type))
+            (name2 (compile-identifier name))
+            (exp2  (compile-expression exp var-env func-env)))
+        (format nil "static const ~A ~A = ~A;~%" type2 name2 exp2)))))
+
+(defun compile-kernel-constants (def)
+  (mapcar #'(lambda (name)
+              (compile-kernel-constant name def))
+          (kernel-definition-constant-names def)))
+
 (defun compile-kernel-function-prototype (name def)
   (format nil "extern \"C\" ~A;"
           (compile-function-declaration name def)))
@@ -1525,6 +1560,8 @@
 
 (defun compile-kernel-definition (def)
   (unlines `("#include \"float3.h\""
+             ""
+             ,@(compile-kernel-constants def)
              ""
              ,@(compile-kernel-function-prototypes def)
              ""
@@ -2599,11 +2636,13 @@ and false as values."
           bindings :initial-value var-env))
 
 (defun %add-function-arguments (name def var-env)
-  (let ((arg-bindings (kernel-definition-function-arguments name def)))
-    (reduce #'(lambda (var-env arg-binding)
-                (destructuring-bind (var type) arg-binding
+  (if name
+      (let ((arg-bindings (kernel-definition-function-arguments name def)))
+        (reduce #'(lambda (var-env arg-binding)
+                    (destructuring-bind (var type) arg-binding
                   (add-variable-to-variable-environment var type var-env)))
-            arg-bindings :initial-value var-env)))
+                arg-bindings :initial-value var-env))
+      var-env))
 
 (defun %add-constants (def var-env)
   (labels ((%constant-binding (name)

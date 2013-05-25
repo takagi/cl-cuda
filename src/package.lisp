@@ -34,7 +34,7 @@
            :float4 :make-float4
            :float4-p
            :float4-x :float4-y :float4-z :float4-w :float4-=
-           :defkernel :defkernelmacro   ; Kernel Description Language
+           :defkernel :defkernelmacro :defkernelconst   ; Kernel Description Language
            :void :bool :bool* :int :int* :float :float*
            :float3 :float3* :float4 :float4*
            :grid-dim-x :grid-dim-y :grid-dim-z
