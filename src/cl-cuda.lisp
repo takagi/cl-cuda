@@ -1300,29 +1300,18 @@
 (defun kernel-manager-function-c-name (mgr name)
   (kernel-definition-function-c-name name (kernel-definition mgr)))
 
-(defun kernel-manager-function-return-type (mgr name)
-  (kernel-definition-function-return-type name (kernel-definition mgr)))
-
-(defun kernel-manager-function-arguments (mgr name)
-  (kernel-definition-function-arguments name (kernel-definition mgr)))
-
-(defun kernel-manager-function-argument-types (mgr name)
-  (kernel-definition-function-argument-types name (kernel-definition mgr)))
-
-(defun kernel-manager-function-body (mgr name)
-  (kernel-definition-function-body name (kernel-definition mgr)))
+(defun function-modified-p (name return-type args body def)
+  (not (and (equal return-type (kernel-definition-function-return-type name def))
+            (equal args (kernel-definition-function-arguments name def))
+            (equal body (kernel-definition-function-body name def)))))
 
 (defun kernel-manager-define-function (mgr name return-type args body)
-  (when (or (not (kernel-manager-function-exists-p mgr name))
-            (function-modified-p mgr name return-type args body))
-    (setf (kernel-definition mgr)
-          (add-function-to-kernel-definition name return-type args body (kernel-definition mgr)))
-    (setf (kernel-manager-module-compilation-needed mgr) t)))
-
-(defun function-modified-p (mgr name return-type args body)
-  (not (and (equal return-type (kernel-manager-function-return-type mgr name))
-            (equal args (kernel-manager-function-arguments mgr name))
-            (equal body (kernel-manager-function-body mgr name)))))
+  (symbol-macrolet ((def (kernel-definition mgr))
+                    (info (module-info mgr)))
+    (when (or (not (kernel-definition-function-exists-p name def))
+              (function-modified-p name return-type args body def))
+      (setf def (add-function-to-kernel-definition name return-type args body def)
+            (module-compilation-needed info) t))))
 
 (defun kernel-manager-macro-exists-p (mgr name)
   (kernel-definition-macro-exists-p name (kernel-definition mgr)))
@@ -1333,25 +1322,17 @@
 (defun kernel-manager-macro-name (mgr name)
   (kernel-definition-macro-name name (kernel-definition mgr)))
 
-(defun kernel-manager-macro-arguments (mgr name)
-  (kernel-definition-macro-arguments name (kernel-definition mgr)))
-
-(defun kernel-manager-macro-body (mgr name)
-  (kernel-definition-macro-body name (kernel-definition mgr)))
-
-(defun kernel-manager-macro-expander (mgr name)
-  (kernel-definition-macro-expander name (kernel-definition mgr)))
+(defun macro-modified-p (name args body def)
+  (not (and (equal args (kernel-definition-macro-arguments name def))
+            (equal body (kernel-definition-macro-body name def)))))
 
 (defun kernel-manager-define-macro (mgr name args body expander)
-  (when (or (not (kernel-manager-macro-exists-p mgr name))
-            (macro-modified-p mgr name args body))
-    (setf (kernel-definition mgr)
-          (add-macro-to-kernel-definition name args body expander (kernel-definition mgr)))
-    (setf (kernel-manager-module-compilation-needed mgr) t)))
-
-(defun macro-modified-p (mgr name args body)
-  (not (and (equal args (kernel-manager-macro-arguments mgr name))
-            (equal body (kernel-manager-macro-body mgr name)))))
+  (symbol-macrolet ((def (kernel-definition mgr))
+                    (info (module-info mgr)))
+    (when (or (not (kernel-definition-macro-exists-p name def))
+              (macro-modified-p name args body def))
+      (setf def (add-macro-to-kernel-definition name args body expander def)
+            (module-compilation-needed info) t))))
 
 (defun kernel-manager-load-function (mgr name)
   (unless (kernel-manager-module-handle mgr)
