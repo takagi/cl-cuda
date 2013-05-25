@@ -1258,7 +1258,7 @@
 
 
 ;;;
-;;; test compile-literal (not implemented)
+;;; test compile-literal
 ;;;
 
 (diag "test compile-literal")
@@ -1279,6 +1279,24 @@
 
 
 ;;;
+;;; test compile-symbol
+;;;
+
+(cl-cuda::with-variable-environment (var-env ((x :variable int)
+                                              (y :constant float)
+                                              (z :symbol-macro expanded-z)
+                                              (expanded-z :constant float3)))
+  (is (cl-cuda::symbol-p 'x) t)
+  (is (cl-cuda::symbol-p 'y) t)
+  (is (cl-cuda::symbol-p 'z) t)
+  (is (cl-cuda::symbol-p 'a) t)
+  (is (cl-cuda::compile-symbol 'x var-env nil) "x")
+  (is (cl-cuda::compile-symbol 'y var-env nil) "y")
+  (is (cl-cuda::compile-symbol 'z var-env nil) "expanded_z")
+  (is-error (cl-cuda::compile-symbol 'a var-env nil) simple-error))
+
+
+;;;
 ;;; test compile-cuda-dimension (not implemented)
 ;;;
 
@@ -1291,35 +1309,28 @@
 (diag "test compile-variable-reference")
 
 ;; test variable-reference-p
-(is (cl-cuda::variable-reference-p 'x)              t  )
-(is (cl-cuda::variable-reference-p 1)               nil)
-(is (cl-cuda::variable-reference-p '(aref x))       t  )
-(is (cl-cuda::variable-reference-p '(aref x i))     t  )
-(is (cl-cuda::variable-reference-p '(aref x i i))   t  )
-(is (cl-cuda::variable-reference-p '(aref x i i i)) t  )
-(is (cl-cuda::variable-reference-p '(float3-x x))   t  )
-(is (cl-cuda::variable-reference-p '(float3-y x))   t  )
-(is (cl-cuda::variable-reference-p '(float3-z x))   t  )
-(is (cl-cuda::variable-reference-p '(float4-x x))   t  )
-(is (cl-cuda::variable-reference-p '(float4-y x))   t  )
-(is (cl-cuda::variable-reference-p '(float4-z x))   t  )
-(is (cl-cuda::variable-reference-p '(float4-w x))   t  )
+(is (cl-cuda::variable-reference-p '(aref x))       t)
+(is (cl-cuda::variable-reference-p '(aref x i))     t)
+(is (cl-cuda::variable-reference-p '(aref x i i))   t)
+(is (cl-cuda::variable-reference-p '(aref x i i i)) t)
+(is (cl-cuda::variable-reference-p '(float3-x x))   t)
+(is (cl-cuda::variable-reference-p '(float3-y x))   t)
+(is (cl-cuda::variable-reference-p '(float3-z x))   t)
+(is (cl-cuda::variable-reference-p '(float4-x x))   t)
+(is (cl-cuda::variable-reference-p '(float4-y x))   t)
+(is (cl-cuda::variable-reference-p '(float4-z x))   t)
+(is (cl-cuda::variable-reference-p '(float4-w x))   t)
 
 ;; test compile-variable-reference
-(is-error (cl-cuda::compile-variable-reference 'x nil nil) simple-error)
-
 (cl-cuda::with-variable-environment (var-env ((x :variable int)))
-  (is       (cl-cuda::compile-variable-reference 'x          var-env nil) "x"         )
   (is-error (cl-cuda::compile-variable-reference '(aref x)   var-env nil) simple-error)
   (is-error (cl-cuda::compile-variable-reference '(aref x 0) var-env nil) simple-error))
 
 (cl-cuda::with-variable-environment (var-env ((x :variable int*)))
-  (is       (cl-cuda::compile-variable-reference 'x            var-env nil) "x"         )
   (is       (cl-cuda::compile-variable-reference '(aref x 0)   var-env nil) "x[0]"      )
   (is-error (cl-cuda::compile-variable-reference '(aref x 0 0) var-env nil) simple-error))
 
 (cl-cuda::with-variable-environment (var-env ((x :variable int**)))
-  (is       (cl-cuda::compile-variable-reference 'x            var-env nil) "x"         )
   (is-error (cl-cuda::compile-variable-reference '(aref x 0)   var-env nil) simple-error)
   (is       (cl-cuda::compile-variable-reference '(aref x 0 0) var-env nil) "x[0][0]"   ))
 
@@ -1383,6 +1394,16 @@
 (is       (cl-cuda::type-of-literal '1.0  ) 'float      )
 (is-error (cl-cuda::type-of-literal '1.0d0) simple-error)
 
+;; test type-of-symbol
+(cl-cuda::with-variable-environment (var-env ((x :variable int)
+                                              (y :constant float)
+                                              (z :symbol-macro expanded-z)
+                                              (expanded-z :constant float3)))
+  (is (cl-cuda::type-of-symbol 'x var-env nil) 'int)
+  (is (cl-cuda::type-of-symbol 'y var-env nil) 'float)
+  (is (cl-cuda::type-of-symbol 'z var-env nil) 'float3)
+  (is-error (cl-cuda::type-of-symbol 'a var-env nil) simple-error))
+
 ;; test type-of-function
 (cl-cuda::with-function-environment (func-env ((foo :function int ((x int) (y int)) ())))
   (is (cl-cuda::type-of-function '(cl-cuda::%add 1 1) nil func-env) 'int)
@@ -1410,17 +1431,13 @@
 
 ;; test type-of-variable-reference
 (cl-cuda::with-variable-environment (var-env ((x :variable int)))
-  (is-error (cl-cuda::type-of-variable-reference 'x        nil     nil) simple-error)
-  (is       (cl-cuda::type-of-variable-reference 'x        var-env nil) 'int        )
   (is-error (cl-cuda::type-of-variable-reference '(aref x) var-env nil) simple-error))
 
 (cl-cuda::with-variable-environment (var-env ((x :variable int*)))
-  (is       (cl-cuda::type-of-variable-reference 'x            var-env nil) 'int*       )
   (is       (cl-cuda::type-of-variable-reference '(aref x 0)   var-env nil) 'int        )
   (is-error (cl-cuda::type-of-variable-reference '(aref x 0 0) var-env nil) simple-error))
 
 (cl-cuda::with-variable-environment (var-env ((x :variable int**)))
-  (is       (cl-cuda::type-of-variable-reference 'x            var-env nil) 'int**      )
   (is-error (cl-cuda::type-of-variable-reference '(aref x 0)   var-env nil) simple-error)
   (is       (cl-cuda::type-of-variable-reference '(aref x 0 0) var-env nil) 'int        ))
 
