@@ -1608,35 +1608,38 @@
     (_ (error "invalid statement: ~A" stmt))))
 
 (defun %compile-assignment (var exp type var-env func-env)
-  (format nil "~A ~A = ~A;" (compile-type type)
-                            (compile-identifier var)
-                            (compile-expression exp var-env func-env)))
+  (let ((var2  (compile-identifier var))
+        (exp2  (compile-expression exp var-env func-env))
+        (type2 (compile-type type)))
+    (format nil "~A ~A = ~A;" type2 var2 exp2)))
 
-(defun compile-let-binding (bindings stmts var-env func-env)
-  (match bindings
-    (((var exp) . rest)
-     (let ((type (type-of-expression exp var-env func-env)))
-       (let ((assignment (%compile-assignment var exp type var-env func-env))
-             (var-env2 (add-variable-to-variable-environment var type var-env)))
-         (unlines assignment
-                  (%compile-let rest stmts var-env2 func-env)))))
-    (_ (error "invalid bindings: ~A" bindings))))
+(defun compile-let-assignments (bindings var-env func-env)
+  (labels ((aux (binding)
+             (match binding
+               ((var exp) (let ((type (type-of-expression exp var-env func-env)))
+                            (%compile-assignment var exp type var-env func-env)))
+               (_ (error "invalid let binding: ~A" binding)))))
+    (let ((compiled-assignments (mapcar #'aux bindings)))
+      (apply #'unlines compiled-assignments))))
 
 (defun compile-let-statements (stmts var-env func-env)
-  (compile-progn-statements stmts var-env func-env))
-
-(defun %compile-let (bindings stmts var-env func-env)
-  (if bindings
-      (compile-let-binding bindings stmts var-env func-env)
-      (compile-let-statements stmts var-env func-env)))
+  (compile-statement `(progn ,@stmts) var-env func-env))
 
 (defun compile-let (stmt var-env func-env)
-  (let ((bindings  (let-bindings stmt))
-        (let-stmts (let-statements stmt)))
-    (let ((compiled-stmts (%compile-let bindings let-stmts var-env func-env)))
-      (unlines "{"
-	             (indent 2 compiled-stmts)
-	             "}"))))
+  (labels ((aux (binding)
+             (match binding
+               ((var exp) (let ((type (type-of-expression exp var-env func-env)))
+                            (list var :variable type)))
+               (_ (error "invalid let binding: ~A" binding)))))
+    (let ((bindings  (let-bindings stmt))
+          (let-stmts (let-statements stmt)))
+      (let ((var-env2 (bulk-add-variable-environment (mapcar #'aux bindings) var-env)))
+        (let ((assignments    (compile-let-assignments bindings var-env func-env))
+              (compiled-stmts (compile-let-statements let-stmts var-env2 func-env)))
+          (unlines "{"
+                   (indent 2 assignments)
+                   (indent 2 compiled-stmts)
+                   "}"))))))
 
 
 ;;; symbol-macrolet statement
@@ -1658,8 +1661,9 @@
 
 (defun compile-symbol-macrolet (stmt var-env func-env)
   (labels ((aux (binding)
-             (destructuring-bind (name expansion) binding
-               (list name :symbol-macro expansion))))
+             (match binding
+               ((name expansion) (list name :symbol-macro expansion))
+               (_ (error "invalid symbol-macrolet binding: ~A" binding)))))
     (let ((bindings (symbol-macrolet-bindings stmt))
           (stmts    (symbol-macrolet-statements stmt)))
       (let ((var-env2 (bulk-add-variable-environment (mapcar #'aux bindings) var-env)))

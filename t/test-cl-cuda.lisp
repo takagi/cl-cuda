@@ -945,8 +945,8 @@
                                 "}")))
   (is (cl-cuda::compile-symbol-macrolet lisp-code nil nil) c-code))
 
-(is-error (cl-cuda::compile-symbol-macrolet '(symbol-macrolet (x) (return)) nil nil) type-error)
-(is-error (cl-cuda::compile-symbol-macrolet '(symbol-macrolet ((x)) (return)) nil nil) type-error)
+(is-error (cl-cuda::compile-symbol-macrolet '(symbol-macrolet (x) (return)) nil nil) simple-error)
+(is-error (cl-cuda::compile-symbol-macrolet '(symbol-macrolet ((x)) (return)) nil nil) simple-error)
 
 
 ;;;
