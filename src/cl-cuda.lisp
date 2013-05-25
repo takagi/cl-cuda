@@ -2173,12 +2173,48 @@ and false as values."
   (cond
     ((macro-form-p exp func-env) (compile-macro exp var-env func-env))
     ((literal-p exp) (compile-literal exp))
+    ((symbol-p exp) (compile-symbol exp var-env func-env))
     ((cuda-dimension-p exp) (compile-cuda-dimension exp))
     ((variable-reference-p exp)
      (compile-variable-reference exp var-env func-env))
     ((inline-if-p exp) (compile-inline-if exp var-env func-env))
     ((function-p exp) (compile-function exp var-env func-env))
     (t (error "invalid expression: ~A" exp))))
+
+(defun variable-p (exp var-env)
+  (variable-environment-variable-exists-p exp var-env))
+
+(defun compile-variable (exp var-env)
+  (unless (variable-environment-variable-exists-p exp var-env)
+    (error "undefined variable: ~A" exp))
+  (compile-identifier exp))
+
+(defun constant-p (exp var-env)
+  (variable-environment-constant-exists-p exp var-env))
+
+(defun compile-constant (exp var-env)
+  (unless (variable-environment-constant-exists-p exp var-env)
+    (error "undefined constant: ~A" exp))
+  (compile-identifier exp))
+
+(defun symbol-macro-p (exp var-env)
+  (variable-environment-symbol-macro-exists-p exp var-env))
+
+(defun compile-symbol-macro (exp var-env func-env)
+  (unless (variable-environment-symbol-macro-exists-p exp var-env)
+    (error "undefined symbol macro: ~A" exp))
+  (let ((expansion (variable-environment-symbol-macro-expansion exp var-env)))
+    (compile-expression expansion var-env func-env)))
+
+(defun symbol-p (exp)
+  (symbolp exp))
+
+(defun compile-symbol (exp var-env func-env)
+  (cond
+    ((variable-p exp var-env) (compile-variable exp var-env))
+    ((constant-p exp var-env) (compile-constant exp var-env))
+    ((symbol-macro-p exp var-env) (compile-symbol-macro exp var-env func-env))
+    (t (error "undefined variable: ~A" exp))))
 
 (defun literal-p (exp)
   (or (bool-literal-p exp)
@@ -2243,12 +2279,8 @@ and false as values."
     (t (error "invalid expression: ~A" exp))))
 
 (defun variable-reference-p (exp)
-  (or (scalar-variable-reference-p exp)
-      (vector-variable-reference-p exp)
+  (or (vector-variable-reference-p exp)
       (array-variable-reference-p exp)))
-
-(defun scalar-variable-reference-p (exp)
-  (symbolp exp))
 
 (defun vector-variable-reference-p (exp)
   (match exp
@@ -2261,18 +2293,11 @@ and false as values."
     (_ nil)))
 
 (defun compile-variable-reference (exp var-env func-env)
-  (cond ((scalar-variable-reference-p exp)
-         (compile-scalar-variable-reference exp var-env))
-        ((vector-variable-reference-p exp)
+  (cond ((vector-variable-reference-p exp)
          (compile-vector-variable-reference exp var-env func-env))
         ((array-variable-reference-p exp)
          (compile-array-variable-reference exp var-env func-env))
         (t (error "invalid expression: ~A" exp))))
-
-(defun compile-scalar-variable-reference (var var-env)
-  (unless (variable-environment-variable-exists-p var var-env)
-    (error "unbound variable: ~A" var))
-  (compile-identifier var))
 
 (defun compile-vector-selector (selector)
   (unless (valid-vector-type-selector-p selector)
