@@ -924,6 +924,7 @@
 
 (is-error (cl-cuda::compile-let '(let (i) (return)) nil nil) simple-error)
 (is-error (cl-cuda::compile-let '(let ((i)) (return)) nil nil) simple-error)
+(is-error (cl-cuda::compile-let '(let ((x 1) (y x)) (return y)) nil nil) simple-error)
 
 
 ;;;
