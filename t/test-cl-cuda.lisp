@@ -701,13 +701,13 @@
             (cl-cuda::empty-kernel-definition)) simple-error)
 
 ;; test adding macro to kernel definition
-(let ((def (cl-cuda::add-macro-to-kernel-definition 'foo '(x) '(`(expanded ,x)) (lambda (x) `(expanded ,x))
+(let ((def (cl-cuda::add-macro-to-kernel-definition 'foo '(x) '(`(expanded ,x)) (lambda (args) (destructuring-bind (x) args `(expanded ,x)))
              (cl-cuda::empty-kernel-definition))))
   (is (cl-cuda::kernel-definition-macro-exists-p 'foo def) t))
 
 ;; test removing macro from kernel definition
 (let ((def (cl-cuda::remove-macro-from-kernel-definition 'foo
-             (cl-cuda::add-macro-to-kernel-definition 'foo '() '(`(expanded ,x)) (lambda (x) `(expanded ,x))
+             (cl-cuda::add-macro-to-kernel-definition 'foo '() '(`(expanded ,x)) (lambda (args) (destructuring-bind (x) args `(expanded ,x)))
                (cl-cuda::empty-kernel-definition)))))
   (is def (cl-cuda::empty-kernel-definition)))
 
@@ -762,8 +762,8 @@
   (is-error (cl-cuda::kernel-definition-macro-arguments 'f def) simple-error)
   (is       (cl-cuda::kernel-definition-macro-body 'g def) '(`(expanded ,x)))
   (is-error (cl-cuda::kernel-definition-macro-body 'f def) simple-error)
-  (is       (funcall (cl-cuda::kernel-definition-macro-expander 'g def) 'x) '(expanded x))
-  (is-error (funcall (cl-cuda::kernel-definition-macro-expander 'f def) 'x) simple-error)
+  (is       (funcall (cl-cuda::kernel-definition-macro-expander 'g def) '(x)) '(expanded x))
+  (is-error (funcall (cl-cuda::kernel-definition-macro-expander 'f def) '(x)) simple-error)
   (is       (cl-cuda::kernel-definition-constant-name 'x def) 'x)
   (is-error (cl-cuda::kernel-definition-constant-name 'f def) simple-error)
   (is       (cl-cuda::kernel-definition-constant-names def) '(x))
@@ -1575,7 +1575,9 @@
 
 ;; test function environment elements
 (let ((func  (cl-cuda::make-funcenv-function 'f 'int '((x int)) '((return x))))
-      (macro (cl-cuda::make-funcenv-macro 'g '(x) '(`(expanded ,x)) (lambda (x) `(expanded ,x)))))
+      (macro (cl-cuda::make-funcenv-macro 'g '(x) '(`(expanded ,x)) (lambda (args)
+                                                                      (destructuring-bind (x) args
+                                                                        `(expanded ,x))))))
   ;; test funcenv-name
   (is       (cl-cuda::funcenv-name func) 'f)
   (is       (cl-cuda::funcenv-name macro) 'g)
@@ -1596,7 +1598,7 @@
   (is       (cl-cuda::funcenv-macro-name macro) 'g)
   (is       (cl-cuda::funcenv-macro-arguments macro) '(x))
   (is       (cl-cuda::funcenv-macro-body macro) '(`(expanded ,x)))
-  (is       (funcall (cl-cuda::funcenv-macro-expander macro) 'x) '(expanded x))
+  (is       (funcall (cl-cuda::funcenv-macro-expander macro) '(x)) '(expanded x))
   (is       (cl-cuda::funcenv-macro-p func) nil)
   (is-error (cl-cuda::funcenv-macro-name func) simple-error)
   (is-error (cl-cuda::funcenv-macro-arguments func) simple-error)
@@ -1605,16 +1607,15 @@
 
 ;; test making function environment elements
 (is-error (cl-cuda::make-funcenv-function '(f) 'int '((x int)) '((return x))) simple-error)
-(is-error (cl-cuda::make-funcenv-function '(g) '(x) '`(expanded ,x) (lambda (x) `(expanded ,x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function '(g) '(x) '`(expanded ,x) (lambda (args) (destructuring-bind (x) args `(expanded ,x)))) simple-error)
 (is-error (cl-cuda::make-funcenv-function 'f 'invalid-type '((x int)) '((return x))) simple-error)
-(is-error (cl-cuda::make-funcenv-function 'f 'int '(x) '((return x))) simple-error)
+(is-error (cl-cuda::make-funcenv-function 'f 'int '(x) '((return x))) type-error)
 (is-error (cl-cuda::make-funcenv-function 'f 'int '(((x) int)) '((return x))) simple-error)
 (is-error (cl-cuda::make-funcenv-function 'f 'int '((x invalid-type)) '((return x))) simple-error)
 (is-error (cl-cuda::make-funcenv-function 'f 'int '((x int y)) '((return x))) simple-error)
 (is-error (cl-cuda::make-funcenv-function 'f 'int '((x int)) 'x) simple-error)
-(is-error (cl-cuda::make-funcenv-macro 'g 'x '(`(expanded ,x)) (lambda (x) `(expanded ,x))) simple-error)
-(is-error (cl-cuda::make-funcenv-macro 'g '((x)) '(`(expanded ,x)) (lambda (x) `(expanded ,x))) simple-error)
-(is-error (cl-cuda::make-funcenv-macro 'g '(x) 'x (lambda (x) `(expanded ,x))) simple-error)
+(is-error (cl-cuda::make-funcenv-macro 'g 'x '(`(expanded ,x)) (lambda (args) (destructuring-bind (x) args `(expanded ,x)))) simple-error)
+(is-error (cl-cuda::make-funcenv-macro 'g '(x) 'x (lambda (args) (destructuring-bind (x) args x))) simple-error)
 (is-error (cl-cuda::make-funcenv-macro 'g '(x) '(`(expanded ,x)) nil) simple-error)
 (is-error (cl-cuda::bulk-add-function-environment '((f :invalid-keyword int ((x int)) ((return x))))
                                                   (cl-cuda::empty-function-environment))
@@ -1643,7 +1644,7 @@
   (is-error (cl-cuda::function-environment-macro-arguments 'f func-env) simple-error)
   (is       (cl-cuda::function-environment-macro-body 'g func-env) '(`(expanded ,x)))
   (is-error (cl-cuda::function-environment-macro-body 'f func-env) simple-error)
-  (is       (funcall (cl-cuda::function-environment-macro-expander 'g func-env) 'x) '(expanded x))
+  (is       (funcall (cl-cuda::function-environment-macro-expander 'g func-env) '(x)) '(expanded x))
   (is-error (cl-cuda::function-environment-macro-expander 'f func-env) simple-error))
 
 ;; test shadowing in function environment
@@ -1656,7 +1657,7 @@
   (is       (cl-cuda::function-environment-macro-exists-p 'f func-env) t)
   (is       (cl-cuda::function-environment-macro-arguments 'f func-env) '(x))
   (is       (cl-cuda::function-environment-macro-body 'f func-env)  '(`(expanded ,x)))
-  (is       (funcall (cl-cuda::function-environment-macro-expander 'f func-env) 'x) '(expanded x)))
+  (is       (funcall (cl-cuda::function-environment-macro-expander 'f func-env) '(x)) '(expanded x)))
 
 ;; test making function environment with kernel definition
 (cl-cuda::with-kernel-definition (def ((f :function int ((x int)) ((return x)))
@@ -1670,7 +1671,7 @@
     (is (cl-cuda::function-environment-macro-exists-p 'g func-env) t)
     (is (cl-cuda::function-environment-macro-arguments 'g func-env) '(x))
     (is (cl-cuda::function-environment-macro-body 'g func-env) '(`(expanded ,x)))
-    (is (funcall (cl-cuda::function-environment-macro-expander 'g func-env) 'x) '(expanded x))))
+    (is (funcall (cl-cuda::function-environment-macro-expander 'g func-env) '(x)) '(expanded x))))
 
 
 ;;;

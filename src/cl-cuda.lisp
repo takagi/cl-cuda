@@ -944,9 +944,9 @@
   (assert (symbolp name))
   (assert (valid-type-p return-type))
   (dolist (arg args)
-    (match arg
-      ((var type) (assert (symbolp var)) (assert (valid-type-p type)))
-      (_ (error "invalid argument: ~A" arg))))
+    (assert (= (length arg) 2))
+    (assert (symbolp (car arg)))
+    (assert (valid-type-p (cadr arg))))
   (assert (listp body))
   (list name :function return-type args body))
 
@@ -984,7 +984,6 @@
 (defun make-kerdef-macro (name args body expander)
   (assert (symbolp name))
   (assert (listp args))
-  (dolist (arg args) (assert (symbolp arg)))
   (assert (listp body))
   (assert (functionp expander))
   (list name :macro args body expander))
@@ -1101,7 +1100,9 @@
   (labels ((aux (binding)
              (match binding
                ((name :function return-type args body) `(list ',name :function ',return-type ',args ',body))
-               ((name :macro args body) `(list ',name :macro ',args ',body (lambda ,args ,@body)))
+               ((name :macro args body) (alexandria:with-gensyms (args0)
+                                          `(list ',name :macro ',args ',body
+                                                 (lambda (,args0) (destructuring-bind ,args ,args0 ,@body)))))
                ((name :constant type exp) `(list ',name :constant ',type ',exp))
                (_ `',binding))))
     (let ((bindings2 `(list ,@(mapcar #'aux bindings))))
@@ -2657,10 +2658,11 @@ and false as values."
 (defun make-funcenv-function (name return-type args body)
   (assert (symbolp name))
   (assert (valid-type-p return-type))
+  (assert (listp args))
   (dolist (arg args)
-    (match arg
-      ((var type) (assert (symbolp var)) (assert (valid-type-p type)))
-      (_ (error "invalid argument: ~A" arg))))
+    (assert (= (length arg) 2))
+    (assert (symbolp (car arg)))
+    (assert (valid-type-p (cadr arg))))
   (assert (listp body))
   (list name :function return-type args body))
 
@@ -2698,7 +2700,6 @@ and false as values."
 (defun make-funcenv-macro (name args body expander)
   (assert (symbolp name))
   (assert (listp args))
-  (dolist (arg args) (assert (symbolp arg)))
   (assert (listp body))
   (assert (functionp expander))
   (list name :macro args body expander))
@@ -2780,7 +2781,9 @@ and false as values."
   (labels ((aux (binding)
              (match binding
                ((name :function return-type args body) `(list ',name :function ',return-type ',args ',body))
-               ((name :macro args body) `(list ',name :macro ',args ',body (lambda ,args ,@body)))
+               ((name :macro args body) (alexandria:with-gensyms (args0)
+                                          `(list ',name :macro ',args ',body
+                                                 (lambda (,args0) (destructuring-bind ,args ,args0 ,@body)))))
                (_ `',binding))))
     (let ((bindings2 `(list ,@(mapcar #'aux bindings))))
       `(let ((,func-env (bulk-add-function-environment ,bindings2 (empty-function-environment))))
