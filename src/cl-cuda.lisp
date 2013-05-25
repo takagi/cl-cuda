@@ -1537,6 +1537,7 @@
     ((macro-form-p stmt func-env) (compile-macro stmt var-env func-env :statement-p t))
     ((if-p stmt) (compile-if stmt var-env func-env))
     ((let-p stmt) (compile-let stmt var-env func-env))
+    ((symbol-macrolet-p stmt) (compile-symbol-macrolet stmt var-env func-env))
     ((do-p stmt) (compile-do stmt var-env func-env))
     ((with-shared-memory-p stmt) (compile-with-shared-memory stmt var-env func-env))
     ((set-p stmt) (compile-set stmt var-env func-env))
@@ -1601,10 +1602,10 @@
     (('let bindings . _) bindings)
     (_ (error "invalid statement: ~A" stmt))))
 
-(defun let-statements (stmt0)
-  (match stmt0
+(defun let-statements (stmt)
+  (match stmt
     (('let _ . stmts) stmts)
-    (_ (error "invalid statement: ~A" stmt0))))
+    (_ (error "invalid statement: ~A" stmt))))
 
 (defun %compile-assignment (var exp type var-env func-env)
   (format nil "~A ~A = ~A;" (compile-type type)
@@ -1631,11 +1632,38 @@
 
 (defun compile-let (stmt var-env func-env)
   (let ((bindings  (let-bindings stmt))
-	      (let-stmts (let-statements stmt)))
+        (let-stmts (let-statements stmt)))
     (let ((compiled-stmts (%compile-let bindings let-stmts var-env func-env)))
       (unlines "{"
 	             (indent 2 compiled-stmts)
 	             "}"))))
+
+
+;;; symbol-macrolet statement
+
+(defun symbol-macrolet-p (stmt)
+  (match stmt
+    (('symbol-macrolet . _) t)
+    (_ nil)))
+
+(defun symbol-macrolet-bindings (stmt)
+  (match stmt
+    (('symbol-macrolet bindings . _) bindings)
+    (_ (error "invalid statement: ~A" stmt))))
+
+(defun symbol-macrolet-statements (stmt)
+  (match stmt
+    (('symbol-macrolet _ . stmts) stmts)
+    (_ (error "invalid statement: ~A" stmt))))
+
+(defun compile-symbol-macrolet (stmt var-env func-env)
+  (labels ((aux (binding)
+             (destructuring-bind (name expansion) binding
+               (list name :symbol-macro expansion))))
+    (let ((bindings (symbol-macrolet-bindings stmt))
+          (stmts    (symbol-macrolet-statements stmt)))
+      (let ((var-env2 (bulk-add-variable-environment (mapcar #'aux bindings) var-env)))
+        (compile-statement `(progn ,@stmts) var-env2 func-env)))))
 
 
 ;;; set statement

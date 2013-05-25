@@ -927,6 +927,29 @@
 
 
 ;;;
+;;; test compile-symbol-macrolet
+;;;
+
+(diag "test compile-symbol-macrolet")
+
+(is (cl-cuda::symbol-macrolet-p '(symbol-macrolet ((x 'expanded-x)) (return))) t)
+(is (cl-cuda::symbol-macrolet-p '(symbol-macrolet ((x 'expanded-x)) (do-something) (return))) t)
+(is (cl-cuda::symbol-macrolet-p '(symbol-macrolet ((x 'expanded-x)))) t)
+
+(let ((lisp-code '(symbol-macrolet ((x expanded-x))
+                    (let ((expanded-x 1.0))
+                      (return x))))
+      (c-code (cl-cuda::unlines "{"
+                                "  float expanded_x = 1.0;"
+                                "  return expanded_x;"
+                                "}")))
+  (is (cl-cuda::compile-symbol-macrolet lisp-code nil nil) c-code))
+
+(is-error (cl-cuda::compile-symbol-macrolet '(symbol-macrolet (x) (return)) nil nil) type-error)
+(is-error (cl-cuda::compile-symbol-macrolet '(symbol-macrolet ((x)) (return)) nil nil) type-error)
+
+
+;;;
 ;;; test compile-do
 ;;;
 
