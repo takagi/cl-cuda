@@ -66,4 +66,4 @@ __device__ float float3_dot ( float3 a, float3 b )
   return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-#endif
+#endif // CL_CUDA_FLOAT3_H_
