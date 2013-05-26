@@ -1559,7 +1559,9 @@
           (reverse (kernel-definition-function-names def))))
 
 (defun compile-kernel-definition (def)
-  (unlines `("#include \"float3.h\""
+  (unlines `("#include \"int.h\""
+             "#include \"float.h\""
+             "#include \"float3.h\""
              "#include \"float4.h\""
              ""
              ,@(compile-kernel-constants def)

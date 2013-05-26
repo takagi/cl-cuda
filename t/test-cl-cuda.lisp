@@ -850,7 +850,9 @@
 
 (let ((def (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
-      (c-code (cl-cuda::unlines "#include \"float3.h\""
+      (c-code (cl-cuda::unlines "#include \"int.h\""
+                                "#include \"float.h\""
+                                "#include \"float3.h\""
                                 "#include \"float4.h\""
                                 ""
                                 ""

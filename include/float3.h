@@ -31,29 +31,9 @@ __device__ float3 float3_scale_inverted ( float3 a, float k )
   return float3_scale ( a, 1.0 / k );
 }
 
-__device__ int int_negate ( int x )
-{
-  return - x;
-}
-
-__device__ float float_negate ( float x )
-{
-  return - x;
-}
-
 __device__ float3 float3_negate ( float3 x )
 {
   return make_float3 ( - x.x, - x.y, - x.z );
-}
-
-__device__ int int_recip ( int x )
-{
-  return 1 / x;
-}
-
-__device__  float float_recip ( float x )
-{
-  return 1.0 / x;
 }
 
 __device__ float3 float3_recip ( float3 x )
