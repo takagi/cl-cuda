@@ -1182,7 +1182,8 @@
 ;; test function-candidates
 (is       (cl-cuda::function-candidates 'cl-cuda::%add) '(((int int) int t "+")
                                                           ((float float) float t "+")
-                                                          ((float3 float3) float3 nil "float3_add")))
+                                                          ((float3 float3) float3 nil "float3_add")
+                                                          ((float4 float4) float4 nil "float4_add")))
 (is-error (cl-cuda::function-candidates 'foo) simple-error)
 
 ;; test built-in-function-argument-types
