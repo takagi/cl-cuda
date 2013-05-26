@@ -1533,7 +1533,7 @@
 (defun compile-kernel-function-prototypes (def)
   (mapcar #'(lambda (name)
               (compile-kernel-function-prototype name def))
-          (kernel-definition-function-names def)))
+          (reverse (kernel-definition-function-names def))))
 
 (defun compile-function-statements (name def)
   (let ((var-env  (make-variable-environment-with-kernel-definition name def))
@@ -1556,7 +1556,7 @@
 (defun compile-kernel-functions (def)
   (mapcar #'(lambda (name)
               (compile-kernel-function name def))
-          (kernel-definition-function-names def)))
+          (reverse (kernel-definition-function-names def))))
 
 (defun compile-kernel-definition (def)
   (unlines `("#include \"float3.h\""
