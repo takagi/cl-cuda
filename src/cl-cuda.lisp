@@ -1519,7 +1519,7 @@
       (let ((type2 (compile-type type))
             (name2 (compile-identifier name))
             (exp2  (compile-expression exp var-env func-env)))
-        (format nil "static const ~A ~A = ~A;~%" type2 name2 exp2)))))
+        (format nil "static const ~A ~A = ~A;" type2 name2 exp2)))))
 
 (defun compile-kernel-constants (def)
   (mapcar #'(lambda (name)
