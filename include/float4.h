@@ -41,7 +41,7 @@ __device__ float4 float4_recip ( float4 x )
   return make_float4 ( 1.0 / x.x, 1.0 / x.y, 1.0 / x.z, 1.0 / x.w );
 }
 
-__device__ float4 float4_dot ( float4 a, float4 b )
+__device__ float float4_dot ( float4 a, float4 b )
 {
   return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
 }

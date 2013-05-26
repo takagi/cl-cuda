@@ -851,6 +851,7 @@
 (let ((def (cl-cuda::add-function-to-kernel-definition 'foo 'void '() '((return))
              (cl-cuda::empty-kernel-definition)))
       (c-code (cl-cuda::unlines "#include \"float3.h\""
+                                "#include \"float4.h\""
                                 ""
                                 ""
                                 "extern \"C\" __global__ void cl_cuda_test_foo ();"
