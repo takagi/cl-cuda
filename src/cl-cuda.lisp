@@ -1524,7 +1524,7 @@
 (defun compile-kernel-constants (def)
   (mapcar #'(lambda (name)
               (compile-kernel-constant name def))
-          (kernel-definition-constant-names def)))
+          (reverse (kernel-definition-constant-names def))))
 
 (defun compile-kernel-function-prototype (name def)
   (format nil "extern \"C\" ~A;"
