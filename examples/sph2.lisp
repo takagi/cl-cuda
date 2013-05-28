@@ -90,6 +90,12 @@
 (defmacro float4-incf-cpu (var val)
   `(setf ,var (float4-add-cpu ,var ,val)))
 
+(defkernel norm (float ((x float4)))
+  (return (sqrt (+ (* (float4-x x) (float4-x x))
+                   (* (float4-y x) (float4-y x))
+                   (* (float4-z x) (float4-z x))
+                   (* (float4-w x) (float4-w x))))))
+
 (defun norm-cpu (val)
   (with-float4-cpu (x y z w) val
     (sqrt (+ (* x x) (* y y) (* z z) (* w w)))))
@@ -99,7 +105,10 @@
      (* (float4-y a) (float4-y b))
      (* (float4-z a) (float4-z b))
      (* (float4-w a) (float4-w b))))
-     
+
+(defkernel pow (float ((b float) (p float)))
+  (return (expt b p)))
+
 (defun pow-cpu (b p)
   (float (expt b p) 0.0))
 
@@ -346,8 +355,7 @@
   (alexandria:with-gensyms (n index)
     `(when (valid-cell-index ,info ,i ,j ,k)
        (let ((,n (number-of-particles-in-cell ,nbr ,info ,i ,j ,k)))
-         (do ((,index 0 (+ ,index 1)))
-             ((>= ,index ,n))
+         (do-range (,index 0 (- ,n 1))
            (let ((,p (nth-particle-in-cell ,index ,nbr ,info ,i ,j ,k)))
              ,@body))))))
 
@@ -355,17 +363,17 @@
   (alexandria:with-gensyms (n index)
     `(when (valid-cell-index-cpu ,info ,i ,j ,k)
        (let ((,n (number-of-particles-in-cell-cpu ,nbr ,info ,i ,j ,k)))
-         (do ((,index 0 (1+ ,index)))
-             ((>= ,index ,n))
+         (do-range-cpu (,index 0 (- ,n 1))
            (let ((,p (nth-particle-in-cell-cpu ,index ,nbr ,info ,i ,j ,k)))
              ,@body))))))
 
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel insert-particle-in-cell (int ((p int) (nbr int*) (info float*) (i int) (j int) (k int)))
   (unless (valid-cell-index info i j k)
-    (return))
+    (return 0))
   (let ((offset (cell-offset nbr info i j k)))
-    (insert-cell p offset nbr)))
+    (insert-cell p offset nbr))
+  (return 0))
 
 (defun insert-particle-in-cell-cpu (p nbr info i j k)
   (unless (valid-cell-index-cpu info i j k)
@@ -376,9 +384,10 @@
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel clear-particles-in-cell (int ((nbr int*) (info float*) (i int) (j int) (k int)))
   (unless (valid-cell-index info i j k)
-    (return))
+    (return 0))
   (let ((offset (cell-offset nbr info i j k)))
-    (clear-cell offset nbr)))
+    (clear-cell offset nbr))
+  (return 0))
 
 (defun clear-particles-in-cell-cpu (nbr info i j k)
   (unless (valid-cell-index-cpu info i j k)
@@ -391,19 +400,24 @@
        ((> ,var ,to))
      ,@body))
 
-(defkernelmacro do-neighbor-particles ((p nbr info x) &body body)
-  (alexandria:with-gensyms (i0 j0 k0 i j k)
-    `(with-cell (,i0 ,j0 ,k0 ,info ,x)
-       (do-range (,i (- ,i0 1) (+ ,i0 1))
-         (do-range (,j (- ,j0 1) (+ ,j0 1))
-           (do-range (,k (- ,k0 1) (+ ,k0 1))
-             (do-particles-in-cell (,p ,nbr ,info ,i ,j ,k)
-               ,@body)))))))
-
 (defmacro do-range-cpu ((var from to) &body body)
   `(do ((,var ,from (+ ,var 1)))
        ((> ,var ,to))
      ,@body))
+
+(defkernelmacro do-neighbor-particles ((p nbr info x) &body body)
+  (alexandria:with-gensyms (i0 j0 k0 i j k shared-info)
+    `(with-shared-memory ((,shared-info float 15))
+       ;; set neighbor map info into shared memory
+       (do-range (,i 0 14)
+         (set (aref ,shared-info ,i) (aref ,info ,i)))
+       ;; do body forms using neighbor map info contained in shared memory
+       (with-cell (,i0 ,j0 ,k0 ,shared-info ,x)
+         (do-range (,i (- ,i0 1) (+ ,i0 1))
+           (do-range (,j (- ,j0 1) (+ ,j0 1))
+             (do-range (,k (- ,k0 1) (+ ,k0 1))
+               (do-particles-in-cell (,p ,nbr ,shared-info ,i ,j ,k)
+                 ,@body))))))))
 
 (defmacro do-neighbor-particles-cpu ((p nbr info x) &body body)
   (alexandria:with-gensyms (i0 j0 k0 i j k)
@@ -475,32 +489,47 @@
 ;;; Constants
 ;;;
 
-(defmacro defkernelconst (var val)
-  (when (and (listp val)
-             (eq (car val) 'float4))
-    (setf (car val) 'make-float4))
-  `(defparameter ,var ,val))
+;; (defmacro defkernelconst (var val)
+;;   (when (and (listp val)
+;;              (eq (car val) 'float4))
+;;     (setf (car val) 'make-float4))
+;;   `(defparameter ,var ,val))
 
-(defkernelconst h           0.01)
-(defkernelconst dt          0.004)
-;(defkernelconst pi          3.1415927)
-(defkernelconst pi-cpu      3.1415927)
-(defkernelconst visc        0.2)
-(defkernelconst limit       200.0)
-(defkernelconst pmass       0.00020543)
-(defkernelconst radius      0.004)
-(defkernelconst epsilon     0.00001)
-(defkernelconst extdamp     256.0)
-(defkernelconst simscale    0.004)
-(defkernelconst intstiff    3.0)
-(defkernelconst extstiff    10000.0)
-(defkernelconst restdensity 600.0)
-(defkernelconst delta       (/ h simscale))
-(defkernelconst pdist       (expt (/ pmass restdensity) (/ 1.0 3.0)))
-(defkernelconst g           (float4  0.0 -9.8   0.0 0.0))
-(defkernelconst box-min     (float4  0.0  0.0 -10.0 0.0))
-(defkernelconst box-max     (float4 20.0 50.0  10.0 0.0))
+(defkernelconst h           float 0.01)
+(defkernelconst dt          float 0.004)
+(defkernelconst pi          float 3.1415927)
+(defkernelconst visc        float 0.2)
+(defkernelconst limit       float 200.0)
+(defkernelconst pmass       float 0.00020543)
+(defkernelconst radius      float 0.004)
+(defkernelconst epsilon     float 0.00001)
+(defkernelconst extdamp     float 256.0)
+(defkernelconst simscale    float 0.004)
+(defkernelconst intstiff    float 3.0)
+(defkernelconst extstiff    float 10000.0)
+(defkernelconst restdensity float 600.0)
+(defkernelconst pdist       float (expt (/ pmass restdensity) (/ 1.0 3.0)))
+(defkernelconst g           float4 (float4  0.0 -9.8   0.0 0.0))
 
+(defparameter h           0.01)
+(defparameter dt          0.004)
+(defparameter pi-cpu      3.1415927)
+(defparameter visc        0.2)
+(defparameter limit       200.0)
+(defparameter pmass       0.00020543)
+(defparameter radius      0.004)
+(defparameter epsilon     0.00001)
+(defparameter extdamp     256.0)
+(defparameter simscale    0.004)
+(defparameter intstiff    3.0)
+(defparameter extstiff    10000.0)
+(defparameter restdensity 600.0)
+(defparameter pdist       (expt (/ pmass restdensity) (/ 1.0 3.0)))
+; (defparameter g           (make-float4  0.0 -9.8   0.0 0.0))
+
+(defparameter delta       (/ h simscale))
+(defparameter box-min     (make-float4  0.0  0.0 -10.0 0.0))
+(defparameter box-max     (make-float4 20.0 50.0  10.0 0.0))
 (defparameter init-min (make-float4  0.0  0.0 -10.0 0.0))
 (defparameter init-max (make-float4 10.0 20.0  10.0 0.0))
 (defparameter capacity 20.0)          ; # of particles contained in one cell
@@ -510,10 +539,10 @@
 ;;; Kernel functions
 ;;;
 
-;; (defkernel poly6-kernel (float ((x float4)))
-;;   (let ((r (norm x)))
-;;     (return (* (/ 315.0 (* 64.0 pi (pow h 9)))
-;;                (pow (- (* h h) (* r r)) 3)))))
+(defkernel poly6-kernel (float ((x float4)))
+  (let ((r (norm x)))
+    (return (* (/ 315.0 (* 64.0 pi (pow h 9.0)))
+               (pow (- (* h h) (* r r)) 3.0)))))
 
 (defun poly6-kernel-cpu (x)
   (let ((r (norm-cpu x)))
@@ -521,11 +550,11 @@
        (pow-cpu (- (* h h) (* r r)) 3))))
 
 
-;; (defkernel grad-spiky-kernel (float4 ((x float4)))
-;;   (let ((r (norm x)))
-;;     (return (* (/ -45.0 (* pi (pow h 6)))
-;;                (pow (- h r) 2)
-;;                (/ x r)))))
+(defkernel grad-spiky-kernel (float4 ((x float4)))
+  (let ((r (norm x)))
+    (return (* (/ -45.0 (* pi (pow h 6.0)))
+               (pow (- h r) 2.0)
+               (/ x r)))))
 
 (defun grad-spiky-kernel-cpu (x)
   (let ((r (norm-cpu x)))
@@ -533,30 +562,33 @@
                                  (pow-cpu (- h r) 2))
                               (float4-scale-inverted-cpu x r))))
 
-;; (defkernel rap-visc-kernel (float ((x float4)))
-;;   (let ((r (norm x)))
-;;     (return (* (/ 45.0 (* pi (pow h 6)))
-;;                (- h r)))))
+(defkernel rap-visc-kernel (float ((x float4)))
+  (let ((r (norm x)))
+    (return (* (/ 45.0 (* pi (pow h 6.0)))
+               (- h r)))))
 
 (defun rap-visc-kernel-cpu (x)
   (let ((r (norm-cpu x)))
     (* (/ 45.0 (* pi-cpu (pow-cpu h 6)))
        (- h r))))
 
-;; (defkernel %update-density (void ((int i) (rho float*) (x float4*) (nbr int*) (info float*)))
-;;   (symbol-macrolet ((xi (aref x i))
-;;                     (xj (aref x j))
-;;                     (rhoi (aref rho i)))
-;;     (let ((tmp 0.0))
-;;       (do-neighbor-particles (j nbr info xi)
-;;         (let ((dr (* (- xi xj) simscale)))
-;;           (when (<= (norm dr) h)
-;;             (inc tmp (* pmass (poly6-kernel dr))))))
-;;       (set rhoi tmp))))
-;;
-;; (defkernel update-density (void ((rho float*) (x float4*) (nbr int*) (info float*) (n int)))
-;;   (with-valid-index (i n)
-;;     (%update-density i rho x nbr info)))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel %update-density (int ((i int) (rho float*) (x float4*) (nbr int*) (info float*)))
+  (let ((xi (aref x i)))
+  (symbol-macrolet (;(xi (aref x i))
+                    (xj (aref x j))
+                    (rhoi (aref rho i)))
+    (let ((tmp 0.0))
+      (do-neighbor-particles (j nbr info xi)
+        (let ((dr (* (- xi xj) simscale)))
+          (when (<= (norm dr) h)
+            (inc tmp (* pmass (poly6-kernel dr))))))
+      (set rhoi tmp))))
+  (return 0))
+
+(defkernel update-density (void ((rho float*) (x float4*) (nbr int*) (info float*) (n int)))
+  (with-valid-index (i n)
+    (%update-density i rho x nbr info)))
 
 (defun %update-density-cpu (i rho x nbr info)
   (symbol-macrolet ((xi (mem-aref x i))
@@ -574,16 +606,17 @@
     (with-valid-index-cpu (i n)
       (%update-density-cpu i rho x nbr info))))
 
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel %update-pressure (int ((i int) (prs float*) (rho float*)))
+  (symbol-macrolet ((rhoi (aref rho i))
+                    (prsi (aref prs i)))
+    (set prsi (* (- rhoi restdensity)
+                 intstiff)))
+  (return 0))
 
-;; (defkernel %update-pressure (void ((int i) (rho float*) (x float) (nbr int*) (info float*)))
-;;   (symbol-macrolet ((rhoi (aref rho i))
-;;                     (prsi (aref prs i)))
-;;     (set prsi (* (- rhoi restdensity)
-;;                  intstiff))))
-;;
-;; (defkernel update-pressure (void ((rho float*) (x float) (nbr int*) (info float*) (n int)))
-;;   (with-valid-index (i n)
-;;     (%update-pressure i rho x nbr info)))
+(defkernel update-pressure (void ((prs float*) (rho float*) (n int)))
+  (with-valid-index (i n)
+    (%update-pressure i prs rho)))
 
 (defun %update-pressure-cpu (i prs rho)
   (symbol-macrolet ((rhoi (mem-aref rho i))
@@ -596,13 +629,13 @@
     (with-valid-index-cpu (i n)
       (%update-pressure-cpu i prs rho))))
 
-;; (defkernel pressure-term (float4 ((i int) (j int) (dr float4) (rho float*) (prs float*)))
-;;   (symbol-macrolet ((rhoj (aref rho j))
-;;                     (prsi (aref prs i))
-;;                     (prsj (aref prs j)))
-;;     (return (* (/ (* (- pmass) (+ prsi prsj))
-;;                   (* 2.0 rhoj))
-;;                (grad-spiky-kernel dr)))))
+(defkernel pressure-term (float4 ((i int) (j int) (dr float4) (rho float*) (prs float*)))
+  (symbol-macrolet ((rhoj (aref rho j))
+                    (prsi (aref prs i))
+                    (prsj (aref prs j)))
+    (return (* (/ (* (- pmass) (+ prsi prsj))
+                  (* 2.0 rhoj))
+               (grad-spiky-kernel dr)))))
 
 (defun pressure-term-cpu (i j dr rho prs)
   (symbol-macrolet ((rhoj (mem-aref rho j))
@@ -612,13 +645,13 @@
                                  (* 2.0 rhoj))
                               (grad-spiky-kernel-cpu dr))))
 
-;; (defkernel viscosity-term (float4 ((i int) (j int) (dr float4) (v float4*) (rho float*)))
-;;   (symbol-macrolet ((vi (aref v i))
-;;                     (vj (aref v j))
-;;                     (rhoj (aref rho j)))
-;;     (return (* (/ (* visc pmass (- vj vi))
-;;                   rhoj)
-;;                (rap-visc-kernel dr)))))
+(defkernel viscosity-term (float4 ((i int) (j int) (dr float4) (v float4*) (rho float*)))
+  (symbol-macrolet ((vi (aref v i))
+                    (vj (aref v j))
+                    (rhoj (aref rho j)))
+    (return (* (/ (* visc pmass (- vj vi))
+                  rhoj)
+               (rap-visc-kernel dr)))))
 
 (defun viscosity-term-cpu (i j dr v rho)
   (symbol-macrolet ((vi (mem-aref v i))
@@ -628,24 +661,27 @@
                                                  rhoj)
                       (rap-visc-kernel-cpu dr))))
 
-;; (defkernel %update-force (void ((i int) (f float4*) (x float4*) (v float4*)
-;;                                (rho float*) (prs float*) (nbr int*) (info float*)))
-;;   (symbol-macrolet ((xi (aref x i))
-;;                     (xj (aref x j))
-;;                     (fi (aref f i)))
-;;     (let ((tmp (float4 0.0 0.0 0.0 0.0)))
-;;       (do-neighbor-particles (j nbr info xi)
-;;         (when (/= i j)
-;;           (let ((dr (* (- xi xj) simscale)))
-;;             (when (<= (norm dr) h)
-;;               (inc tmp (pressure-term  i j dr rho prs))
-;;               (inc tmp (viscosity-term i j dr v rho))))))
-;;       (set fi tmp))))
-;;
-;; (defkernel update-force (void ((f float4*) (x float4*) (v float4*)
-;;                                (rho float*) (prs float*) (nbr int*) (info float*)))
-;;   (with-valid-index (i n)
-;;     (%update-force i f x v rho prs nbr info)))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel %update-force (int ((i int) (f float4*) (x float4*) (v float4*)
+                               (rho float*) (prs float*) (nbr int*) (info float*)))
+  (let ((xi (aref x i)))
+  (symbol-macrolet (;(xi (aref x i))
+                    (xj (aref x j))
+                    (fi (aref f i)))
+    (let ((tmp (float4 0.0 0.0 0.0 0.0)))
+      (do-neighbor-particles (j nbr info xi)
+        (when (/= i j)
+          (let ((dr (* (- xi xj) simscale)))
+            (when (<= (norm dr) h)
+              (inc tmp (pressure-term  i j dr rho prs))
+              (inc tmp (viscosity-term i j dr v rho))))))
+      (set fi tmp))))
+  (return 0))
+
+(defkernel update-force (void ((f float4*) (x float4*) (v float4*)
+                               (rho float*) (prs float*) (nbr int*) (info float*) (n int)))
+  (with-valid-index (i n)
+    (%update-force i f x v rho prs nbr info)))
 
 (defun %update-force-cpu (i f x v rho prs nbr info)
   (symbol-macrolet ((xi (mem-aref x i))
@@ -665,29 +701,31 @@
     (with-valid-index-cpu (i n)
       (%update-force-cpu i f x v rho prs nbr info))))
 
-;; (defkernel collision-diff (float ((x0 float) (x1 float)))
-;;   (let ((distance (* (- x1 x0) simscale)))
-;;     (return (- (* radius 2.0) distance))))
+(defkernel collision-diff (float ((x0 float) (x1 float)))
+  (let ((distance (* (- x1 x0) simscale)))
+    (return (- (* radius 2.0) distance))))
 
 (defun collision-diff-cpu (x0 x1)
   (let ((distance (* (- x1 x0) simscale)))
     (- (* 2.0 radius) distance)))
 
-;; (defkernel collision-adj (float4 ((diff float) (v float4) (normal float4)))
-;;   (let ((adj (- (* extstiff diff)
-;;                 (* extdamp (dot normal v)))))
-;;     (return (* adj normal))))
+(defkernel collision-adj (float4 ((diff float) (v float4) (normal float4)))
+  (let ((adj (- (* extstiff diff)
+                (* extdamp (dot normal v)))))
+    (return (* adj normal))))
 
 (defun collision-adj-cpu (diff v normal)
   (let ((adj (- (* extstiff diff)
                 (* extdamp (dot-cpu normal v)))))
     (float4-scale-flipped-cpu adj normal)))
 
-;; (defkernel apply-collision (void ((a float4*) (i int) (x0 float) (x1 float) (v float4) (normal float4)))
-;;   (symbol-macrolet ((ai (aref ai)))
-;;     (let ((diff (collision-diff x0 x1)))
-;;       (when (< epsilon diff)
-;;         (inc ai (collision-adj diff v normal))))))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel apply-collision (int ((a float4*) (i int) (x0 float) (x1 float) (v float4) (normal float4)))
+  (symbol-macrolet ((ai (aref a i)))
+    (let ((diff (collision-diff x0 x1)))
+      (when (< epsilon diff)
+        (inc ai (collision-adj diff v normal)))))
+  (return 0))
 
 (defun apply-collision-cpu (a i x0 x1 v normal)
   (symbol-macrolet ((ai (mem-aref a i)))
@@ -695,17 +733,19 @@
       (when (< epsilon diff)
         (float4-incf-cpu ai (collision-adj-cpu diff v normal))))))
                     
-;; (defkernel accel-limit-adj (float ((accel float)))
-;;   (return (/ limit accel)))
+(defkernel accel-limit-adj (float ((accel float)))
+  (return (/ limit accel)))
 
 (defun accel-limit-adj-cpu (accel)
   (/ limit accel))
 
-;; (defkernel apply-accel-limit (void ((a float4*) (i int)))
-;;   (symbol-macrolet ((ai (aref a i)))
-;;     (let ((accel (norm ai)))
-;;       (when (< limit accel)
-;;         (set ai (* ai (accel-limit-adj accel)))))))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel apply-accel-limit (int ((a float4*) (i int)))
+  (symbol-macrolet ((ai (aref a i)))
+    (let ((accel (norm ai)))
+      (when (< limit accel)
+        (set ai (* ai (accel-limit-adj accel))))))
+  (return 0))
 
 (defun apply-accel-limit-cpu (a i)
   (symbol-macrolet ((ai (mem-aref a i)))
@@ -713,27 +753,29 @@
       (when (< limit accel)
         (setf ai (float4-scale-cpu ai (accel-limit-adj-cpu accel)))))))
 
-;; (defkernel %boundary-condition (void ((i int) (x float4*) (v float4*) (a float4*) (info float*)))
-;;   (symbol-macrolet ((xi (aref x i))
-;;                     (vi (aref v i)))
-;;     ;; left boundary
-;;     (apply-collision a i (info-min-x info) (float4-x xi) vi (float4 1.0 0.0 0.0 0.0))
-;;     ;; right boundary
-;;     (apply-collision a i (float4-x xi) (info-max-x info) vi (float4 -1.0 0.0 0.0 0.0))
-;;     ;; bottom boundary
-;;     (apply-collision a i (info-min-y info) (float4-y xi) vi (float4 0.0 1.0 0.0 0.0))
-;;     ;; top boundary
-;;     (apply-collision a i (float4-y xi) (info-max-y info) vi (float4 0.0 -1.0 0.0 0.0))
-;;     ;; near-side boundary
-;;     (apply-collision a i (info-min-z info) (float4-z xi) vi (float4 0.0 0.0 1.0 0.0))
-;;     ;; far-side boundary
-;;     (apply-collision a i (float4-z xi) (info-max-z info) vi (float4 0.0 0.0 -1.0 0.0))
-;;     ;; accel limit
-;;     (apply-accel-limit a i)))
-;;
-;; (defkernel boundary-condition (void ((x float4*) (v float4*) (a float4*) (info float*) (n int)))
-;;   (with-valid-index (i n)
-;;     (%boundary-condition i x v a info)))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel %boundary-condition (int ((i int) (x float4*) (v float4*) (a float4*) (info float*)))
+  (symbol-macrolet ((xi (aref x i))
+                    (vi (aref v i)))
+    ;; left boundary
+    (apply-collision a i (info-min-x info) (float4-x xi) vi (float4 1.0 0.0 0.0 0.0))
+    ;; right boundary
+    (apply-collision a i (float4-x xi) (info-max-x info) vi (float4 -1.0 0.0 0.0 0.0))
+    ;; bottom boundary
+    (apply-collision a i (info-min-y info) (float4-y xi) vi (float4 0.0 1.0 0.0 0.0))
+    ;; top boundary
+    (apply-collision a i (float4-y xi) (info-max-y info) vi (float4 0.0 -1.0 0.0 0.0))
+    ;; near-side boundary
+    (apply-collision a i (info-min-z info) (float4-z xi) vi (float4 0.0 0.0 1.0 0.0))
+    ;; far-side boundary
+    (apply-collision a i (float4-z xi) (info-max-z info) vi (float4 0.0 0.0 -1.0 0.0))
+    ;; accel limit
+    (apply-accel-limit a i))
+  (return 0))
+
+(defkernel boundary-condition (void ((x float4*) (v float4*) (a float4*) (info float*) (n int)))
+  (with-valid-index (i n)
+    (%boundary-condition i x v a info)))
 
 (defun %boundary-condition-cpu (i x v a info)
   (symbol-macrolet ((xi (mem-aref x i))
@@ -758,36 +800,42 @@
     (with-valid-index-cpu (i n)
       (%boundary-condition-cpu i x v a info))))
 
-;; (defkernel %update-acceleration (void ((i int) (a float4*) (f float4*) (rho float*)))
-;;   (symbol-macrolet ((ai   (aref a i))
-;;                     (fi   (aref f i))
-;;                     (rhoi (aref rho i)))
-;;     (set ai (+ (/ fi rhoi) g))))
-;;
-;; (defkernel update-acceleration (void ((a float4*) (f float4*) (rho float*) (n int)))
-;;   (with-valid-index (i n)
-;;     (%update-acceleration i a f rho)))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel %update-acceleration (int ((i int) (a float4*) (f float4*) (rho float*)))
+  (symbol-macrolet ((ai   (aref a i))
+                    (fi   (aref f i))
+                    (rhoi (aref rho i)))
+    (let ((g2 (float4 0.0 -9.8 0.0 0.0)))
+      (set ai (+ (/ fi rhoi) g))))
+  (return 0))
+
+(defkernel update-acceleration (void ((a float4*) (f float4*) (rho float*) (n int)))
+  (with-valid-index (i n)
+    (%update-acceleration i a f rho)))
 
 (defun %update-acceleration-cpu (i a f rho)
   (symbol-macrolet ((ai   (mem-aref a i))
                     (fi   (mem-aref f i))
                     (rhoi (mem-aref rho i)))
-    (setf ai (float4-add-cpu (float4-scale-inverted-cpu fi rhoi)
-                             g))))
+    (let ((g (make-float4 0.0 -9.8 0.0 0.0)))
+      (setf ai (float4-add-cpu (float4-scale-inverted-cpu fi rhoi)
+                               g)))))
 
 (defun update-acceleration-cpu (a f rho n &key grid-dim block-dim)
   (with-thread-block (grid-dim block-dim)
     (with-valid-index-cpu (i n)
       (%update-acceleration-cpu i a f rho))))
 
-;; (defkernel %update-velocity (void ((i int) (v float4*) (a float4*)))
-;;   (symbol-macrolet ((vi (aref v i))
-;;                     (ai (aref a i)))
-;;     (inc vi (* ai dt))))
-;;
-;; (defkernel update-velocity (void ((v float4*) (a float4*) (n int)))
-;;   (with-valid-index (i n)
-;;     (%update-velocity i v a)))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel %update-velocity (int ((i int) (v float4*) (a float4*)))
+  (symbol-macrolet ((vi (aref v i))
+                    (ai (aref a i)))
+    (inc vi (* ai dt)))
+  (return 0))
+
+(defkernel update-velocity (void ((v float4*) (a float4*) (n int)))
+  (with-valid-index (i n)
+    (%update-velocity i v a)))
 
 (defun %update-velocity-cpu (i v a)
   (symbol-macrolet ((vi (mem-aref v i))
@@ -799,15 +847,17 @@
     (with-valid-index-cpu (i n)
       (%update-velocity-cpu i v a))))
 
-;; (defkernel %update-position (void ((i int) (x float4*) (v float4*)))
-;;   (symbol-macrolet ((xi (aref x i))
-;;                     (vi (aref v i)))
-;;     (inc xi (/ (* vi dt)
-;;               simscale))))
-;; 
-;; (defkernel update-position (void ((x float4*) (v float4*) (n int)))
-;;   (with-valid-index (i n)
-;;     (%update-position i x v)))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel %update-position (int ((i int) (x float4*) (v float4*)))
+  (symbol-macrolet ((xi (aref x i))
+                    (vi (aref v i)))
+    (inc xi (/ (* vi dt)
+              simscale)))
+  (return 0))
+
+(defkernel update-position (void ((x float4*) (v float4*) (n int)))
+  (with-valid-index (i n)
+    (%update-position i x v)))
 
 (defun %update-position-cpu (i x v)
   (symbol-macrolet ((xi (mem-aref x i))
@@ -841,42 +891,38 @@
 ;;; Output functions
 ;;;
 
-(defun file-name (i)
-  (format nil "result~8,'0d.pov" i))
+(defparameter *file-name-template* "result~8,'0d.pov")
 
-(defun head ()
-  (format nil (concatenate 'string
-                           "#include \"colors.inc\"~%"
-                           "camera {~%"
-                           "  location <10, 30, -40>~%"
-                           "  look_at <10, 10, 0>~%"
-                           "}~%"
-                           "light_source { <0, 30, -30> color White }~%")))
+(defparameter *header* (concatenate 'string
+                                    "#include \"colors.inc\"~%"
+                                    "camera {~%"
+                                    "  location <10, 30, -40>~%"
+                                    "  look_at <10, 10, 0>~%"
+                                    "}~%"
+                                    "light_source { <0, 30, -30> color White }~%"))
+
+(defparameter *sphere-template* (concatenate 'string
+                                             "sphere {~%"
+                                             "  <~F,~F,~F>,0.5~%"
+                                             "  texture {~%"
+                                             "    pigment { color Yellow }~%"
+                                             "  }~%"
+                                             "}~%"))
+
+(defun file-name (i)
+  (format nil *file-name-template* i))
 
 (defun sphere (pos i)
-  (let ((x (float4-x (mem-aref pos i)))
-        (y (float4-y (mem-aref pos i)))
-        (z (float4-z (mem-aref pos i))))
-    (format nil
-            (concatenate 'string
-                         "sphere {~%"
-                         "  <~F,~F,~F>,0.5~%"
-                         "  texture {~%"
-                         "    pigment { color Yellow }~%"
-                         "  }~%"
-                         "}~%")
-            x y z)))
+  (with-float4-cpu (x y z _) (mem-aref pos i)
+    (format nil *sphere-template* x y z)))
 
-(defun output (pos frame n)
-  (with-open-file (out (file-name frame)
-                       :direction :output
-                       :if-exists :supersede)
-    (princ (head) out)
-    (dotimes (i n)
-      (princ (sphere pos i) out))))
-
-;; (defun output ()
-;;   (error "undefined"))
+(defun output (pos i)
+  (let ((n (memory-block-length pos))
+        (fname (file-name i)))
+    (with-open-file (out fname :direction :output :if-exists :supersede)
+      (princ *header* out)
+      (dotimes (i n)
+        (princ (sphere pos i) out)))))
 
 
 ;;;
@@ -890,56 +936,56 @@
        do (setf (mem-aref x i) p
                 (mem-aref v i) float4-zero))))
 
-;; (defun run-sph (particles)
-;;   (let ((dev-id 0)
-;;         (n (length particles))
-;;         (grid-dim  '(16 1 1))
-;;         (block-dim '(64 1 1)))
-;;     ;; with CUDA context
-;;     (with-cuda-context (dev-id)
-;;       ;; with memory blocks
-;;       (with-memory-blocks ((x   'float4 n)
-;;                            (v   'float4 n)
-;;                            (a   'float4 n)
-;;                            (f   'float4 n)
-;;                            (rho 'float  n)
-;;                            (prs 'float  n))
-;;       ;; with neighbor map
-;;       (with-neighbor-map (nbr info box-min box-max delta capacity) 
-;;         ;; apply initial condition
-;;         (initialize x v particles)
-;;         ;; copy initial position and velocity to device memory
-;;         (memcpy-host-to-device x v)
-;;         ;; copy neighbor map to device memory
-;;         (memcpy-neighbor-map-host-to-device nbr info)
-;;         ;; loop
-;;         (time
-;;          (dotimes (_ 30)
-;;            ;; clear neighbor map
-;;            (clear-neighbor-map :grid-dim '(23 11 1) :block-dim '(11 1 1))
-;;            ;; update neighbor map with position
-;;            (update-neighbor-map x nbr info n :grid-dim grid-dim :block-dim '(128 1 1))
-;;            ;; update density
-;;            (update-density ...)
-;;            ;; update pressure
-;;            (update-pressure ...)
-;;            ;; update force
-;;            (update-force ...)
-;;            ;; update acceleration
-;;            (update-acceleration ...)
-;;            ;; apply boundary condition
-;;            (boundary-condition ...)
-;;            ;; update velocity
-;;            (update-velocity ...)
-;;            ;; update position
-;;            (update-position ...)
-;;            ;; synchronize CUDA context
-;;            (synchronize-context))))))))
+(defun run-sph (particles)
+  (let ((dev-id 0)
+        (n (length particles))
+        (grid-dim '(16 1 1))
+        (block-dim '(64 1 1)))
+    ;; with CUDA context
+    (with-cuda-context (dev-id)
+      ;; with memory blocks
+      (with-memory-blocks ((x   'float4 n)
+                           (v   'float4 n)
+                           (a   'float4 n)
+                           (f   'float4 n)
+                           (rho 'float  n)
+                           (prs 'float  n))
+      ;; with neighbor map
+      (with-neighbor-map (nbr info box-min box-max delta capacity)
+        ;; apply given initial condition
+        (initialize x v particles)
+        ;; copy initial position and velocity to device memory
+        (memcpy-host-to-device x v)
+        ;; copy neighbor map to device memory
+        (memcpy-neighbor-map-host-to-device nbr info)
+        ;; loop
+        (time
+         (dotimes (_ 300)
+           ;; clear neighbor map
+           (clear-neighbor-map nbr info :grid-dim '(23 11 1) :block-dim '(11 1 1))
+           ;; update neighbor map with position
+           (update-neighbor-map x nbr info n :grid-dim grid-dim :block-dim '(128 1 1))
+           ;; update density
+           (update-density rho x nbr info n :grid-dim grid-dim :block-dim '(128 1 1))
+           ;; update pressure
+           (update-pressure prs rho n :grid-dim grid-dim :block-dim block-dim)
+           ;; update force
+           (update-force f x v rho prs nbr info n :grid-dim grid-dim :block-dim block-dim)
+           ;; update acceleration
+           (update-acceleration a f rho n :grid-dim grid-dim :block-dim block-dim)
+           ;; apply boundary condition
+           (boundary-condition x v a info n :grid-dim grid-dim :block-dim block-dim)
+           ;; update velocity
+           (update-velocity v a n :grid-dim grid-dim :block-dim block-dim)
+           ;; update position
+           (update-position x v n :grid-dim grid-dim :block-dim block-dim)
+           ;; synchronize CUDA context
+           (synchronize-context))))))))
 
 (defun run-sph-cpu (particles)
   (let ((dev-id 0)
         (n (length particles))
-        (grid-dim  '(16 1 1))
+        (grid-dim '(16 1 1))
         (block-dim '(64 1 1)))
     ;; with CUDA context
     (with-cuda-context (dev-id)
@@ -952,7 +998,7 @@
                            (prs 'float  n))
       ;; with neighbor map
       (with-neighbor-map (nbr info box-min box-max delta capacity) 
-        ;; apply initial condition
+        ;; apply given initial condition
         (initialize x v particles)
         ;; loop
         (time
@@ -978,11 +1024,11 @@
            ;; synchronize all threads
            (synchronize-context)
            ;; output
-           (output x i n) 
+           (output x i)
            )))))))
 
 (defun main ()
-  (run-sph-cpu (initial-condition)))
+  (run-sph (initial-condition)))
 
 
 ;;;
