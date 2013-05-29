@@ -53,6 +53,9 @@
 (defkernelmacro inc (place val)
   `(set ,place (+ ,place ,val)))
 
+(defun float4-zero ()
+  (make-float4 0.0 0.0 0.0 0.0))
+
 (defmacro with-float4-cpu ((x y z w) val &body body)
   `(let ((,x (float4-x ,val))
          (,y (float4-y ,val))
@@ -930,11 +933,11 @@
 ;;;
 
 (defun initialize (x v particles)
-  (let ((float4-zero (make-float4 0.0 0.0 0.0 0.0)))
+  (let ((zero (float4-zero)))
     (loop for p in particles
           for i from 0
        do (setf (mem-aref x i) p
-                (mem-aref v i) float4-zero))))
+                (mem-aref v i) zero))))
 
 (defun run-sph (particles)
   (let ((dev-id 0)
