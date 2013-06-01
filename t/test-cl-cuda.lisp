@@ -885,7 +885,6 @@
                                 "#include \"float3.h\""
                                 "#include \"float4.h\""
                                 ""
-                                ""
                                 "extern \"C\" __global__ void cl_cuda_test_foo ();"
                                 ""
                                 "__global__ void cl_cuda_test_foo ()"
@@ -1001,6 +1000,16 @@
 (is-error (cl-cuda::compile-let '(let (i) (return)) nil nil) simple-error)
 (is-error (cl-cuda::compile-let '(let ((i)) (return)) nil nil) simple-error)
 (is-error (cl-cuda::compile-let '(let ((x 1) (y x)) (return y)) nil nil) simple-error)
+
+(let ((lisp-code '(let* ((x 1)
+                         (y x))
+                   (return y)))
+      (c-code (cl-cuda::unlines "{"
+                                "  int x = 1;"
+                                "  int y = x;"
+                                "  return y;"
+                                "}")))
+  (is (cl-cuda::compile-let* lisp-code nil nil) c-code))
 
 
 ;;;
