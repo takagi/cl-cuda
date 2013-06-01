@@ -941,7 +941,7 @@
 ;;;
 
 (defmacro defkernelconst (name type exp)
-  `(kernel-manager-define-constant *kernel-manager* ',name ',type ',exp))
+  `(kernel-manager-define-symbol-macro *kernel-manager* ',name ',exp))
 
 
 ;;;
@@ -1046,11 +1046,31 @@
     ((_ :constant _ exp) exp)
     (_ (error "invalid kernel definition constant: ~A" elem))))
 
+(defun make-kerdef-symbol-macro (name expansion)
+  (assert (symbolp name))
+  (list name :symbol-macro expansion))
+
+(defun kerdef-symbol-macro-p (elem)
+  (match elem
+    ((_ :symbol-macro _) t)
+    (_ nil)))
+
+(defun kerdef-symbol-macro-name (elem)
+  (match elem
+    ((name :symbol-macro _) name)
+    (_ nil)))
+
+(defun kerdef-symbol-macro-expansion (elem)
+  (match elem
+    ((_ :symbol-macro expansion) expansion)
+    (_ (error "invalid kernel definition symbol macro: ~A" elem))))
+
 (defun kerdef-name (elem)
   (match elem
     ((name :function _ _ _) name)
     ((name :macro _ _ _) name)
     ((name :constant _ _) name)
+    ((name :symbol-macro _) name)
     (_ (error "invalid kernel definition element: ~A" elem))))
 
 (defun empty-kernel-definition ()
@@ -1088,7 +1108,19 @@
 
 (defun remove-constant-from-kernel-definition (name def)
   (unless (kernel-definition-constant-exists-p name def)
-    (error "undefined kernek definition constant: ~A" name))
+    (error "undefined kernel definition constant: ~A" name))
+  (destructuring-bind (func-table var-table) def
+    (list func-table (remove name var-table :key #'kerdef-name))))
+
+(defun add-symbol-macro-to-kernel-definition (name expansion def)
+  (destructuring-bind (funct-table var-table) def
+    (let ((elem (make-kerdef-symbol-macro name expansion)))
+      (list funct-table
+            (remove-duplicates (cons elem var-table) :key #'kerdef-name :from-end t)))))
+
+(defun remove-symbol-macro-from-kernel-definition (name def)
+  (unless (kernel-definition-symbol-macro-exists-p name def)
+    (error "undefined kernel definition symbol macro: ~A" name))
   (destructuring-bind (func-table var-table) def
     (list func-table (remove name var-table :key #'kerdef-name))))
 
@@ -1101,6 +1133,8 @@
                  (add-macro-to-kernel-definition name args body expander def2))
                 ((name :constant type exp)
                  (add-constant-to-kernel-definition name type exp def2))
+                ((name :symbol-macro expansion)
+                 (add-symbol-macro-to-kernel-definition name expansion def2))
                 (_ (error "invalid kernel definition element: ~A" binding))))
           bindings :initial-value def))
 
@@ -1112,6 +1146,7 @@
                                           `(list ',name :macro ',args ',body
                                                  (lambda (,args0) (destructuring-bind ,args ,args0 ,@body)))))
                ((name :constant type exp) `(list ',name :constant ',type ',exp))
+               ((name :symbol-macro expansion) `(list ',name :symbol-macro ',expansion))
                (_ `',binding))))
     (let ((bindings2 `(list ,@(mapcar #'aux bindings))))
       `(let ((,def (bulk-add-kernel-definition ,bindings2 (empty-kernel-definition))))
@@ -1126,7 +1161,12 @@
       (:macro (let ((elem (find name func-table :key #'kerdef-name)))
                 (when (kerdef-macro-p elem)
                   elem)))
-      (:constant (find name var-table :key #'kerdef-name)))))
+      (:constant (let ((elem (find name var-table :key #'kerdef-name)))
+                   (when (kerdef-constant-p elem)
+                     elem)))
+      (:symbol-macro (let ((elem (find name var-table :key #'kerdef-name)))
+                       (when (kerdef-symbol-macro-p elem)
+                         elem))))))
 
 (defun kernel-definition-function-exists-p (name def)
   (and (lookup-kernel-definition :function name def)
@@ -1138,6 +1178,10 @@
 
 (defun kernel-definition-constant-exists-p (name def)
   (and (lookup-kernel-definition :constant name def)
+       t))
+
+(defun kernel-definition-symbol-macro-exists-p (name def)
+  (and (lookup-kernel-definition :symbol-macro name def)
        t))
 
 (defun kernel-definition-function-name (name def)
@@ -1219,6 +1263,21 @@
   (unless (kernel-definition-constant-exists-p name def)
     (error "undefined kernel definition constant: ~A" name))
   (kerdef-constant-expression (lookup-kernel-definition :constant name def)))
+
+(defun kernel-definition-symbol-macro-name (name def)
+  (unless (kernel-definition-symbol-macro-exists-p name def)
+    (error "undefined kernel definition symbol macro: ~A" name))
+  (kerdef-symbol-macro-name (lookup-kernel-definition :symbol-macro name def)))
+
+(defun kernel-definition-symbol-macro-names (def)
+  (destructuring-bind (_ var-table) def
+    (declare (ignorable _))
+    (mapcar #'kerdef-name (remove-if-not #'kerdef-symbol-macro-p var-table))))
+
+(defun kernel-definition-symbol-macro-expansion (name def)
+  (unless (kernel-definition-symbol-macro-exists-p name def)
+    (error "undefined kernel definition symbol macro: ~A" name))
+  (kerdef-symbol-macro-expansion (lookup-kernel-definition :symbol-macro name def)))
 
 
 ;;;
@@ -1344,7 +1403,7 @@
 
 (defun constant-modified-p (name type exp def)
   (not (and (equal type (kernel-definition-constant-type name def))
-            (equal exp (kernel-definition-constant-exists-p name def)))))
+            (equal exp (kernel-definition-constant-expression name def)))))
 
 (defun kernel-manager-define-constant (mgr name type exp)
   (symbol-macrolet ((def (kernel-definition mgr))
@@ -1352,6 +1411,17 @@
     (when (or (not (kernel-definition-constant-exists-p name def))
               (constant-modified-p name type exp def))
       (setf def (add-constant-to-kernel-definition name type exp def)
+            (module-compilation-needed info) t))))
+
+(defun symbol-macro-modified-p (name exp def)
+  (not (equal exp (kernel-definition-symbol-macro-expansion name def))))
+
+(defun kernel-manager-define-symbol-macro (mgr name exp)
+  (symbol-macrolet ((def (kernel-definition mgr))
+                    (info (module-info mgr)))
+    (when (or (not (kernel-definition-symbol-macro-exists-p name def))
+              (symbol-macro-modified-p name exp def))
+      (setf def (add-symbol-macro-to-kernel-definition name exp def)
             (module-compilation-needed info) t))))
 
 (defun kernel-manager-load-function (mgr name)
@@ -1563,8 +1633,6 @@
              "#include \"float.h\""
              "#include \"float3.h\""
              "#include \"float4.h\""
-             ""
-             ,@(compile-kernel-constants def)
              ""
              ,@(compile-kernel-function-prototypes def)
              ""
@@ -2655,6 +2723,15 @@ and false as values."
                 arg-bindings :initial-value var-env))
       var-env))
 
+(defun %add-symbol-macros (def var-env)
+  (labels ((%symbol-macro-binding (name)
+             (let ((name (kernel-definition-symbol-macro-name name def))
+                   (expansion (kernel-definition-symbol-macro-expansion name def)))
+               (list name :symbol-macro expansion))))
+    (let ((symbol-macro-bindings (mapcar #'%symbol-macro-binding
+                                         (kernel-definition-symbol-macro-names def))))
+      (bulk-add-variable-environment symbol-macro-bindings var-env))))
+
 (defun %add-constants (def var-env)
   (labels ((%constant-binding (name)
              (let ((name (kernel-definition-constant-name name def))
@@ -2666,8 +2743,9 @@ and false as values."
 
 (defun make-variable-environment-with-kernel-definition (name def)
   (%add-function-arguments name def
-    (%add-constants def
-      (empty-variable-environment))))
+    (%add-symbol-macros def
+      (%add-constants def
+        (empty-variable-environment)))))
 
 (defmacro with-variable-environment ((var-env bindings) &body body)
   `(let ((,var-env (bulk-add-variable-environment ',bindings (empty-variable-environment))))

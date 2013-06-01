@@ -772,10 +772,33 @@
                  (cl-cuda::empty-kernel-definition))))))
   (is def (cl-cuda::empty-kernel-definition)))
 
+;; test adding symbol macro to kernel definition
+(let ((def (cl-cuda::add-symbol-macro-to-kernel-definition 'x 1.0
+             (cl-cuda::empty-kernel-definition))))
+  (is (cl-cuda::kernel-definition-symbol-macro-exists-p 'x def) t))
+
+;; test removing symbol macro from kernel definition
+(let ((def (cl-cuda::remove-symbol-macro-from-kernel-definition 'x
+             (cl-cuda::add-symbol-macro-to-kernel-definition 'x 1.0
+               (cl-cuda::empty-kernel-definition)))))
+  (is def (cl-cuda::empty-kernel-definition)))
+
+;; can not remove symbol macro which does not exist in kernel definition
+(is-error (cl-cuda::remove-symbol-macro-from-kernel-definition 'x
+            (cl-cuda::empty-kernel-definition)) simple-error)
+
+;; kernel definition does not shadow its elements, just overwrites
+(let ((def (cl-cuda::remove-symbol-macro-from-kernel-definition 'x
+             (cl-cuda::add-symbol-macro-to-kernel-definition 'x 1
+               (cl-cuda::add-symbol-macro-to-kernel-definition 'x 1.0
+                 (cl-cuda::empty-kernel-definition))))))
+  (is def (cl-cuda::empty-kernel-definition)))
+
 ;; test kernel definition
 (cl-cuda::with-kernel-definition (def ((f :function int ((x int)) ((return x)))
                                        (g :macro (x) (`(expanded ,x)))
-                                       (x :constant float 1.0)))
+                                       (x :constant float 1.0)
+                                       (y :symbol-macro 1.0)))
   ;; test predicates
   (is       (cl-cuda::kernel-definition-function-exists-p 'f def) t)
   (is       (cl-cuda::kernel-definition-function-exists-p 'g def) nil)
@@ -783,6 +806,8 @@
   (is       (cl-cuda::kernel-definition-macro-exists-p 'f def) nil)
   (is       (cl-cuda::kernel-definition-constant-exists-p 'x def) t)
   (is       (cl-cuda::kernel-definition-constant-exists-p 'f def) nil)
+  (is       (cl-cuda::kernel-definition-symbol-macro-exists-p 'y def) t)
+  (is       (cl-cuda::kernel-definition-symbol-macro-exists-p 'f def) nil)
   ;; test selectors
   (is       (cl-cuda::kernel-definition-function-name 'f def) 'f)
   (is-error (cl-cuda::kernel-definition-function-name 'g def) simple-error)
@@ -812,7 +837,12 @@
   (is       (cl-cuda::kernel-definition-constant-type 'x def) 'float)
   (is-error (cl-cuda::kernel-definition-constant-type 'f def) simple-error)
   (is       (cl-cuda::kernel-definition-constant-expression 'x def) 1.0)
-  (is-error (cl-cuda::kernel-definition-constant-expression 'f def) simple-error))
+  (is-error (cl-cuda::kernel-definition-constant-expression 'f def) simple-error)
+  (is       (cl-cuda::kernel-definition-symbol-macro-name 'y def) 'y)
+  (is-error (cl-cuda::kernel-definition-symbol-macro-name 'f def) simple-error)
+  (is       (cl-cuda::kernel-definition-symbol-macro-names def) '(y))
+  (is       (cl-cuda::kernel-definition-symbol-macro-expansion 'y def) 1.0)
+  (is-error (cl-cuda::kernel-definition-symbol-macro-expansion 'f def) simple-error))
 
 ;; kernel definition does not shadow its elements, just overwrites
 (cl-cuda::with-kernel-definition (def ((f :function void () ((return)))
@@ -822,12 +852,15 @@
                                        (h :function void () ((return)))
                                        (h :macro (x) (`(expanded ,x)))
                                        (x :constant float 1.0)
-                                       (x :constant float 2.0)))
+                                       (x :constant float 2.0)
+                                       (y :symbol-macro 1.0)
+                                       (y :symbol-macro 2.0)))
   (is (cl-cuda::kernel-definition-function-return-type 'f def) 'int)
   (is (cl-cuda::kernel-definition-macro-arguments 'g def) '(x))
   (is (cl-cuda::kernel-definition-function-exists-p 'h def) nil)
   (is (cl-cuda::kernel-definition-macro-exists-p 'h def) t)
-  (is (cl-cuda::kernel-definition-constant-expression 'x def) 2.0))
+  (is (cl-cuda::kernel-definition-constant-expression 'x def) 2.0)
+  (is (cl-cuda::kernel-definition-symbol-macro-expansion 'y def) 2.0))
 
 ;; kernel definition can accept element depending on others
 (cl-cuda::with-kernel-definition (def ((x :constant float 1.0)
@@ -837,9 +870,6 @@
 
 ;; kernel definition does not accept variables
 (is-error (cl-cuda::with-kernel-definition (def ((x :variable int 1))) def) simple-error)
-
-;; kernel definition does not accept symbol macros
-(is-error (cl-cuda::with-kernel-definition (def ((x :symbol-macro (expanded-x)))) def) simple-error)
 
 
 ;;;
@@ -1608,10 +1638,13 @@
 
 ;; test making variable environment with kernel definition
 (cl-cuda::with-kernel-definition (def ((f :function void () ((return)))
+                                       (x :symbol-macro 1.0)
                                        (y :constant float 1.0)))
   (let ((var-env (cl-cuda::make-variable-environment-with-kernel-definition 'f def)))
     (is (cl-cuda::variable-environment-constant-exists-p 'y var-env) t)
-    (is (cl-cuda::variable-environment-type-of-constant 'y var-env) 'float)))
+    (is (cl-cuda::variable-environment-type-of-constant 'y var-env) 'float)
+    (is (cl-cuda::variable-environment-symbol-macro-exists-p 'x var-env) t)
+    (is (cl-cuda::variable-environment-symbol-macro-expansion 'x var-env) 1.0)))
 
 
 ;;;
