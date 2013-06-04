@@ -68,23 +68,26 @@ I will write more about installation later.
 
 ## Verification environment
 
+#### Environment 1
 * Mac OS X 10.6.8 (MacBookPro)
 * GeForce 9400M
 * CUDA x
 * SBCL 1.x.xx 32-bit
 * All tests pass, all examples work
 
-* Linux 3.5.0-32-generic Ubuntu SMP x86_64
-* GeFroce 9800 GT
-* CUDA 5
-* SBCL 1.1.7 64-bit
-* All tests pass, all examples work
-
+#### Environment2
 * Amazon Linux x86_64 (Amazon EC2)
 * Tesla M2050
 * CUDA x
 * SBCL 1.x.xx
 * All tests pass, all examples which are verified work (others not tried yet)
+
+#### Environment3(Thanks to Viktor Cerovski)
+* Linux 3.5.0-32-generic Ubuntu SMP x86_64
+* GeFroce 9800 GT
+* CUDA 5
+* SBCL 1.1.7 64-bit
+* All tests pass, all examples work
 
 ## API
 
