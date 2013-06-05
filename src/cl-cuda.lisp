@@ -1471,14 +1471,37 @@
                 (setf it nil)))
           (kernel-manager-function-names mgr)))
 
-(defvar +temporary-path-template+ "/tmp/cl-cuda-")
-(defvar +temp-path+ (osicat-posix:mktemp +temporary-path-template+))
-(defvar +cu-path+  (concatenate 'string +temp-path+ ".cu"))
-(defvar +ptx-path+ (concatenate 'string +temp-path+ ".ptx"))
+(defvar *tmp-path* "/tmp/")
+(defvar *mktemp* (osicat-posix:mktemp))
 
-(defvar +include-path+ (namestring (asdf:system-relative-pathname :cl-cuda #P"include")))
+(defun get-tmp-path ()
+  (let ((last (subseq (reverse *tmp-path*) 0 1)))
+    (if (string= last "/")
+        (concatenate 'string *tmp-path*)
+        (concatenate 'string *tmp-path* "/"))))
 
-(defvar +nvcc-path+ "/usr/local/cuda/bin/nvcc")
+(defun get-cu-path ()
+  (concatenate 'string (get-tmp-path) "cl-cuda-" *mktemp* ".cu"))
+
+(defun get-ptx-path ()
+  (concatenate 'string (get-tmp-path) "cl-cuda-" *mktemp* ".ptx"))
+
+(defun get-include-path ()
+  (namestring (asdf:system-relative-pathname :cl-cuda #P"include")))
+
+(defvar *nvcc-path* "/usr/local/cuda/bin/")
+
+(defun get-nvcc-path ()
+  (let ((last (subseq (reverse *nvcc-path*) 0 1)))
+    (if (string= last "/")
+        (concatenate 'string *nvcc-path* "nvcc")
+        (concatenate 'string *nvcc-path* "/" "nvcc"))))
+
+(defvar *nvcc-options* (list "-arch=sm_11"))
+
+(defun get-nvcc-options (include-path cu-path ptx-path)
+  (append *nvcc-options*
+          (list "-I" include-path "-ptx" "-o" ptx-path cu-path)))
 
 (defun output-cu-code (mgr path)
   (with-open-file (out path :direction :output :if-exists :supersede)
@@ -1489,14 +1512,14 @@
 
 (defun run-nvcc-command (opts)
   (with-output-to-string (out)
-    (let ((p (sb-ext:run-program +nvcc-path+ opts :error out)))
+    (let ((p (sb-ext:run-program (get-nvcc-path) opts :error out)))
       (unless (= 0 (sb-ext:process-exit-code p))
         (error "nvcc exits with code: ~A~%~A"
                (sb-ext:process-exit-code p)
                (get-output-stream-string out))))))
 
 (defun compile-cu-code (include-path cu-path ptx-path)
-  (let ((opts (list "-arch=sm_11" "-I" include-path "-ptx" "-o" ptx-path cu-path)))
+  (let ((opts (get-nvcc-options include-path cu-path ptx-path)))
     (output-nvcc-command opts)
     (run-nvcc-command opts)))
 
@@ -1505,10 +1528,13 @@
     (error "kernel module is already loaded."))
   (unless (no-kernel-functions-loaded-p mgr)
     (error "some kernel functions are already loaded."))
-  (output-cu-code mgr +cu-path+)
-  (compile-cu-code +include-path+ +cu-path+ +ptx-path+)
-  (setf (kernel-manager-module-path mgr) +ptx-path+
-        (kernel-manager-module-compilation-needed mgr) nil))
+  (let ((include-path (get-include-path))
+        (cu-path      (get-cu-path))
+        (ptx-path     (get-ptx-path)))
+    (output-cu-code mgr cu-path)
+    (compile-cu-code include-path cu-path ptx-path)
+    (setf (kernel-manager-module-path mgr) ptx-path
+          (kernel-manager-module-compilation-needed mgr) nil)))
 
 
 ;;;

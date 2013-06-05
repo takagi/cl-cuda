@@ -364,6 +364,36 @@
 
 
 ;;;
+;;; test variable interfaces
+;;;
+
+;; test *tmp-path*
+(let ((*tmp-path* "/tmp/"))
+  (is (cl-cuda::get-tmp-path) "/tmp/"))
+(let ((*tmp-path* "/tmp"))
+  (is (cl-cuda::get-tmp-path) "/tmp/"))
+
+(let ((*tmp-path* "/tmp/")
+      (cl-cuda::*mktemp* "xxxxxx"))
+  (is (cl-cuda::get-cu-path) "/tmp/cl-cuda-xxxxxx.cu"))
+
+(let ((*tmp-path* "/tmp/")
+      (cl-cuda::*mktemp* "xxxxxx"))
+  (is (cl-cuda::get-ptx-path) "/tmp/cl-cuda-xxxxxx.ptx"))
+
+;; test *nvcc-path*
+(let ((*nvcc-path* "/path/to/nvcc/"))
+  (is (cl-cuda::get-nvcc-path) "/path/to/nvcc/nvcc"))
+(let ((*nvcc-path* "/path/to/nvcc"))
+  (is (cl-cuda::get-nvcc-path) "/path/to/nvcc/nvcc"))
+
+;; test *nvcc-options*
+(let ((*nvcc-options* (list "--verbose")))
+  (is (cl-cuda::get-nvcc-options "include-path" "cu-path" "ptx-path")
+      (list "--verbose" "-I" "include-path" "-ptx" "-o" "ptx-path" "cu-path")))
+
+
+;;;
 ;;; test kernel functions
 ;;;
 

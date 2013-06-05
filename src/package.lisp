@@ -6,7 +6,10 @@
 (in-package :cl-user)
 (defpackage cl-cuda
   (:use :cl :alexandria :anaphora :cl-pattern)
-  (:export :*show-messages*             ; configuration
+  (:export :*nvcc-path*                 ; configuration
+           :*nvcc-options*
+           :*tmp-path*
+           :*show-messages*
            :with-cuda-context           ; CUDA context
            :init-cuda-context
            :release-cuda-context
