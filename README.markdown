@@ -66,6 +66,29 @@ I will write more about installation later.
 * CUDA Toolkit, CUDA Drivers and CUDA SDK need to be installed
 * SBCL Common Lisp compiler, because cl-cuda uses some sbcl extensions to run nvcc compiler externally. I will fix it later to make it possible to be used on other Common Lisp implementations. For now, if you want to use cl-cuda on those implementations other than SBCL, you can rewrite the related part of src/cl-cuda.lisp to suit your environment. It is only a few lines.
 
+## Verification environment
+
+#### Environment 1
+* Mac OS X 10.6.8 (MacBookPro)
+* GeForce 9400M
+* CUDA x
+* SBCL 1.x.xx 32-bit
+* All tests pass, all examples work
+
+#### Environment2
+* Amazon Linux x86_64 (Amazon EC2)
+* Tesla M2050
+* CUDA x
+* SBCL 1.x.xx
+* All tests pass, all examples which are verified work (others not tried yet)
+
+#### Environment3(Thanks to Viktor Cerovski)
+* Linux 3.5.0-32-generic Ubuntu SMP x86_64
+* GeFroce 9800 GT
+* CUDA 5
+* SBCL 1.1.7 64-bit
+* All tests pass, all examples work
+
 ## API
 
 ### init-cuda-context
