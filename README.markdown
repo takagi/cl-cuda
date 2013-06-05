@@ -111,6 +111,38 @@ I will write more about installation later.
 
 ### memcpy-device-to-host
 
+### \*nvcc-path\*
+
+Specifying the path to the NVIDIA CUDA Compiler which cl-cuda calls internally.
+
+Default: `"/usr/local/cuda/bin/"`
+
+    (setf *nvcc-path* "/path/to/nvcc/")
+
+### \*nvcc-options\*
+
+Specifying additional command-line options to be pass to the NVIDIA CUDA Compiler which cl-cuda calls internally.
+
+Default: `(list "-arch=sm_11")`
+
+    (setf *nvcc-options* (list "--verbose"))
+
+### \*tmp-path\*
+
+Specifying the path where temporary .cu files and .ptx files are put.
+
+Default: `"/tmp/"`
+
+    (setf *tmp-path* "/path/to/tmp/")
+
+### \*show-messages\*
+
+Specifying whether to let cl-cuda show operational messages or not.
+
+Default: `t`
+
+    (setf *show-messages* t)
+
 ## Kernel Definition Language
 
 ### DEFKERNEL macro
