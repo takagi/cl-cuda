@@ -11,7 +11,8 @@
 ;;;
 
 (cffi:define-foreign-library libcuda
-  (t (:default "/usr/local/cuda/lib/libcuda")))
+  (t (:or (:default "libcuda") (:default "libcuda64"))))
+
 (cffi:use-foreign-library libcuda)
 
 
