@@ -13,7 +13,7 @@
 (in-package :cl-cuda-asd)
 
 (defsystem cl-cuda
-  :version "0.1-SNAPSHOT"
+  :version "0.1"
   :author "Masayuki Takagi"
   :license "LLGPL"
   :depends-on (:cffi :alexandria :anaphora :osicat :cl-pattern :split-sequence :cl-opengl #|:cl-glut|#)
