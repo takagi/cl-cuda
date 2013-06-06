@@ -1490,14 +1490,6 @@
 (defun get-include-path ()
   (namestring (asdf:system-relative-pathname :cl-cuda #P"include")))
 
-(defvar *nvcc-path* "/usr/local/cuda/bin/")
-
-(defun get-nvcc-path ()
-  (let ((last (subseq (reverse *nvcc-path*) 0 1)))
-    (if (string= last "/")
-        (concatenate 'string *nvcc-path* "nvcc")
-        (concatenate 'string *nvcc-path* "/" "nvcc"))))
-
 (defvar *nvcc-options* (list "-arch=sm_11"))
 
 (defun get-nvcc-options (include-path cu-path ptx-path)
@@ -1513,7 +1505,7 @@
 
 (defun run-nvcc-command (opts)
   (with-output-to-string (out)
-    (let ((p (sb-ext:run-program (get-nvcc-path) opts :error out)))
+    (let ((p (sb-ext:run-program "nvcc" opts :search t :error out)))
       (unless (= 0 (sb-ext:process-exit-code p))
         (error "nvcc exits with code: ~A~%~A"
                (sb-ext:process-exit-code p)

@@ -54,10 +54,6 @@ Since cl-cuda is not available in Quicklisp distribution yet, please use Quickli
 
 Then use the `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
-Before using cl-cuda, you must specify where NVIDIA CUDA Compiler is on your environment. Please set the path to `nvcc` command to `*nvcc-path*` dynamic variable.
-
-    (setf *nvcc-path* "/path/to/nvcc/")
-
 ## Requirements
 
 * NVIDIA CUDA-enabled GPU
