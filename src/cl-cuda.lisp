@@ -11,7 +11,8 @@
 ;;;
 
 (cffi:define-foreign-library libcuda
-  (t (:or (:default "libcuda") (:default "libcuda64"))))
+  (:darwin (:framework "CUDA"))
+  (:unix (:or "libcuda.so" "libcuda64.so")))
 
 (cffi:use-foreign-library libcuda)
 
