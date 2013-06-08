@@ -109,8 +109,12 @@
      (* (float4-z a) (float4-z b))
      (* (float4-w a) (float4-w b))))
 
-(defkernel pow (float ((b float) (p float)))
-  (return (expt b p)))
+(defkernelmacro pow (x n)
+  (check-type n fixnum)
+  `(* ,@(loop repeat n collect x)))
+
+;; (defkernel pow (float ((b float) (p float)))
+;;   (return (expt b p)))
 
 (defun pow-cpu (b p)
   (float (expt b p) 0.0))
@@ -544,8 +548,8 @@
 
 (defkernel poly6-kernel (float ((x float4)))
   (let ((r (norm x)))
-    (return (* (/ 315.0 (* 64.0 pi (pow h 9.0)))
-               (pow (- (* h h) (* r r)) 3.0)))))
+    (return (* (/ 315.0 (* 64.0 pi (pow h 9)))
+               (pow (- (* h h) (* r r)) 3)))))
 
 (defun poly6-kernel-cpu (x)
   (let ((r (norm-cpu x)))
@@ -555,8 +559,8 @@
 
 (defkernel grad-spiky-kernel (float4 ((x float4)))
   (let ((r (norm x)))
-    (return (* (/ -45.0 (* pi (pow h 6.0)))
-               (pow (- h r) 2.0)
+    (return (* (/ -45.0 (* pi (pow h 6)))
+               (pow (- h r) 2)
                (/ x r)))))
 
 (defun grad-spiky-kernel-cpu (x)
@@ -567,7 +571,7 @@
 
 (defkernel rap-visc-kernel (float ((x float4)))
   (let ((r (norm x)))
-    (return (* (/ 45.0 (* pi (pow h 6.0)))
+    (return (* (/ 45.0 (* pi (pow h 6)))
                (- h r)))))
 
 (defun rap-visc-kernel-cpu (x)
@@ -953,6 +957,8 @@
                            (prs 'float  n))
       ;; with neighbor map
       (with-neighbor-map (nbr info box-min box-max delta capacity)
+        ;; print # of particles
+        (format t "~A particles~%" n)
         ;; apply given initial condition
         (initialize x v particles)
         ;; copy initial position and velocity to device memory
