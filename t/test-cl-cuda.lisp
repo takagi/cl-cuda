@@ -140,23 +140,29 @@
 
 ;; test cuModuleLoad
 (diag "test cuModuleLoad")
-(let ((dev-id 0))
-  (cffi:with-foreign-string (fname "/Developer/GPU Computing/C/src/vectorAddDrv/data/vectorAdd_kernel.ptx")
-    (with-cuda-context (dev-id)
-      (cffi:with-foreign-object (module 'cl-cuda::cu-module)
-        (cl-cuda::cu-module-load module fname)
-        (format t "CUDA module \"vectorAdd_kernel.ptx\" is loaded.~%")))))
+(labels ((get-test-path ()
+           (namestring (asdf:system-relative-pathname :cl-cuda #P"t"))))
+  (let ((dev-id 0)
+        (ptx-path (concatenate 'string (get-test-path) "/vectorAdd_kernel.ptx")))
+    (cffi:with-foreign-string (fname ptx-path)
+      (with-cuda-context (dev-id)
+        (cffi:with-foreign-object (module 'cl-cuda::cu-module)
+          (cl-cuda::cu-module-load module fname)
+          (format t "CUDA module \"vectorAdd_kernel.ptx\" is loaded.~%"))))))
 
 ;; test cuModuleGetFunction
 (diag "test cuModuleGetFunction")
-(let ((dev-id 0))
-  (cffi:with-foreign-string (fname "/Developer/GPU Computing/C/src/vectorAddDrv/data/vectorAdd_kernel.ptx")
-    (cffi:with-foreign-string (name "VecAdd_kernel")
-      (with-cuda-context (dev-id)
-        (cffi:with-foreign-objects ((module 'cl-cuda::cu-module)
-                                    (hfunc  'cl-cuda::cu-function))
-          (cl-cuda::cu-module-load module fname)
-          (cl-cuda::cu-module-get-function hfunc (cffi:mem-ref module 'cl-cuda::cu-module) name))))))
+(labels ((get-test-path ()
+           (namestring (asdf:system-relative-pathname :cl-cuda #P"t"))))
+  (let ((dev-id 0)
+        (ptx-path (concatenate 'string (get-test-path) "/vectorAdd_kernel.ptx")))
+    (cffi:with-foreign-string (fname ptx-path)
+      (cffi:with-foreign-string (name "VecAdd_kernel")
+        (with-cuda-context (dev-id)
+          (cffi:with-foreign-objects ((module 'cl-cuda::cu-module)
+                                      (hfunc  'cl-cuda::cu-function))
+            (cl-cuda::cu-module-load module fname)
+            (cl-cuda::cu-module-get-function hfunc (cffi:mem-ref module 'cl-cuda::cu-module) name)))))))
 
 
 ;;;
