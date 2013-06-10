@@ -105,14 +105,6 @@ Then use the `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
 ### memcpy-device-to-host
 
-### \*nvcc-path\*
-
-Specifying the path to the NVIDIA CUDA Compiler which cl-cuda calls internally.
-
-Default: `"/usr/local/cuda/bin/"`
-
-    (setf *nvcc-path* "/path/to/nvcc/")
-
 ### \*nvcc-options\*
 
 Specifying additional command-line options to be pass to the NVIDIA CUDA Compiler which cl-cuda calls internally.
