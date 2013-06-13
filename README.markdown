@@ -113,7 +113,17 @@ Blocks until the device has completed all preceding requested tasks.
 
 ### [Function] alloc-memory-block
 
+    alloc-memory-block type n &key (interop nil) => memory block
+
+Allocates a memory block to hold `n` elements of type `type` and returns it. Actually, linear memory areas are allocated on both device and host memory respectively, and a memory block holds pointers to the areas to abstract them.
+
+If the `interop` parameter is nil, linear memory areas are allocated to be used for an usual CUDA context. Otherwise, they are allocated to be used for an CUDA context under OpenGL interoperability.
+
 ### [Function] free-memory-block
+
+    free-memory-block block
+
+Frees `block` previously allocated by `alloc-memory-block`. Freeing a given memory block twice does nothing.
 
 ### [Macro] with-memory-block
 
