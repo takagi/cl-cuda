@@ -41,10 +41,6 @@ For the whole code, please see examples/vector-add.lisp.
             (memcpy-device-to-host c)
             (verify-result a b c n)))))
 
-## Usage
-
-I will write some usage later. For now, please see the examples directory.
-
 ## Installation
 
 Since cl-cuda is not available in Quicklisp distribution yet, please use Quicklisp's local-projects feature.
