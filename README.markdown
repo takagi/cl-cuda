@@ -125,7 +125,7 @@ Blocks until the device has completed all preceding requested tasks.
 
 ### [Special Variable] \*nvcc-options\*
 
-Specifying additional command-line options to be pass to the NVIDIA CUDA Compiler which cl-cuda calls internally.
+Specifies additional command-line options to be pass to the NVIDIA CUDA Compiler which cl-cuda calls internally.
 
 Default: `(list "-arch=sm_11")`
 
@@ -133,7 +133,7 @@ Default: `(list "-arch=sm_11")`
 
 ### [Special Variable] \*tmp-path\*
 
-Specifying the path where temporary .cu files and .ptx files are put.
+Specifies a path where temporary .cu files and .ptx files are put.
 
 Default: `"/tmp/"`
 
@@ -141,7 +141,7 @@ Default: `"/tmp/"`
 
 ### [Special Variable] \*show-messages\*
 
-Specifying whether to let cl-cuda show operational messages or not.
+Specifies whether to let cl-cuda show operational messages or not.
 
 Default: `t`
 
