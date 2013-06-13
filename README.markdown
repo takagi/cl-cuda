@@ -87,6 +87,12 @@ Then use the `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
 ### init-cuda-context
 
+    init-cuda-context dev-id &key (interop nil)
+
+Initializes the CUDA driver API, creates a new CUDA context and associates it with the calling thread. The `dev-id` parameter specifies a device number to get handle for. If the `interop` parameter is `nil`, an usual CUDA context is created. Otherwise, a CUDA context is created for OpenGL interoperability.
+
+If initialization or context creation will fail, `init-cuda-context` will be cancelled with calling `release-cuda-context`.
+
 ### release-cuda-context
 
 ### with-cuda-context
