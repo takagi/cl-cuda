@@ -17,7 +17,6 @@
 (cffi:use-foreign-library libcuda)
 
 
-
 ;;;
 ;;; Definition of defcufun macro
 ;;;
