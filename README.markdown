@@ -111,19 +111,19 @@ Keeps a CUDA context during `body`. The `dev-id` and `interop` parameters are pa
 
 Blocks until the device has completed all preceding requested tasks.
 
-### alloc-memory-block
+### [Function] alloc-memory-block
 
-### free-memory-block
+### [Function] free-memory-block
 
-### with-memory-block
+### [Macro] with-memory-block
 
-### mem-aref, (setf mem-aref)
+### [Accessor] mem-aref
 
-### memcpy-host-to-device
+### [Function] memcpy-host-to-device
 
-### memcpy-device-to-host
+### [Function] memcpy-device-to-host
 
-### \*nvcc-options\*
+### [Special Variable] \*nvcc-options\*
 
 Specifying additional command-line options to be pass to the NVIDIA CUDA Compiler which cl-cuda calls internally.
 
@@ -131,7 +131,7 @@ Default: `(list "-arch=sm_11")`
 
     (setf *nvcc-options* (list "--verbose"))
 
-### \*tmp-path\*
+### [Special Variable] \*tmp-path\*
 
 Specifying the path where temporary .cu files and .ptx files are put.
 
@@ -139,7 +139,7 @@ Default: `"/tmp/"`
 
     (setf *tmp-path* "/path/to/tmp/")
 
-### \*show-messages\*
+### [Special Variable] \*show-messages\*
 
 Specifying whether to let cl-cuda show operational messages or not.
 
