@@ -78,45 +78,73 @@ Then use the `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
 ## API
 
-### init-cuda-context
+### [Function] init-cuda-context
 
-### release-cuda-context
+    init-cuda-context dev-id &key (interop nil)
 
-### with-cuda-context
+Initializes the CUDA driver API, creates a new CUDA context and associates it with the calling thread. The `dev-id` parameter specifies a device number to get handle for. If the `interop` parameter is `nil`, an usual CUDA context is created. Otherwise, a CUDA context is created for OpenGL interoperability.
 
-### synchronize-context
+If initialization or context creation will fail, `init-cuda-context` will be cancelled with calling `release-cuda-context`.
 
-### alloc-memory-block
+### [Function] release-cuda-context
 
-### free-memory-block
+    release-cuda-context
 
-### with-memory-block
+Unloads a kernel module, destroys a CUDA context and releases all related resources. If a kernel module is not loaded, `release-cuda-context` raises no error, just does nothing. Similarly, if a CUDA context is not created, it just does nothing about it.
 
-### mem-aref, (setf mem-aref)
+### [Macro] with-cuda-context
 
-### memcpy-host-to-device
+    with-cuda-context (dev-id &key (interop nil)) &body body
 
-### memcpy-device-to-host
+Keeps a CUDA context during `body`. The `dev-id` and `interop` parameters are passed to `init-cuda-context` function which appears in its expansion form.
 
-### \*nvcc-options\*
+### [Function] synchronize-context
 
-Specifying additional command-line options to be pass to the NVIDIA CUDA Compiler which cl-cuda calls internally.
+    synchronize-context
+
+Blocks until the device has completed all preceding requested tasks.
+
+### [Function] alloc-memory-block
+
+    alloc-memory-block type n &key (interop nil) => memory block
+
+Allocates a memory block to hold `n` elements of type `type` and returns it. Actually, linear memory areas are allocated on both device and host memory respectively, and a memory block holds pointers to the areas to abstract them.
+
+If the `interop` parameter is nil, linear memory areas are allocated to be used for an usual CUDA context. Otherwise, they are allocated to be used for an CUDA context under OpenGL interoperability.
+
+### [Function] free-memory-block
+
+    free-memory-block block
+
+Frees `block` previously allocated by `alloc-memory-block`. Freeing a given memory block twice does nothing.
+
+### [Macro] with-memory-block
+
+### [Accessor] mem-aref
+
+### [Function] memcpy-host-to-device
+
+### [Function] memcpy-device-to-host
+
+### [Special Variable] \*nvcc-options\*
+
+Specifies additional command-line options to be pass to the NVIDIA CUDA Compiler which cl-cuda calls internally.
 
 Default: `(list "-arch=sm_11")`
 
     (setf *nvcc-options* (list "--verbose"))
 
-### \*tmp-path\*
+### [Special Variable] \*tmp-path\*
 
-Specifying the path where temporary .cu files and .ptx files are put.
+Specifies a path where temporary .cu files and .ptx files are put.
 
 Default: `"/tmp/"`
 
     (setf *tmp-path* "/path/to/tmp/")
 
-### \*show-messages\*
+### [Special Variable] \*show-messages\*
 
-Specifying whether to let cl-cuda show operational messages or not.
+Specifies whether to let cl-cuda show operational messages or not.
 
 Default: `t`
 
