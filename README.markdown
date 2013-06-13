@@ -99,7 +99,11 @@ If initialization or context creation will fail, `init-cuda-context` will be can
 
 Unloads a kernel module, destroys a CUDA context and releases all related resources. If a kernel module is not loaded, `release-cuda-context` raises no error, just does nothing. Similarly, if a CUDA context is not created, it just does nothing about it.
 
-### with-cuda-context
+### [Macro] with-cuda-context
+
+    with-cuda-context (dev-id &key (interop nil)) &body body
+
+The macro `with-cuda-context` keeps a CUDA context during `body`. The `dev-id` and `interop` parameters are passed to `init-cuda-context` function which appears in its expansion form.
 
 ### synchronize-context
 
