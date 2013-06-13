@@ -6,16 +6,13 @@ Cl-cuda is in very early stage of development. Any feedbacks are welcome.
 
 ## Example
 
-Following is a part of vector addition example using cl-cuda which is based on the CUDA SDK's "vectorAdd" sample.
+Following is a part of vector addition example using cl-cuda based on the CUDA SDK's "vectorAdd" sample.
 
 Kernel functions are simply written with `defkernel` macro and the cl-cuda kernel description language which has Common Lisp-like syntax.
 
-Once kernel functions are defined, they can be launched as if ordinal Common Lisp functions except that they are followed by `:grid-dim` and `:block-dim` keyword parameters which provide the dimensions of the grid and block.
+Once kernel functions are defined, they can be launched as if ordinal Common Lisp functions except that they are followed by `:grid-dim` and `:block-dim` keyword parameters which provide the dimensions of grid and block.
 
 For the whole code, please see examples/vector-add.lisp.
-
-    (defun random-init ...)
-    (defun verivy-result ...)
 
     (defkernel vec-add-kernel (void ((a float*) (b float*) (c float*) (n int)))
       (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x)))
@@ -36,14 +33,10 @@ For the whole code, please see examples/vector-add.lisp.
             (random-init b n)
             (memcpy-host-to-device a b)
             (vec-add-kernel a b c n
-                            :grid-dim (list blocks-per-grid 1 1)
+                            :grid-dim  (list blocks-per-grid 1 1)
                             :block-dim (list threads-per-block 1 1))
             (memcpy-device-to-host c)
             (verify-result a b c n)))))
-
-## Usage
-
-I will write some usage later. For now, please see the examples directory.
 
 ## Installation
 
@@ -65,15 +58,15 @@ Then use the `(ql:quickload :cl-cuda)` from `REPL` to load it.
 #### Environment 1
 * Mac OS X 10.6.8 (MacBookPro)
 * GeForce 9400M
-* CUDA x
-* SBCL 1.x.xx 32-bit
+* CUDA 4
+* SBCL 1.0.55 32-bit
 * All tests pass, all examples work
 
 #### Environment2
 * Amazon Linux x86_64 (Amazon EC2)
 * Tesla M2050
-* CUDA x
-* SBCL 1.x.xx
+* CUDA 4
+* SBCL 1.1.7 64-bit
 * All tests pass, all examples which are verified work (others not tried yet)
 
 #### Environment3(Thanks to Viktor Cerovski)
