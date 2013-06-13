@@ -105,7 +105,11 @@ Unloads a kernel module, destroys a CUDA context and releases all related resour
 
 The macro `with-cuda-context` keeps a CUDA context during `body`. The `dev-id` and `interop` parameters are passed to `init-cuda-context` function which appears in its expansion form.
 
-### synchronize-context
+### [Function] synchronize-context
+
+    synchronize-context
+
+Blocks until the device has completed all preceding requested tasks.
 
 ### alloc-memory-block
 
