@@ -103,7 +103,7 @@ Unloads a kernel module, destroys a CUDA context and releases all related resour
 
     with-cuda-context (dev-id &key (interop nil)) &body body
 
-The macro `with-cuda-context` keeps a CUDA context during `body`. The `dev-id` and `interop` parameters are passed to `init-cuda-context` function which appears in its expansion form.
+Keeps a CUDA context during `body`. The `dev-id` and `interop` parameters are passed to `init-cuda-context` function which appears in its expansion form.
 
 ### [Function] synchronize-context
 
