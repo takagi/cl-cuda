@@ -127,6 +127,10 @@ Binds `var` to a memory block allocated using `alloc-memory-block` applied given
 
 ### [Accessor] mem-aref
 
+    mem-aref block index => value
+
+Accesses the memory block `block` element specified by the `index`. Since the accessed memory area via `mem-aref` is that on host memory, use `memcpy-host-to-device` and `memcpy-device-to-host` functions to synchronize stored data on host and device memory areas.
+
 ### [Function] memcpy-host-to-device
 
 ### [Function] memcpy-device-to-host
