@@ -133,7 +133,15 @@ Accesses the memory block `block` element specified by the `index`. Since the ac
 
 ### [Function] memcpy-host-to-device
 
+    memcpy-host-to-device &rest blocks
+
+Copies from host memory to device memory for given memory blocks `blocks` which abstract the memory areas.
+
 ### [Function] memcpy-device-to-host
+
+    memcpy-device-to-host &rest blocks
+
+Copies from device memory to host memory for given memory blocks `blocks` which abstract the memory areas.
 
 ### [Special Variable] \*nvcc-options\*
 
