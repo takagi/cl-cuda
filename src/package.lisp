@@ -13,7 +13,8 @@
            :init-cuda-context
            :release-cuda-context
            :synchronize-context
-           :with-memory-blocks          ; Memory Block
+           :with-memory-block           ; Memory Block
+           :with-memory-blocks
            :alloc-memory-block
            :free-memory-block
            :memory-block-type
