@@ -118,12 +118,14 @@ If the `interop` parameter is nil, linear memory areas are allocated to be used 
 
 Frees `block` previously allocated by `alloc-memory-block`. Freeing a given memory block twice does nothing.
 
-### [Macro] with-memory-blocks
+### [Macro] with-memory-block, with-memory-blocks
 
+    with-memory-block (var type size &key (interop nil)) &body body
+    
     with-memory-blocks (bindings) &body body
     bindings ::= {(var type size &key (interop nil))}*
 
-Binds `var` to a memory block allocated using `alloc-memory-block` applied given `type`, `size` and `interop` parameters during `body`.
+Bind `var` to a memory block allocated using `alloc-memory-block` applied to given `type`, `size` and `interop` parameters during `body`. `with-memory-blocks` is a plural form of `with-memory-block`.
 
 ### [Accessor] mem-aref
 
