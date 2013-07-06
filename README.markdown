@@ -118,13 +118,32 @@ If the `interop` parameter is nil, linear memory areas are allocated to be used 
 
 Frees `block` previously allocated by `alloc-memory-block`. Freeing a given memory block twice does nothing.
 
-### [Macro] with-memory-block
+### [Macro] with-memory-block, with-memory-blocks
+
+    with-memory-block (var type size &key (interop nil)) &body body
+    
+    with-memory-blocks (bindings) &body body
+    bindings ::= {(var type size &key (interop nil))}*
+
+Bind `var` to a memory block allocated using `alloc-memory-block` applied to given `type`, `size` and `interop` parameters during `body`. `with-memory-blocks` is a plural form of `with-memory-block`.
 
 ### [Accessor] mem-aref
 
+    mem-aref block index => value
+
+Accesses the memory block `block` element specified by the `index`. Since the accessed memory area via `mem-aref` is that on host memory, use `memcpy-host-to-device` and `memcpy-device-to-host` functions to synchronize stored data on host and device memory areas.
+
 ### [Function] memcpy-host-to-device
 
+    memcpy-host-to-device &rest blocks
+
+Copies from host memory to device memory for given memory blocks `blocks` which abstract the memory areas.
+
 ### [Function] memcpy-device-to-host
+
+    memcpy-device-to-host &rest blocks
+
+Copies from device memory to host memory for given memory blocks `blocks` which abstract the memory areas.
 
 ### [Special Variable] \*nvcc-options\*
 
