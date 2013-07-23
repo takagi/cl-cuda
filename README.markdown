@@ -45,7 +45,7 @@ Since cl-cuda is not available in Quicklisp distribution yet, please use Quickli
     $ cd ~/quicklisp/local-projects
     $ git clone git://github.com/takagi/cl-cuda.git
 
-Then use the `(ql:quickload :cl-cuda)` from `REPL` to load it.
+Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
 ## Requirements
 
