@@ -68,13 +68,29 @@ Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 * CUDA 4
 * SBCL 1.1.7 64-bit
 * All tests pass, all examples which are verified work (others not tried yet)
+* `(setf *nvcc-options* (list "-arch=sm_20" "-m32"))` needed
 
-#### Environment3(Thanks to Viktor Cerovski)
+#### Environment3 (Thanks to Viktor Cerovski)
 * Linux 3.5.0-32-generic Ubuntu SMP x86_64
 * GeFroce 9800 GT
 * CUDA 5
 * SBCL 1.1.7 64-bit
 * All tests pass, all examples work
+
+#### Environment4 (Thanks to wvxvw)
+
+Basic information:
+* Fedra18 x86_64
+* GeForce GTX 560M
+* CUDA 5.5
+* SBCL 1.1.2-1.fc18
+* `vector-add` example works (didn't try the rest yet)
+
+Further information: 
+* `(setf *nvcc-options* (list "-arch=sm_20" "-m32"))` needed
+* using video drivers from `rpmfusion` instead of the ones in `cuda` package
+* for details https://github.com/takagi/cl-cuda/issues/1#issuecomment-22813518
+
 
 ## API
 
