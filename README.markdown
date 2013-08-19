@@ -89,7 +89,7 @@ Basic information:
 Further information: 
 * `(setf *nvcc-options* (list "-arch=sm_20" "-m32"))` needed
 * using video drivers from `rpmfusion` instead of the ones in `cuda` package
-* for details https://github.com/takagi/cl-cuda/issues/1#issuecomment-22813518
+* for [details](https://github.com/takagi/cl-cuda/issues/1#issuecomment-22813518)
 
 
 ## API
