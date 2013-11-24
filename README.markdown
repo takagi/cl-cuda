@@ -91,6 +91,12 @@ Further information:
 * using video drivers from `rpmfusion` instead of the ones in `cuda` package
 * for [details](https://github.com/takagi/cl-cuda/issues/1#issuecomment-22813518)
 
+#### Environment5 (Thanks to Atabey Kaygun)
+* Linux 3.11-2-686-pae SMP Debian 3.11.8-1 (2013-11-13) i686 GNU/Linux
+* NVIDIA Corporation GK106 [GeForce GTX 660] (rev a1)
+* CUDA 5.5
+* SBCL 1.1.12
+* All tests pass, all examples work
 
 ## API
 
