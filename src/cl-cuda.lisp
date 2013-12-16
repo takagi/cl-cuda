@@ -275,6 +275,9 @@
     (format t "~A succeeded.~%" name))
   (values))
 
+(declaim (special +built-in-functions+))
+(declaim (special +built-in-macros+))
+(declaim (special *kernel-manager*))
 
 ;;;
 ;;; Definition of with- macro for CUDA driver API
@@ -714,18 +717,18 @@
 
 (defun float3-mem-aref (blk idx)
   ;; give type and slot names as constant explicitly for better performance
-  (let ((ptr (cffi:mem-aref (memory-block-cffi-ptr blk) 'float3 idx)))
-    (make-float3 (cffi:foreign-slot-value ptr 'float3 'x)
-                 (cffi:foreign-slot-value ptr 'float3 'y)
-                 (cffi:foreign-slot-value ptr 'float3 'z))))
+  (let ((ptr (cffi:mem-aptr (memory-block-cffi-ptr blk) '(:struct float3) idx)))
+    (make-float3 (cffi:foreign-slot-value ptr '(:struct float3) 'x)
+                 (cffi:foreign-slot-value ptr '(:struct float3) 'y)
+                 (cffi:foreign-slot-value ptr '(:struct float3) 'z))))
 
 (defun float4-mem-aref (blk idx)
   ;; give type and slot names as constant explicitly for better performance
-  (let ((ptr (cffi:mem-aref (memory-block-cffi-ptr blk) 'float4 idx)))
-    (make-float4 (cffi:foreign-slot-value ptr 'float4 'x)
-                 (cffi:foreign-slot-value ptr 'float4 'y)
-                 (cffi:foreign-slot-value ptr 'float4 'z)
-                 (cffi:foreign-slot-value ptr 'float4 'w))))
+  (let ((ptr (cffi:mem-aptr (memory-block-cffi-ptr blk) '(:struct float4) idx)))
+    (make-float4 (cffi:foreign-slot-value ptr '(:struct float4) 'x)
+                 (cffi:foreign-slot-value ptr '(:struct float4) 'y)
+                 (cffi:foreign-slot-value ptr '(:struct float4) 'z)
+                 (cffi:foreign-slot-value ptr '(:struct float4) 'w))))
                  
 (defun vector-type-mem-aref (blk idx)
   (case (memory-block-type blk)
@@ -752,18 +755,18 @@
 
 (defun float3-setf-mem-aref (blk idx val)
   ;; give type and slot names as constant explicitly for better performance
-  (let ((ptr (cffi:mem-aref (memory-block-cffi-ptr blk) 'float3 idx)))
-    (setf (cffi:foreign-slot-value ptr 'float3 'x) (float3-x val))
-    (setf (cffi:foreign-slot-value ptr 'float3 'y) (float3-y val))
-    (setf (cffi:foreign-slot-value ptr 'float3 'z) (float3-z val))))
+  (let ((ptr (cffi:mem-aptr (memory-block-cffi-ptr blk) '(:struct float3) idx)))
+    (setf (cffi:foreign-slot-value ptr '(:struct float3) 'x) (float3-x val))
+    (setf (cffi:foreign-slot-value ptr '(:struct float3) 'y) (float3-y val))
+    (setf (cffi:foreign-slot-value ptr '(:struct float3) 'z) (float3-z val))))
 
 (defun float4-setf-mem-aref (blk idx val)
   ;; give type and slot names as constant explicitly for better performance
-  (let ((ptr (cffi:mem-aref (memory-block-cffi-ptr blk) 'float4 idx)))
-    (setf (cffi:foreign-slot-value ptr 'float4 'x) (float4-x val))
-    (setf (cffi:foreign-slot-value ptr 'float4 'y) (float4-y val))
-    (setf (cffi:foreign-slot-value ptr 'float4 'z) (float4-z val))
-    (setf (cffi:foreign-slot-value ptr 'float4 'w) (float4-w val))))
+  (let ((ptr (cffi:mem-aptr (memory-block-cffi-ptr blk) '(:struct float4) idx)))
+    (setf (cffi:foreign-slot-value ptr '(:struct float4) 'x) (float4-x val))
+    (setf (cffi:foreign-slot-value ptr '(:struct float4) 'y) (float4-y val))
+    (setf (cffi:foreign-slot-value ptr '(:struct float4) 'z) (float4-z val))
+    (setf (cffi:foreign-slot-value ptr '(:struct float4) 'w) (float4-w val))))
 
 (defun vector-type-setf-mem-aref (blk idx val)
   (case (memory-block-type blk)
@@ -819,7 +822,7 @@
   (remove-if-not #'array-type-p args :key #'cadr))
 
 (defun kernel-arg-ptr-type-binding (arg)
-  ;; (x int) => (x-ptr :int), (y float3) => (y-ptr 'float3)
+  ;; (x int) => (x-ptr :int), (y float3) => (y-ptr '(:struct float3))
   (destructuring-bind (var type) arg
     (if (vector-type-p type)
       `(,(var-ptr var) ',(cffi-type type))
@@ -876,11 +879,11 @@
 ;;
 ;; Expanded:
 ;;
-;; (cffi:with-foreign-objects ((x-ptr :int) (y-ptr 'float3))
+;; (cffi:with-foreign-objects ((x-ptr :int) (y-ptr '(:struct float3)))
 ;;   (setf (cffi:mem-ref x-ptr :int) x)
-;;   (setf (cffi:slot-value y-ptr 'float3 'x) (float3-x y)
-;;         (cffi:slot-value y-ptr 'float3 'y) (float3-y y)
-;;         (cffi:slot-value y-ptr 'float3 'z) (float3-z y))
+;;   (setf (cffi:slot-value y-ptr '(:struct float3) 'x) (float3-x y)
+;;         (cffi:slot-value y-ptr '(:struct float3) 'y) (float3-y y)
+;;         (cffi:slot-value y-ptr '(:struct float3) 'z) (float3-z y))
 ;;   (with-memory-block-device-ptrs ((a-ptr a))
 ;;     (cffi:with-foreign-object (kargs :pointer 3)
 ;;       (setf (cffi:mem-aref kargs :pointer 0) x-ptr)
@@ -942,6 +945,7 @@
 ;;;
 
 (defmacro defkernelconst (name type exp)
+  (declare (ignore type))
   `(kernel-manager-define-symbol-macro *kernel-manager* ',name ',exp))
 
 

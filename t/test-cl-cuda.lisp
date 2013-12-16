@@ -226,7 +226,9 @@
       (cl-cuda::free-memory-block blk))
     (is-error (cl-cuda::alloc-memory-block 'void 1024             ) simple-error)
     (is-error (cl-cuda::alloc-memory-block 'int* 1024             ) simple-error)
-    (is-error (cl-cuda::alloc-memory-block 'int  (* 1024 1024 256)) simple-error)
+    ;; This test seems to rely on the memory available on the gpu.
+    #+nil
+    (is-error (cl-cuda::alloc-memory-block 'int  (* 1024 1024 256 )) simple-error)
     (is-error (cl-cuda::alloc-memory-block 'int  0                ) simple-error)
     (is-error (cl-cuda::alloc-memory-block 'int  -1               ) type-error)))
 
