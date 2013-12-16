@@ -75,10 +75,8 @@
 (cffi:defctype cu-module :pointer)
 (cffi:defctype cu-function :pointer)
 (cffi:defctype cu-stream :pointer)
-(cffi:defctype cu-device-ptr :unsigned-int)
 (cffi:defctype cu-event :pointer)
 (cffi:defctype cu-graphics-resource :pointer)
-(cffi:defctype size-t :unsigned-int)
 
 
 ;;;

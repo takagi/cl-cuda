@@ -7,6 +7,9 @@
   Author: Masayuki Takagi (kamonama@gmail.com)
 |#
 
+(eval-when (:load-toplevel :execute)
+  (asdf:operate 'asdf:load-op 'cffi-grovel))
+
 (in-package :cl-user)
 (defpackage cl-cuda-asd
   (:use :cl :asdf))
@@ -21,6 +24,7 @@
                 :serial t
                 :components
                 ((:file "package")
+                 (cffi-grovel:grovel-file "grovel")
                  (:file "cl-cuda-error-string")
                  (:file "cl-cuda"))))
   :description ""
