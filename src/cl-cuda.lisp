@@ -133,7 +133,7 @@
   (dev cu-device))
 
 ;; cuCtxCreate
-(defcufun (cu-ctx-create "cuCtxCreate") cu-result
+(defcufun (cu-ctx-create "cuCtxCreate_v2") cu-result
   (pctx (:pointer cu-context))
   (flags :unsigned-int)
   (dev cu-device))
@@ -145,29 +145,29 @@
   (dev cu-device))
 
 ;; cuCtxDestroy
-(defcufun (cu-ctx-destroy "cuCtxDestroy") cu-result
-  (pctx cu-context))
+(defcufun (cu-ctx-destroy "cuCtxDestroy_v2") cu-result
+  (ctx cu-context))
 
 ;; cuCtxSynchronize
 (defcufun (cu-ctx-synchronize "cuCtxSynchronize") cu-result)
 
 ;; cuMemAlloc
-(defcufun (cu-mem-alloc "cuMemAlloc") cu-result
+(defcufun (cu-mem-alloc "cuMemAlloc_v2") cu-result
   (dptr (:pointer cu-device-ptr))
   (bytesize size-t))
 
 ;; cuMemFree
-(defcufun (cu-mem-free "cuMemFree") cu-result
+(defcufun (cu-mem-free "cuMemFree_v2") cu-result
   (dptr cu-device-ptr))
 
 ;; cuMemcpyHtoD
-(defcufun (cu-memcpy-host-to-device "cuMemcpyHtoD") cu-result
+(defcufun (cu-memcpy-host-to-device "cuMemcpyHtoD_v2") cu-result
   (dst-device cu-device-ptr)
   (src-host :pointer)
   (byte-count size-t))
 
 ;; cuMemcpyDtoH
-(defcufun (cu-memcpy-device-to-host "cuMemcpyDtoH") cu-result
+(defcufun (cu-memcpy-device-to-host "cuMemcpyDtoH_v2") cu-result
   (dst-host :pointer)
   (src-device cu-device-ptr)
   (byte-count size-t))
@@ -207,7 +207,7 @@
   (flags :unsigned-int))
 
 ;; cuEventDestroy
-(defcufun (cu-event-destroy "cuEventDestroy") cu-result
+(defcufun (cu-event-destroy "cuEventDestroy_v2") cu-result
   (h-event cu-event))
 
 ;; cuEventElapsedTime
