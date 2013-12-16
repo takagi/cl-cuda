@@ -14,7 +14,8 @@
   (:darwin (:framework "CUDA"))
   (:unix (:or "libcuda.so" "libcuda64.so")))
 
-(cffi:use-foreign-library libcuda)
+(ignore-errors
+ (cffi:use-foreign-library libcuda))
 
 
 ;;;
