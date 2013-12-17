@@ -366,6 +366,39 @@
   (z :float)
   (w :float))
 
+(defstruct (double3 (:constructor make-double3 (x y z)))
+  (x 0.0d0 :type double-float)
+  (y 0.0d0 :type double-float)
+  (z 0.0d0 :type double-float))
+
+(defun double3-= (a b)
+  (and (= (double3-x a) (double3-x b))
+       (= (double3-y a) (double3-y b))
+       (= (double3-z a) (double3-z b))))
+
+(cffi:defcstruct double3
+  (x :double)
+  (y :double)
+  (z :double))
+
+(defstruct (double4 (:constructor make-double4 (x y z w)))
+  (x 0.0d0 :type double-float)
+  (y 0.0d0 :type double-float)
+  (z 0.0d0 :type double-float)
+  (w 0.0d0 :type double-float))
+
+(defun double4-= (a b)
+  (and (= (double4-x a) (double4-x b))
+       (= (double4-y a) (double4-y b))
+       (= (double4-z a) (double4-z b))
+       (= (double4-w a) (double4-w b))))
+
+(cffi:defcstruct double4
+  (x :double)
+  (y :double)
+  (z :double)
+  (w :double))
+
 
 ;;;
 ;;; Definition of cl-cuda types
@@ -374,10 +407,13 @@
 (defvar +basic-types+ '((void  0 :void)
                         (bool  1 (:boolean :int8))
                         (int   4 :int)
-                        (float 4 :float)))
+                        (float 4 :float)
+                        (double 8 :double)))
 
 (defvar +vector-types+ '((float3 float 3 float3-x float3-y float3-z)
-                         (float4 float 4 float4-x float4-y float4-z float4-w)))
+                         (float4 float 4 float4-x float4-y float4-z float4-w)
+                         (double3 double 3 double3-x double3-y double3-z)
+                         (double4 double 4 double4-x double4-y double4-z double4-w)))
 
 (defvar +vector-type-elements+ '(x y z w))
 
@@ -475,7 +511,7 @@
 (defun array-type-pointer-size (type)
   (unless (array-type-p type)
     (error (format nil "invalid type: ~A" type)))
-  4)
+  (cffi:foreign-type-size 'cu-device-ptr))
 
 (defun array-type-dimension (type)
   (unless (array-type-p type)
@@ -722,6 +758,7 @@
     (bool  (cffi:mem-aref (memory-block-cffi-ptr blk) '(:boolean :int8) idx))
     (int   (cffi:mem-aref (memory-block-cffi-ptr blk) :int              idx))
     (float (cffi:mem-aref (memory-block-cffi-ptr blk) :float            idx))
+    (double (cffi:mem-aref (memory-block-cffi-ptr blk) :double          idx))
     (t (error "must not be reached"))))
 
 (defun float3-mem-aref (blk idx)
@@ -739,10 +776,27 @@
                  (cffi:foreign-slot-value ptr '(:struct float4) 'z)
                  (cffi:foreign-slot-value ptr '(:struct float4) 'w))))
                  
+(defun double3-mem-aref (blk idx)
+  ;; give type and slot names as constant explicitly for better performance
+  (let ((ptr (cffi:mem-aptr (memory-block-cffi-ptr blk) '(:struct double3) idx)))
+    (make-double3 (cffi:foreign-slot-value ptr '(:struct double3) 'x)
+                 (cffi:foreign-slot-value ptr '(:struct double3) 'y)
+                 (cffi:foreign-slot-value ptr '(:struct double3) 'z))))
+
+(defun double4-mem-aref (blk idx)
+  ;; give type and slot names as constant explicitly for better performance
+  (let ((ptr (cffi:mem-aptr (memory-block-cffi-ptr blk) '(:struct double4) idx)))
+    (make-double4 (cffi:foreign-slot-value ptr '(:struct double4) 'x)
+                 (cffi:foreign-slot-value ptr '(:struct double4) 'y)
+                 (cffi:foreign-slot-value ptr '(:struct double4) 'z)
+                 (cffi:foreign-slot-value ptr '(:struct double4) 'w))))
+                 
 (defun vector-type-mem-aref (blk idx)
   (case (memory-block-type blk)
     (float3 (float3-mem-aref blk idx))
     (float4 (float4-mem-aref blk idx))
+    (double3 (double3-mem-aref blk idx))
+    (double4 (double4-mem-aref blk idx))
     (t (error "must not be reached"))))
 
 (defun mem-aref (blk idx)
@@ -760,6 +814,7 @@
     (bool  (setf (cffi:mem-aref (memory-block-cffi-ptr blk) '(:boolean :int8) idx) val))
     (int   (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :int              idx) val))
     (float (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :float            idx) val))
+    (double (setf (cffi:mem-aref (memory-block-cffi-ptr blk) :double          idx) val))
     (t (error "must not be reached"))))
 
 (defun float3-setf-mem-aref (blk idx val)
@@ -777,10 +832,27 @@
     (setf (cffi:foreign-slot-value ptr '(:struct float4) 'z) (float4-z val))
     (setf (cffi:foreign-slot-value ptr '(:struct float4) 'w) (float4-w val))))
 
+(defun double3-setf-mem-aref (blk idx val)
+  ;; give type and slot names as constant explicitly for better performance
+  (let ((ptr (cffi:mem-aptr (memory-block-cffi-ptr blk) '(:struct double3) idx)))
+    (setf (cffi:foreign-slot-value ptr '(:struct double3) 'x) (double3-x val))
+    (setf (cffi:foreign-slot-value ptr '(:struct double3) 'y) (double3-y val))
+    (setf (cffi:foreign-slot-value ptr '(:struct double3) 'z) (double3-z val))))
+
+(defun double4-setf-mem-aref (blk idx val)
+  ;; give type and slot names as constant explicitly for better performance
+  (let ((ptr (cffi:mem-aptr (memory-block-cffi-ptr blk) '(:struct double4) idx)))
+    (setf (cffi:foreign-slot-value ptr '(:struct double4) 'x) (double4-x val))
+    (setf (cffi:foreign-slot-value ptr '(:struct double4) 'y) (double4-y val))
+    (setf (cffi:foreign-slot-value ptr '(:struct double4) 'z) (double4-z val))
+    (setf (cffi:foreign-slot-value ptr '(:struct double4) 'w) (double4-w val))))
+
 (defun vector-type-setf-mem-aref (blk idx val)
   (case (memory-block-type blk)
     (float3 (float3-setf-mem-aref blk idx val))
     (float4 (float4-setf-mem-aref blk idx val))
+    (double3 (double3-setf-mem-aref blk idx val))
+    (double4 (double4-setf-mem-aref blk idx val))
     (t (error "must not be unreached"))))
 
 (defun (setf mem-aref) (val blk idx)
@@ -1502,10 +1574,10 @@
 (defun get-include-path ()
   (namestring (asdf:system-relative-pathname :cl-cuda #P"include")))
 
-(defvar *nvcc-options*
+(defparameter *nvcc-options*
   ;; compute capability 1.3 is needed for double floats, but 2.0 for
   ;; good performance
-  (list "-arch=sm_13"))
+  (list "-arch=sm_20"))
 
 (defun get-nvcc-options (include-path cu-path ptx-path)
   (append *nvcc-options*
@@ -1668,6 +1740,9 @@
              "#include \"float.h\""
              "#include \"float3.h\""
              "#include \"float4.h\""
+             "#include \"double.h\""
+             "#include \"double3.h\""
+             "#include \"double4.h\""
              ""
              ,@(compile-kernel-function-prototypes def)
              ""
@@ -2261,54 +2336,88 @@ and false as values."
   '(%add (((int    int)    int    t   "+")
           ((float  float)  float  t   "+")
           ((float3 float3) float3 nil "float3_add")
-          ((float4 float4) float4 nil "float4_add"))
+          ((float4 float4) float4 nil "float4_add")
+          ((double  double)  double  t   "+")
+          ((double3 double3) double3 nil "double3_add")
+          ((double4 double4) double4 nil "double4_add"))
     %sub (((int    int)    int    t   "-")
           ((float  float)  float  t   "-")
           ((float3 float3) float3 nil "float3_sub")
-          ((float4 float4) float4 nil "float4_sub"))
+          ((float4 float4) float4 nil "float4_sub")
+          ((double  double)  double  t   "-")
+          ((double3 double3) double3 nil "double3_sub")
+          ((double4 double4) double4 nil "double4_sub"))
     %mul (((int    int)    int    t   "*")
           ((float  float)  float  t   "*")
           ((float3 float)  float3 nil "float3_scale")
           ((float  float3) float3 nil "float3_scale_flipped")
           ((float4 float)  float4 nil "float4_scale")
-          ((float  float4) float4 nil "float4_scale_flipped"))
+          ((float  float4) float4 nil "float4_scale_flipped")
+          ((double  double)  double  t   "*")
+          ((double3 double)  double3 nil "double3_scale")
+          ((double  double3) double3 nil "double3_scale_flipped")
+          ((double4 double)  double4 nil "double4_scale")
+          ((double  double4) double4 nil "double4_scale_flipped"))
     %div (((int    int)    int    t   "/")
           ((float  float)  float  t   "/")
           ((float3 float)  float3 nil "float3_scale_inverted")
-          ((float4 float)  float4 nil "float4_scale_inverted"))
+          ((float4 float)  float4 nil "float4_scale_inverted")
+          ((double  double)  double  t   "/")
+          ((double3 double)  double3 nil "double3_scale_inverted")
+          ((double4 double)  double4 nil "double4_scale_inverted"))
     %negate (((int)    int    nil "int_negate")
              ((float)  float  nil "float_negate")
              ((float3) float3 nil "float3_negate")
-             ((float4) float4 nil "float4_negate"))
+             ((float4) float4 nil "float4_negate")
+             ((double)  double  nil "double_negate")
+             ((double3) double3 nil "double3_negate")
+             ((double4) double4 nil "double4_negate"))
     %recip (((int)    int    nil "int_recip")
             ((float)  float  nil "float_recip")
             ((float3) float3 nil "float3_recip")
-            ((float4) float4 nil "float4_recip"))
+            ((float4) float4 nil "float4_recip")
+            ((double)  double  nil "double_recip")
+            ((double3) double3 nil "double3_recip")
+            ((double4) double4 nil "double4_recip"))
     =    (((int   int)   bool t "==")
-          ((float float) bool t "=="))
+          ((float float) bool t "==")
+          ((double double) bool t "=="))
     /=   (((int   int)   bool t "!=")
-          ((float float) bool t "!="))
+          ((float float) bool t "!=")
+          ((double double) bool t "!="))
     <    (((int   int)   bool t "<")
-          ((float float) bool t "<"))
+          ((float float) bool t "<")
+          ((double double) bool t "<"))
     >    (((int   int)   bool t ">")
-          ((float float) bool t ">"))
+          ((float float) bool t ">")
+          ((double double) bool t ">"))
     <=   (((int   int)   bool t "<=")
-          ((float float) bool t "<="))
+          ((float float) bool t "<=")
+          ((double double) bool t "<="))
     >=   (((int   int)   bool t ">=")
-          ((float float) bool t ">="))
+          ((float float) bool t ">=")
+          ((double double) bool t ">="))
     not  (((bool) bool nil "!"))
-    expt   (((float float) float nil "powf"))
-    rsqrtf (((float) float nil "rsqrtf"))
-    sqrt   (((float) float nil "sqrtf"))
-    floor  (((float) int   nil "floorf"))
+    expt   (((float float) float nil "powf")
+            ((double double) double nil "pow"))
+    rsqrtf (((float) float nil "rsqrtf")
+            ((double) double nil "rsqrt"))
+    sqrt   (((float) float nil "sqrtf")
+            ((double) double nil "sqrt"))
+    floor  (((float) int   nil "floorf")
+            ((double) int   nil "floor"))
     atomic-add (((int* int) int nil "atomicAdd"))
     pointer (((int)   int*   nil "&")
-             ((float) float* nil "&"))
+             ((float) float* nil "&")
+             ((double) double* nil "&"))
     float3 (((float float float) float3 nil "make_float3"))
     float4 (((float float float float) float4 nil "make_float4"))
+    double3 (((double double double) double3 nil "make_double3"))
+    double4 (((double double double double) double4 nil "make_double4"))
     dot (((float3 float3) float nil "float3_dot")
-         ((float4 float4) float nil "float4_dot"))
-    ))
+         ((float4 float4) float nil "float4_dot")
+         ((double3 double3) double nil "double3_dot")
+         ((double4 double4) double nil "double4_dot"))))
 
 (defun function-candidates (op)
   (or (getf +built-in-functions+ op)
@@ -2439,7 +2548,8 @@ and false as values."
 (defun literal-p (exp)
   (or (bool-literal-p exp)
       (int-literal-p exp)
-      (float-literal-p exp)))
+      (float-literal-p exp)
+      (double-literal-p exp)))
 
 (defun bool-literal-p (exp)
   (typep exp 'boolean))
@@ -2449,6 +2559,9 @@ and false as values."
 
 (defun float-literal-p (exp)
   (typep exp 'single-float))
+
+(defun double-literal-p (exp)
+  (typep exp 'double-float))
 
 (defun compile-bool-literal (exp)
   (unless (typep exp 'boolean)
@@ -2461,10 +2574,14 @@ and false as values."
 (defun compile-float-literal (exp)
   (princ-to-string exp))
 
+(defun compile-double-literal (exp)
+  (format nil "(double)~S" (float exp 0.0)))
+
 (defun compile-literal (exp)
   (cond ((bool-literal-p  exp) (compile-bool-literal exp))
         ((int-literal-p   exp) (compile-int-literal exp))
         ((float-literal-p exp) (compile-float-literal exp))
+        ((double-literal-p exp) (compile-double-literal exp))
         (t (error "invalid literal: ~A" exp))))
 
 (defun cuda-dimension-p (exp)
@@ -2604,6 +2721,7 @@ and false as values."
   (cond ((bool-literal-p exp) 'bool)
         ((int-literal-p exp) 'int)
         ((float-literal-p exp) 'float)
+        ((double-literal-p exp) 'double)
         (t (error "invalid expression: ~A" exp))))
 
 (defun type-of-variable (exp var-env)
