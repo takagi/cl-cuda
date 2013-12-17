@@ -625,24 +625,34 @@
 
 (defmacro with-memory-block-device-ptr ((device-ptr blk) &body body)
   (with-gensyms (do-body gres-ptr gres size-ptr)
-    `(labels ((,do-body (,device-ptr)
-                ,@body))
-       (if (memory-block-interop-p ,blk)
-           (let* ((,gres-ptr   (memory-block-graphic-resource-ptr ,blk))
-                  (,gres       (cffi:mem-ref ,gres-ptr 'cu-graphics-resource))
-                  (,device-ptr (cffi:foreign-alloc 'cu-device-ptr))
-                  (,size-ptr   (cffi:foreign-alloc :unsigned-int)))
-             (unwind-protect
-                  (progn
-                    (cu-graphics-resource-set-map-flags ,gres cu-graphics-map-resource-flags-none)
-                    (cu-graphics-map-resources 1 ,gres-ptr (cffi:null-pointer))
-                    (cu-graphics-resource-get-mapped-pointer ,device-ptr ,size-ptr ,gres)
-                    (,do-body ,device-ptr)
-                    (cu-graphics-unmap-resources 1 ,gres-ptr (cffi:null-pointer)))
-               (cffi:foreign-free ,size-ptr)
-               (cffi:foreign-free ,device-ptr)))
-           (let ((,device-ptr (memory-block-device-ptr ,blk)))
-             (,do-body ,device-ptr))))))
+    `(flet ((,do-body (,device-ptr)
+              ,@body))
+       (cond ((integerp ,blk)
+              ;; we need to pass a pointer to the device pointer
+              (cffi:with-foreign-object (ptr :pointer)
+                (setf (cffi:mem-aref ptr :pointer) (cffi:make-pointer,blk))
+                (,do-body ptr)))
+             ((cffi:pointerp ,blk)
+              (cffi:with-foreign-object (ptr :pointer)
+                (setf (cffi:mem-aref ptr :pointer) ,blk)
+                (,do-body ptr)))
+             ((memory-block-interop-p ,blk)
+              (let* ((,gres-ptr   (memory-block-graphic-resource-ptr ,blk))
+                     (,gres       (cffi:mem-ref ,gres-ptr 'cu-graphics-resource))
+                     (,device-ptr (cffi:foreign-alloc 'cu-device-ptr))
+                     (,size-ptr   (cffi:foreign-alloc :unsigned-int)))
+                (unwind-protect
+                     (progn
+                       (cu-graphics-resource-set-map-flags ,gres cu-graphics-map-resource-flags-none)
+                       (cu-graphics-map-resources 1 ,gres-ptr (cffi:null-pointer))
+                       (cu-graphics-resource-get-mapped-pointer ,device-ptr ,size-ptr ,gres)
+                       (,do-body ,device-ptr)
+                       (cu-graphics-unmap-resources 1 ,gres-ptr (cffi:null-pointer)))
+                  (cffi:foreign-free ,size-ptr)
+                  (cffi:foreign-free ,device-ptr))))
+             (t
+              (let ((,device-ptr (memory-block-device-ptr ,blk)))
+                (,do-body ,device-ptr)))))))
 
 (defun memory-block-vertex-buffer-object (blk)
   (if (memory-block-interop-p blk)
@@ -1492,7 +1502,10 @@
 (defun get-include-path ()
   (namestring (asdf:system-relative-pathname :cl-cuda #P"include")))
 
-(defvar *nvcc-options* (list "-arch=sm_11"))
+(defvar *nvcc-options*
+  ;; compute capability 1.3 is needed for double floats, but 2.0 for
+  ;; good performance
+  (list "-arch=sm_13"))
 
 (defun get-nvcc-options (include-path cu-path ptx-path)
   (append *nvcc-options*
