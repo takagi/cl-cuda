@@ -79,6 +79,14 @@
 (cffi:defctype cu-event :pointer)
 (cffi:defctype cu-graphics-resource :pointer)
 
+(cffi:defcstruct curand-state-xorwow
+  (d :unsigned-int)
+  (v :unsigned-int :count 5)
+  (boxmuller-flag :int)
+  (boxmuller-flag-double :int)
+  (boxmuller-extra :float)
+  (boxmuller-extra-double :double))
+
 
 ;;;
 ;;; Definition of CUDA driver API enums
@@ -404,11 +412,15 @@
 ;;; Definition of cl-cuda types
 ;;;
 
-(defvar +basic-types+ '((void  0 :void)
-                        (bool  1 (:boolean :int8))
-                        (int   4 :int)
-                        (float 4 :float)
-                        (double 8 :double)))
+(defparameter +basic-types+ `((void  0 :void)
+                              (bool  1 (:boolean :int8))
+                              (int   4 :int)
+                              (float 4 :float)
+                              (double 8 :double)
+                              (curand-state-xorwow
+                               ,(cffi:foreign-type-size
+                                 '(:struct curand-state-xorwow))
+                               (:pointer :struct curand-state-xorwow))))
 
 (defvar +vector-types+ '((float3 float 3 float3-x float3-y float3-z)
                          (float4 float 4 float4-x float4-y float4-z float4-w)
@@ -1670,7 +1682,12 @@
 (defun compile-type (type)
   (unless (valid-type-p type)
     (error (format nil "invalid type: ~A" type)))
-  (compile-identifier (princ-to-string type)))
+  (cond ((eq type 'curand-state-xorwow)
+         "curandStateXORWOW_t")
+        ((eq type 'curand-state-xorwow*)
+         "curandStateXORWOW_t *")
+        (t
+         (compile-identifier (princ-to-string type)))))
 
 (defun compile-argument (arg)
   (destructuring-bind (var type) arg
@@ -1743,6 +1760,7 @@
              "#include \"double.h\""
              "#include \"double3.h\""
              "#include \"double4.h\""
+             "#include \"curand.h\""
              ""
              ,@(compile-kernel-function-prototypes def)
              ""
@@ -2332,7 +2350,7 @@ and false as values."
 ;;;   <function-candidate>  ::= (<arg-types> <return-type> <function-c-name>)
 ;;;   <arg-types>           ::= (<arg-type>*)
 
-(defvar +built-in-functions+
+(defparameter +built-in-functions+
   '(%add (((int    int)    int    t   "+")
           ((float  float)  float  t   "+")
           ((float3 float3) float3 nil "float3_add")
@@ -2409,7 +2427,8 @@ and false as values."
     atomic-add (((int* int) int nil "atomicAdd"))
     pointer (((int)   int*   nil "&")
              ((float) float* nil "&")
-             ((double) double* nil "&"))
+             ((double) double* nil "&")
+             ((curand-state-xorwow) curand-state-xorwow* nil "&"))
     float3 (((float float float) float3 nil "make_float3"))
     float4 (((float float float float) float4 nil "make_float4"))
     double3 (((double double double) double3 nil "make_double3"))
@@ -2417,7 +2436,15 @@ and false as values."
     dot (((float3 float3) float nil "float3_dot")
          ((float4 float4) float nil "float4_dot")
          ((double3 double3) double nil "double3_dot")
-         ((double4 double4) double nil "double4_dot"))))
+         ((double4 double4) double nil "double4_dot"))
+    ;; It's :UNSIGNED-LONG-LONG, but this wrapper function only
+    ;; supports INT.
+    curand-init-xorwow (((int int int curand-state-xorwow*) void nil
+                         "curand_init_xorwow"))
+    curand-uniform-float-xorwow (((curand-state-xorwow*) float nil
+                                  "curand_uniform_float_xorwow"))
+    curand-uniform-double-xorwow (((curand-state-xorwow*) double nil
+                                   "curand_uniform_double_xorwow"))))
 
 (defun function-candidates (op)
   (or (getf +built-in-functions+ op)

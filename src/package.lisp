@@ -43,6 +43,9 @@
            :double4 :make-double4
            :double4-p
            :double4-x :double4-y :double4-z :double4-w :double4-=
+           :curand-state-xorwow :curand-state-xorwow*   ; Curand
+           :curand-init-xorwow :curand-uniform-float-xorwow
+           :curand-uniform-double-xorwow
            :defkernel :defkernelmacro :defkernelconst   ; Kernel Description Language
            :void :bool :bool* :int :int*
            :float :float* :float3 :float3* :float4 :float4*
