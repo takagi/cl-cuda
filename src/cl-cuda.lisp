@@ -334,7 +334,19 @@
         (setf device nil))))
   
   (defun synchronize-context ()
-    (cu-ctx-synchronize)))
+    (cu-ctx-synchronize))
+  
+  (defun cuda-initialized-p ()
+    (not (null context)))
+
+  (defun cuda-available-p ()
+    (let ((*show-messages* nil))
+      (or (cuda-initialized-p)
+          (cffi:with-foreign-objects ((device 'cu-device))
+            (ignore-errors
+             (cu-init 0)
+             (cu-device-get device 0)
+             t))))))
 
 
 ;;;

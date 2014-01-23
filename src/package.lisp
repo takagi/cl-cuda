@@ -13,6 +13,8 @@
            :init-cuda-context
            :release-cuda-context
            :synchronize-context
+           :cuda-initialized-p
+           :cuda-available-p
            :with-memory-block           ; Memory Block
            :with-memory-blocks
            :alloc-memory-block
