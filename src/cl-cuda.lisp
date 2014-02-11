@@ -346,8 +346,14 @@
             (ignore-errors
              (cu-init 0)
              (cu-device-get device 0)
-             t))))))
-
+             t)))))
+  
+  (defun device-compute-capability ()
+    (cffi:with-foreign-objects ((major :int)
+                                (minor :int))
+      (cu-device-compute-capability major minor (cffi:mem-ref device :int))
+      (values (cffi:mem-ref major :int)
+              (cffi:mem-ref minor :int)))))
 
 ;;;
 ;;; Definition of Built-in Vector Types

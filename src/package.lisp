@@ -15,6 +15,7 @@
            :synchronize-context
            :cuda-initialized-p
            :cuda-available-p
+           :device-compute-capability
            :with-memory-block           ; Memory Block
            :with-memory-blocks
            :alloc-memory-block
