@@ -3280,7 +3280,11 @@ and false as values."
 ;;;
 
 (defun compile-identifier (idt)
-  (substitute #\_ #\% (substitute #\_ #\. (substitute #\_ #\- (string-downcase idt)))))
+  (substitute-if #\_ (lambda (char)
+                       (and (not (alphanumericp char))
+                            (not (char= #\_ char))
+                            (not (char= #\* char))))
+                 (string-downcase idt)))
 
 (defun compile-identifier-with-package-name (name)
   (let ((package-name (compile-identifier (package-name (symbol-package name))))
