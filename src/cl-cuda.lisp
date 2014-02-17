@@ -1617,15 +1617,18 @@
   (with-open-file (out path :direction :output :if-exists :supersede)
     (princ (compile-kernel-definition (kernel-definition mgr)) out)))
 
+(defvar *nvcc-binary* "nvcc"
+  "Set this to an absolute path if your lisp doesn't search PATH.")
+
 (defun output-nvcc-command (opts)
-  (format t "nvcc~{ ~A~}~%" opts))
+  (format t "~A~{ ~A~}~%" *nvcc-binary* opts))
 
 (defun run-nvcc-command (opts)
   (with-output-to-string (out)
-    (let ((p (sb-ext:run-program "nvcc" opts :search t :error out)))
-      (unless (= 0 (sb-ext:process-exit-code p))
-        (error "nvcc exits with code: ~A~%~A"
-               (sb-ext:process-exit-code p)
+    (multiple-value-bind (status exit-code)
+        (external-program:run *nvcc-binary* opts :error out)
+      (unless (and (eq status :exited) (= 0 exit-code))
+        (error "nvcc exits with code: ~A~%~A" exit-code
                (get-output-stream-string out))))))
 
 (defun compile-cu-code (include-path cu-path ptx-path)

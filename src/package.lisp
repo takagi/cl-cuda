@@ -7,6 +7,7 @@
 (defpackage cl-cuda
   (:use :cl :alexandria :anaphora :cl-pattern)
   (:export :*nvcc-options*              ; configuration
+           :*nvcc-binary*
            :*tmp-path*
            :*show-messages*
            :with-cuda-context           ; CUDA context
