@@ -4,6 +4,7 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-test.lang
-  (:use :cl :cl-test-more
-        :cl-cuda.lang))
+(defpackage cl-cuda-test
+  (:use :cl
+        :cl-cuda
+        :cl-test-more))

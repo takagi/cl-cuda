@@ -8,7 +8,7 @@
   Timestamp: Nov. 23 2012
 |#
 
-(in-package :cl-cuda.driver-api)
+(in-package :cl-cuda)
 
 (defparameter +error-strings+
   '(0 "CUDA_SUCCESS"
