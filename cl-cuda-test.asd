@@ -16,6 +16,19 @@
   :components ((:module "t"
                 :serial t
                 :components
-                ((:file "package")
-                 (:file "test-cl-cuda"))))
+                ((:module "driver-api"
+                  :serial t
+                  :components
+                  ((:file "package")
+                   (:file "driver-api")))
+                 (:module "lang"
+                  :serial t
+                  :components
+                  ((:file "package")
+                   (:file "lang")))
+                 (:module "api"
+                  :serial t
+                  :components
+                  ((:file "package")
+                   (:file "api"))))))
   :perform (load-op :after (op c) (asdf:clear-system c)))

@@ -3,10 +3,6 @@
   Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
 |#
 
-#|
-  Author: Masayuki Takagi (kamonama@gmail.com)
-|#
-
 (eval-when (:load-toplevel :execute)
   (asdf:operate 'asdf:load-op 'cffi-grovel))
 
@@ -20,14 +16,28 @@
   :author "Masayuki Takagi"
   :license "LLGPL"
   :depends-on (:cffi :alexandria :anaphora :external-program :osicat
-               :cl-pattern :split-sequence :cl-opengl #|:cl-glut|#)
+               :cl-pattern :split-sequence :cl-reexport :cl-opengl #|:cl-glut|#)
   :components ((:module "src"
                 :serial t
                 :components
-                ((:file "package")
-                 (cffi-grovel:grovel-file "grovel")
-                 (:file "cl-cuda-error-string")
-                 (:file "cl-cuda"))))
+                ((:module "driver-api"
+                  :serial t
+                  :components
+                  ((:file "package")
+                   (:file "get-error-string")
+                   (cffi-grovel:grovel-file "grovel")
+                   (:file "driver-api")))
+                 (:module "lang"
+                  :serial t
+                  :components
+                  ((:file "package")
+                   (:file "lang")))
+                 (:module "api"
+                  :serial t
+                  :components
+                  ((:file "package")
+                   (:file "api")))
+                 (:file "package"))))
   :description ""
   :long-description
   #.(with-open-file (stream (merge-pathnames
