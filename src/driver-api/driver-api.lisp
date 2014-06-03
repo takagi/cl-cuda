@@ -294,7 +294,6 @@
     context))
 
 (defun destroy-cu-context (context)
-  ;; destroy CUcontext
   (cu-ctx-destroy context))
 
 (defmacro with-cu-context ((dev-id) &body body)
