@@ -20,10 +20,21 @@
        (= (float3-y a) (float3-y b))
        (= (float3-z a) (float3-z b))))
 
-(cffi:defcstruct float3
+(cffi:defcstruct (float3 :class float3-c)
   (x :float)
   (y :float)
   (z :float))
+
+(defmethod cffi:translate-into-foreign-memory ((value float3)
+                                               (type float3-c) ptr)
+  (cffi:with-foreign-slots ((x y z) ptr (:struct float3))
+    (setf x (float3-x value)
+          y (float3-y value)
+          z (float3-z value))))
+
+(defmethod cffi:translate-from-foreign (value (type float3-c))
+  (cffi:with-foreign-slots ((x y z) value (:struct float3))
+    (make-float3 x y z)))
 
 (defstruct (float4 (:constructor make-float4 (x y z w)))
   (x 0.0 :type single-float)
@@ -110,6 +121,9 @@
                          (double4 double 4 double4-x double4-y double4-z double4-w)))
 
 (defvar +vector-type-elements+ '(x y z w))
+
+(defun cffi-type-size (type)
+  (type-size type))
 
 (defun type-size (type)
   (cond

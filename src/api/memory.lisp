@@ -1,0 +1,162 @@
+#|
+  This file is a part of cl-cuda project.
+  Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
+|#
+
+(in-package :cl-user)
+(defpackage cl-cuda.api.memory
+  (:use :cl
+        :cl-cuda.driver-api
+        :cl-cuda.lang)
+  (:export ;; Device memory
+           :alloc-device-memory
+           :free-device-memory
+           :with-device-memory
+           ;; Host memory
+           :alloc-host-memory
+           :free-host-memory
+           :with-host-memory
+           ;; Memcpy
+           :memcpy-host-to-device
+           :memcpy-device-to-host
+           ;; Memory block
+           :alloc-memory-block
+           :free-memory-block
+           :memory-block-device-ptr
+           :memory-block-host-ptr
+           :memory-block-type
+           :memory-block-size
+           :with-memory-block
+           :with-memory-blocks
+           :sync-memory-block
+           :memory-block-aref))
+(in-package :cl-cuda.api.memory)
+
+
+;;;
+;;; Device memory
+;;;
+
+(defun alloc-device-memory (type n)
+  (cffi:with-foreign-object (device-ptr 'cu-device-ptr)
+    (cu-mem-alloc device-ptr (* n (cffi-type-size type)))
+    (cffi:mem-ref device-ptr 'cu-device-ptr)))
+
+(defun free-device-memory (device-ptr)
+  (cu-mem-free device-ptr))
+
+(defmacro with-device-memory ((var type n) &body body)
+  `(let ((,var (alloc-device-memory ,type ,n)))
+     (unwind-protect (progn ,@body)
+       (free-device-memory ,var))))
+
+
+;;;
+;;; Host memory
+;;;
+
+(defun alloc-host-memory (type n)
+  (cffi:foreign-alloc (cffi-type type) :count n))
+
+(defun free-host-memory (host-ptr)
+  (cffi:foreign-free host-ptr))
+
+(defmacro with-host-memory ((var type n) &body body)
+  `(let ((,var (alloc-host-memory ,type ,n)))
+     (unwind-protect (progn ,@body)
+       (free-host-memory ,var))))
+
+(defun host-memory-aref (host-ptr type index)
+  ;; give type as constant explicitly for performance reason
+  (let ((cffi-type (cffi-type type)))
+    (cl-pattern:match cffi-type
+      (:int (cffi:mem-aref host-ptr :int index))
+      ((:struct 'float3) (cffi:mem-aref host-ptr '(:struct float3) index))
+      ((:struct 'float4) (cffi:mem-aref host-ptr '(:struct float4) index))
+      (_ (error "The value ~S is an invalid CFFI type." cffi-type)))))
+
+(defun (setf host-memory-aref) (new-value host-ptr type index)
+  ;; give type as constant explicitly for performance reason
+  (let ((cffi-type (cffi-type type)))
+    (cl-pattern:match cffi-type
+      (:int
+       (setf (cffi:mem-aref host-ptr :int index) new-value))
+      ((:struct 'float3)
+       (setf (cffi:mem-aref host-ptr '(:struct float3) index) new-value))
+      ((:struct 'float4)
+       (setf (cffi:mem-aref host-ptr '(:struct float4) index) new-value))
+      (_ (error "The value ~S is an invalid CFFI type." cffi-type)))))
+
+
+;;;
+;;; Memcpy
+;;;
+
+(defun memcpy-host-to-device (device-ptr host-ptr type n)
+  (let ((size (cffi-type-size type)))
+    (cu-memcpy-host-to-device device-ptr host-ptr (* n size))))
+
+(defun memcpy-device-to-host (host-ptr device-ptr type n)
+  (let ((size (cffi-type-size type)))
+    (cu-memcpy-device-to-host host-ptr device-ptr (* n size))))
+
+
+;;;
+;;; Memory block
+;;;
+
+(defstruct (memory-block (:constructor %make-memory-block))
+  (device-ptr :device-ptr :read-only t)
+  (host-ptr :host-ptr :read-only t)
+  (type :type :read-only t)
+  (size :size :read-only t))
+
+(defun alloc-memory-block (type size)
+  (unless (non-pointer-type-p type)
+    (error "The value ~S is an invalid type." type))
+  (let ((device-ptr (alloc-device-memory type size))
+        (host-ptr (alloc-host-memory type size)))
+    (%make-memory-block :device-ptr device-ptr
+                        :host-ptr host-ptr
+                        :type type
+                        :size size)))
+
+(defun free-memory-block (memory-block)
+  (let ((device-ptr (memory-block-device-ptr memory-block))
+        (host-ptr (memory-block-host-ptr memory-block)))
+    (free-device-memory device-ptr)
+    (free-host-memory host-ptr)))
+
+(defmacro with-memory-block ((var type size) &body body)
+  `(let ((,var (alloc-memory-block ,type ,size)))
+     (unwind-protect (progn ,@body)
+       (free-memory-block ,var))))
+
+(defmacro with-memory-blocks (bindings &body body)
+  (if bindings
+      `(with-memory-block ,(car bindings)
+         (with-memory-blocks ,(cdr bindings)
+           ,@body))
+      `(progn ,@body)))
+
+(defun sync-memory-block (memory-block direction)
+  (declare ((member :host-to-device :device-to-host) direction))
+  (let ((device-ptr (memory-block-device-ptr memory-block))
+        (host-ptr (memory-block-host-ptr memory-block))
+        (type (memory-block-type memory-block))
+        (size (memory-block-size memory-block)))
+    (ecase direction
+      (:host-to-device
+       (memcpy-host-to-device device-ptr host-ptr type size))
+      (:device-to-host
+       (memcpy-device-to-host host-ptr device-ptr type size)))))
+
+(defun memory-block-aref (memory-block index)
+  (let ((host-ptr (memory-block-host-ptr memory-block))
+        (type (memory-block-type memory-block)))
+    (host-memory-aref host-ptr type index)))
+
+(defun (setf memory-block-aref) (new-value memory-block index)
+  (let ((host-ptr (memory-block-host-ptr memory-block))
+        (type (memory-block-type memory-block)))
+    (setf (host-memory-aref host-ptr type index) new-value)))

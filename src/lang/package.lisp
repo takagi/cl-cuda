@@ -30,6 +30,7 @@
            :float :float* :float3 :float3* :float4 :float4*
            :double :double* :double3 :double3* :double4 :double4*
            :type-size
+           :cffi-type-size
            :cffi-type
            :non-pointer-type-p
            :basic-type-p

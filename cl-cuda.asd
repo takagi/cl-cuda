@@ -35,8 +35,10 @@
                  (:module "api"
                   :serial t
                   :components
-                  ((:file "package")
-                   (:file "api")))
+                  ((:file "memory")
+                   (:file "context")
+                   ;(:file "api")
+                   (:file "package")))
                  (:file "package"))))
   :description ""
   :long-description
