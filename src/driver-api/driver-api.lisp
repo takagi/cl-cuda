@@ -276,7 +276,7 @@
 
 
 ;;;
-;;; Handling CUcontext
+;;; CUcontext
 ;;;
 
 (defun create-cu-context (dev-id)
@@ -301,3 +301,27 @@
     `(let ((,context (create-cu-context ,dev-id)))
        (unwind-protect (progn ,@body)
          (destroy-cu-context ,context)))))
+
+
+;;;
+;;; CUevent
+;;;
+
+(defun create-cu-event ()
+  (cffi:with-foreign-object (cu-event 'cu-event)
+    (cu-event-create cu-event cu-event-default)
+    (cffi:mem-ref cu-event 'cu-event)))
+
+(defun destroy-cu-event (cu-event)
+  (cu-event-destroy cu-event))
+
+(defun record-cu-event (cu-event)
+  (cu-event-record cu-event (cffi:null-pointer)))
+
+(defun sync-cu-event (cu-event)
+  (cu-event-synchronize cu-event))
+
+(defun elapsed-time (start stop)
+  (cffi:with-foreign-object (msec :float)
+    (cu-event-elapsed-time msec start stop)
+    (cffi:mem-ref msec :float)))

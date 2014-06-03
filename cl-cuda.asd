@@ -35,8 +35,10 @@
                  (:module "api"
                   :serial t
                   :components
-                  ((:file "memory")
+                  ((:file "kernel-manager")
+                   (:file "memory")
                    (:file "context")
+                   (:file "timer")
                    ;(:file "api")
                    (:file "package")))
                  (:file "package"))))

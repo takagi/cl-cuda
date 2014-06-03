@@ -10,3 +10,4 @@
 
 (reexport-from :cl-cuda.api.memory)
 (reexport-from :cl-cuda.api.context)
+(reexport-from :cl-cuda.api.timer)

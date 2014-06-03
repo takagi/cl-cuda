@@ -65,7 +65,13 @@
            ;; CUcontext
            :create-cu-context
            :destroy-cu-context
-           :with-cu-context)
+           :with-cu-context
+           ;; CUevent
+           :create-cu-event
+           :destroy-cu-event
+           :record-cu-event
+           :sync-cu-event
+           :elapsed-time)
   (:import-from :alexandria
                 :ensure-list
                 :symbolicate
