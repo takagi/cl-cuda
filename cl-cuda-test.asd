@@ -29,6 +29,7 @@
                  (:module "api"
                   :serial t
                   :components
-                  ((:file "package")
-                   (:file "api"))))))
+                  ((:file "memory")
+                   (:file "timer"))))))
+                   ;(:file "api"))))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
