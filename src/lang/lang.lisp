@@ -7,7 +7,7 @@
 
 
 ;;;
-;;; Definition of Built-in Vector Types
+;;; Float3
 ;;;
 
 (defstruct (float3 (:constructor make-float3 (x y z)))
@@ -26,7 +26,8 @@
   (z :float))
 
 (defmethod cffi:translate-into-foreign-memory ((value float3)
-                                               (type float3-c) ptr)
+                                               (type float3-c)
+                                               ptr)
   (cffi:with-foreign-slots ((x y z) ptr (:struct float3))
     (setf x (float3-x value)
           y (float3-y value)
@@ -35,6 +36,11 @@
 (defmethod cffi:translate-from-foreign (value (type float3-c))
   (cffi:with-foreign-slots ((x y z) value (:struct float3))
     (make-float3 x y z)))
+
+
+;;;
+;;; Float4
+;;;
 
 (defstruct (float4 (:constructor make-float4 (x y z w)))
   (x 0.0 :type single-float)
@@ -54,6 +60,24 @@
   (z :float)
   (w :float))
 
+(defmethod cffi:translate-into-foreign-memory ((value float4)
+                                               (type float4-c)
+                                               ptr)
+  (cffi:with-foreign-slots ((x y z w) ptr (:struct float4))
+    (setf x (float4-x value)
+          y (float4-y value)
+          z (float4-z value)
+          w (float4-w value))))
+
+(defmethod cffi:translate-from-foreign (value (type float3-c))
+  (cffi:with-foreign-slots ((x y z w) value (:struct float4))
+    (make-float4 x y z w)))
+
+
+;;;
+;;; Double3
+;;;
+
 (defstruct (double3 (:constructor make-double3 (x y z)))
   (x 0.0d0 :type double-float)
   (y 0.0d0 :type double-float)
@@ -68,6 +92,23 @@
   (x :double)
   (y :double)
   (z :double))
+
+(defmethod cffi:translate-into-foreign-memory ((value double3)
+                                               (type double3-c)
+                                               ptr)
+  (cffi:with-foreign-slots ((x y z) ptr (:struct double3))
+    (setf x (double3-x value)
+          y (double3-y value)
+          z (double3-z value))))
+
+(defmethod cffi:translate-from-foreign (value (type double3-c))
+  (cffi:with-foreign-slots ((x y z) value (:struct double3))
+    (make-double3 x y z)))
+
+
+;;;
+;;; Double4
+;;;
 
 (defstruct (double4 (:constructor make-double4 (x y z w)))
   (x 0.0d0 :type double-float)
@@ -87,6 +128,19 @@
   (z :double)
   (w :double))
 
+(defmethod cffi:translate-into-foreign-memory ((value double4)
+                                               (type double4-c)
+                                               ptr)
+  (cffi:with-foreign-slots ((x y z w) ptr (:struct double4))
+    (setf x (double4-x value)
+          y (double4-y value)
+          z (double4-z value)
+          w (double4-w value))))
+
+(defmethod cffi:translate-from-foreign (value (type double3-c))
+  (cffi:with-foreign-slots ((x y z w) value (:struct double4))
+    (make-double4 x y z w)))
+
 
 ;;;
 ;;; CURAND
@@ -101,8 +155,9 @@
   (boxmuller-extra-double :double))
 
 
+
 ;;;
-;;; Definition of cl-cuda types
+;;; Types
 ;;;
 
 (defparameter +basic-types+ `((void  0 :void)
