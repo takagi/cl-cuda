@@ -61,17 +61,7 @@
            :cu-graphics-unmap-resources
            :cu-graphics-unregister-resource
            ;; Messages
-           :*show-messages*
-           ;; CUcontext
-           :create-cu-context
-           :destroy-cu-context
-           :with-cu-context
-           ;; CUevent
-           :create-cu-event
-           :destroy-cu-event
-           :record-cu-event
-           :sync-cu-event
-           :elapsed-time)
+           :*show-messages*)
   (:import-from :alexandria
                 :ensure-list
                 :symbolicate

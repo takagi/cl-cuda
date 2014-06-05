@@ -9,6 +9,28 @@
 
 
 ;;;
+;;; WITH-CU-CONTEXT macro
+;;;
+
+(defmacro with-cu-context ((dev-id) &body body)
+  (with-gensyms (device context)
+    `(let (,device ,context)
+       ;; initialize CUDA
+       (cu-init 0)
+       ;; get CUdevice
+       (cffi:with-foreign-object (device-ptr 'cu-device)
+         (cu-device-get device-ptr ,dev-id)
+         (setf ,device (cffi:mem-ref device-ptr 'cu-device)))
+       ;; create CUcontext
+       (cffi:with-foreign-object (context-ptr 'cu-context)
+         (cu-ctx-create context-ptr 0 device)
+         (setf ,context (cffi:mem-ref context-ptr 'cu-context)))
+     (unwind-protect
+          (progn ,@body)
+       (cu-ctx-destroy ,context)))))
+
+
+;;;
 ;;; test defcuenum
 ;;;
 

@@ -10,4 +10,6 @@
   (:import-from :cl-cuda.driver-api
                 :defcuenum
                 :enum-keyword
-                :enum-value))
+                :enum-value)
+  (:import-from :alexandria
+                :with-gensyms))
