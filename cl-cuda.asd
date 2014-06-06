@@ -7,6 +7,9 @@
   Author: Masayuki Takagi (kamonama@gmail.com)
 |#
 
+(eval-when (:load-toplevel :execute)
+  (asdf:operate 'asdf:load-op 'cffi-grovel))
+
 (in-package :cl-user)
 (defpackage cl-cuda-asd
   (:use :cl :asdf))
@@ -16,11 +19,13 @@
   :version "0.1"
   :author "Masayuki Takagi"
   :license "LLGPL"
-  :depends-on (:cffi :alexandria :anaphora :osicat :cl-pattern :split-sequence :cl-opengl #|:cl-glut|#)
+  :depends-on (:cffi :alexandria :anaphora :external-program :osicat
+               :cl-pattern :split-sequence :cl-opengl #|:cl-glut|#)
   :components ((:module "src"
                 :serial t
                 :components
                 ((:file "package")
+                 (cffi-grovel:grovel-file "grovel")
                  (:file "cl-cuda-error-string")
                  (:file "cl-cuda"))))
   :description ""

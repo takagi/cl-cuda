@@ -226,7 +226,9 @@
       (cl-cuda::free-memory-block blk))
     (is-error (cl-cuda::alloc-memory-block 'void 1024             ) simple-error)
     (is-error (cl-cuda::alloc-memory-block 'int* 1024             ) simple-error)
-    (is-error (cl-cuda::alloc-memory-block 'int  (* 1024 1024 256)) simple-error)
+    ;; This test seems to rely on the memory available on the gpu.
+    #+nil
+    (is-error (cl-cuda::alloc-memory-block 'int  (* 1024 1024 256 )) simple-error)
     (is-error (cl-cuda::alloc-memory-block 'int  0                ) simple-error)
     (is-error (cl-cuda::alloc-memory-block 'int  -1               ) type-error)))
 
@@ -562,21 +564,31 @@
 (is (cl-cuda::type-size 'float ) 4 )
 (is (cl-cuda::type-size 'float3) 12)
 (is (cl-cuda::type-size 'float4) 16)
-(is (cl-cuda::type-size 'int*  ) 4 )
-(is (cl-cuda::type-size 'int** ) 4 )
-(is (cl-cuda::type-size 'int***) 4 )
+(is (cl-cuda::type-size 'double) 8 )
+(is (cl-cuda::type-size 'double3) 24)
+(is (cl-cuda::type-size 'double4) 32)
+(is (cl-cuda::type-size 'int*  )
+    (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
+(is (cl-cuda::type-size 'int** )
+    (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
+(is (cl-cuda::type-size 'int***)
+    (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
 
 ;; test valid-type-p
 (is (cl-cuda::valid-type-p 'void    ) t  )
 (is (cl-cuda::valid-type-p 'bool    ) t  )
 (is (cl-cuda::valid-type-p 'int     ) t  )
 (is (cl-cuda::valid-type-p 'float   ) t  )
-(is (cl-cuda::valid-type-p 'double  ) nil)
 (is (cl-cuda::valid-type-p 'float3  ) t  )
 (is (cl-cuda::valid-type-p 'float4  ) t  )
 (is (cl-cuda::valid-type-p 'float*  ) t  )
 (is (cl-cuda::valid-type-p 'float** ) t  )
 (is (cl-cuda::valid-type-p '*float**) nil)
+(is (cl-cuda::valid-type-p 'double3  ) t  )
+(is (cl-cuda::valid-type-p 'double4  ) t  )
+(is (cl-cuda::valid-type-p 'double*  ) t  )
+(is (cl-cuda::valid-type-p 'double** ) t  )
+(is (cl-cuda::valid-type-p '*double**) nil)
 
 ;; test cffi-type
 (is (cl-cuda::cffi-type 'void   ) :void                  )
@@ -588,6 +600,12 @@
 (is (cl-cuda::cffi-type 'float* ) 'cl-cuda::cu-device-ptr)
 (is (cl-cuda::cffi-type 'float3*) 'cl-cuda::cu-device-ptr)
 (is (cl-cuda::cffi-type 'float4*) 'cl-cuda::cu-device-ptr)
+(is (cl-cuda::cffi-type 'double  ) :double                 )
+(is (cl-cuda::cffi-type 'double3 ) '(:struct double3)      )
+(is (cl-cuda::cffi-type 'double4 ) '(:struct double4)      )
+(is (cl-cuda::cffi-type 'double* ) 'cl-cuda::cu-device-ptr)
+(is (cl-cuda::cffi-type 'double3*) 'cl-cuda::cu-device-ptr)
+(is (cl-cuda::cffi-type 'double4*) 'cl-cuda::cu-device-ptr)
 
 ;; test non-pointer-type-p
 (is (cl-cuda::non-pointer-type-p 'float   ) t  )
@@ -595,6 +613,11 @@
 (is (cl-cuda::non-pointer-type-p 'float3* ) nil)
 (is (cl-cuda::non-pointer-type-p 'float4* ) nil)
 (is (cl-cuda::non-pointer-type-p '*float3*) nil)
+(is (cl-cuda::non-pointer-type-p 'double   ) t  )
+(is (cl-cuda::non-pointer-type-p 'double*  ) nil)
+(is (cl-cuda::non-pointer-type-p 'double3* ) nil)
+(is (cl-cuda::non-pointer-type-p 'double4* ) nil)
+(is (cl-cuda::non-pointer-type-p '*double3*) nil)
 
 ;; test basic-type-size
 (is       (cl-cuda::basic-type-size 'void  ) 0           )
@@ -603,6 +626,9 @@
 (is       (cl-cuda::basic-type-size 'float ) 4           )
 (is-error (cl-cuda::basic-type-size 'float3) simple-error)
 (is-error (cl-cuda::basic-type-size 'float3) simple-error)
+(is       (cl-cuda::basic-type-size 'double ) 8           )
+(is-error (cl-cuda::basic-type-size 'double3) simple-error)
+(is-error (cl-cuda::basic-type-size 'double3) simple-error)
 
 ;; test basic-type-p
 (is (cl-cuda::basic-type-p 'void  ) t  )
@@ -611,6 +637,9 @@
 (is (cl-cuda::basic-type-p 'float ) t  )
 (is (cl-cuda::basic-type-p 'float3) nil)
 (is (cl-cuda::basic-type-p 'float*) nil)
+(is (cl-cuda::basic-type-p 'double ) t  )
+(is (cl-cuda::basic-type-p 'double3) nil)
+(is (cl-cuda::basic-type-p 'double*) nil)
 
 ;; test basic-cffi-type
 (is       (cl-cuda::basic-cffi-type 'void  ) :void            )
@@ -619,11 +648,17 @@
 (is       (cl-cuda::basic-cffi-type 'float ) :float           )
 (is-error (cl-cuda::basic-cffi-type 'float3) simple-error     )
 (is-error (cl-cuda::basic-cffi-type 'float*) simple-error     )
+(is       (cl-cuda::basic-cffi-type 'double ) :double           )
+(is-error (cl-cuda::basic-cffi-type 'double3) simple-error     )
+(is-error (cl-cuda::basic-cffi-type 'double*) simple-error     )
 
 ;; test vector-type-size
 (is       (cl-cuda::vector-type-size 'float3) 12          )
 (is       (cl-cuda::vector-type-size 'float4) 16          )
 (is-error (cl-cuda::vector-type-size 'float ) simple-error)
+(is       (cl-cuda::vector-type-size 'double3) 24         )
+(is       (cl-cuda::vector-type-size 'double4) 32         )
+(is-error (cl-cuda::vector-type-size 'double ) simple-error)
 (is-error (cl-cuda::vector-type-size 'int*  ) simple-error)
 
 ;; test vector-type-p
@@ -631,37 +666,59 @@
 (is (cl-cuda::vector-type-p 'float4) t  )
 (is (cl-cuda::vector-type-p 'float ) nil)
 (is (cl-cuda::vector-type-p 'float*) nil)
+(is (cl-cuda::vector-type-p 'double3) t  )
+(is (cl-cuda::vector-type-p 'double4) t  )
+(is (cl-cuda::vector-type-p 'double ) nil)
+(is (cl-cuda::vector-type-p 'double*) nil)
 
 ;; test vector-cffi-type
 (is       (cl-cuda::vector-cffi-type 'float3) '(:struct float3))
 (is       (cl-cuda::vector-cffi-type 'float4) '(:struct float4))
 (is-error (cl-cuda::vector-cffi-type 'float ) simple-error     )
 (is-error (cl-cuda::vector-cffi-type 'float*) simple-error     )
+(is       (cl-cuda::vector-cffi-type 'double3) '(:struct double3))
+(is       (cl-cuda::vector-cffi-type 'double4) '(:struct double4))
+(is-error (cl-cuda::vector-cffi-type 'double ) simple-error     )
+(is-error (cl-cuda::vector-cffi-type 'double*) simple-error     )
 
 ;; test vector-types
-(is (cl-cuda::vector-types) '(float3 float4))
+(is (cl-cuda::vector-types) '(float3 float4 double3 double4))
 
 ;; test vector-type-base-type
 (is       (cl-cuda::vector-type-base-type 'float3 ) 'float      )
 (is-error (cl-cuda::vector-type-base-type 'float  ) simple-error)
 (is-error (cl-cuda::vector-type-base-type 'float3*) simple-error)
+(is       (cl-cuda::vector-type-base-type 'double3 ) 'double      )
+(is-error (cl-cuda::vector-type-base-type 'double  ) simple-error)
+(is-error (cl-cuda::vector-type-base-type 'double3*) simple-error)
 
 ;; test vector-type-length
 (is       (cl-cuda::vector-type-length 'float3 ) 3           )
 (is-error (cl-cuda::vector-type-length 'float  ) simple-error)
 (is-error (cl-cuda::vector-type-length 'float3*) simple-error)
+(is       (cl-cuda::vector-type-length 'double3 ) 3           )
+(is-error (cl-cuda::vector-type-length 'double  ) simple-error)
+(is-error (cl-cuda::vector-type-length 'double3*) simple-error)
 
 ;; test vector-type-elements
 (is       (cl-cuda::vector-type-elements 'float3) '(cl-cuda::x cl-cuda::y cl-cuda::z))
 (is       (cl-cuda::vector-type-elements 'float4) '(cl-cuda::x cl-cuda::y cl-cuda::z cl-cuda::w))
 (is-error (cl-cuda::vector-type-elements 'float ) simple-error)
 (is-error (cl-cuda::vector-type-elements 'float*) simple-error)
+(is       (cl-cuda::vector-type-elements 'double3) '(cl-cuda::x cl-cuda::y cl-cuda::z))
+(is       (cl-cuda::vector-type-elements 'double4) '(cl-cuda::x cl-cuda::y cl-cuda::z cl-cuda::w))
+(is-error (cl-cuda::vector-type-elements 'double ) simple-error)
+(is-error (cl-cuda::vector-type-elements 'double*) simple-error)
 
 ;; test vector-type-selectors
 (is       (cl-cuda::vector-type-selectors 'float3) '(float3-x float3-y float3-z))
 (is       (cl-cuda::vector-type-selectors 'float4) '(float4-x float4-y float4-z float4-w))
 (is-error (cl-cuda::vector-type-selectors 'float ) simple-error)
 (is-error (cl-cuda::vector-type-selectors 'float*) simple-error)
+(is       (cl-cuda::vector-type-selectors 'double3) '(double3-x double3-y double3-z))
+(is       (cl-cuda::vector-type-selectors 'double4) '(double4-x double4-y double4-z double4-w))
+(is-error (cl-cuda::vector-type-selectors 'double ) simple-error)
+(is-error (cl-cuda::vector-type-selectors 'double*) simple-error)
 
 ;; test valid-vector-type-selector-p
 (is (cl-cuda::valid-vector-type-selector-p 'float3-x) t)
@@ -674,6 +731,16 @@
 (is (cl-cuda::valid-vector-type-selector-p 'float   ) nil)
 (is (cl-cuda::valid-vector-type-selector-p 'float3  ) nil)
 (is (cl-cuda::valid-vector-type-selector-p 'float3* ) nil)
+(is (cl-cuda::valid-vector-type-selector-p 'double3-x) t)
+(is (cl-cuda::valid-vector-type-selector-p 'double3-y) t)
+(is (cl-cuda::valid-vector-type-selector-p 'double3-z) t)
+(is (cl-cuda::valid-vector-type-selector-p 'double4-x) t)
+(is (cl-cuda::valid-vector-type-selector-p 'double4-y) t)
+(is (cl-cuda::valid-vector-type-selector-p 'double4-z) t)
+(is (cl-cuda::valid-vector-type-selector-p 'double4-w) t)
+(is (cl-cuda::valid-vector-type-selector-p 'double   ) nil)
+(is (cl-cuda::valid-vector-type-selector-p 'double3  ) nil)
+(is (cl-cuda::valid-vector-type-selector-p 'double3* ) nil)
 
 ;; test vector-type-selector-type
 (is       (cl-cuda::vector-type-selector-type 'float3-x) 'float3     )
@@ -684,11 +751,22 @@
 (is       (cl-cuda::vector-type-selector-type 'float4-z) 'float4     )
 (is       (cl-cuda::vector-type-selector-type 'float4-w) 'float4     )
 (is-error (cl-cuda::vector-type-selector-type 'float   ) simple-error)
+(is       (cl-cuda::vector-type-selector-type 'double3-x) 'double3     )
+(is       (cl-cuda::vector-type-selector-type 'double3-y) 'double3     )
+(is       (cl-cuda::vector-type-selector-type 'double3-z) 'double3     )
+(is       (cl-cuda::vector-type-selector-type 'double4-x) 'double4     )
+(is       (cl-cuda::vector-type-selector-type 'double4-y) 'double4     )
+(is       (cl-cuda::vector-type-selector-type 'double4-z) 'double4     )
+(is       (cl-cuda::vector-type-selector-type 'double4-w) 'double4     )
+(is-error (cl-cuda::vector-type-selector-type 'double   ) simple-error)
 
 ;; test array-type-p
 (is (cl-cuda::array-type-p 'float ) nil)
 (is (cl-cuda::array-type-p 'float3) nil)
 (is (cl-cuda::array-type-p 'float*) t  )
+(is (cl-cuda::array-type-p 'double ) nil)
+(is (cl-cuda::array-type-p 'double3) nil)
+(is (cl-cuda::array-type-p 'double*) t  )
 
 ;; test array-cffi-type
 (is       (cl-cuda::array-cffi-type 'float* ) 'cl-cuda::cu-device-ptr)
@@ -696,13 +774,29 @@
 (is       (cl-cuda::array-cffi-type 'float4*) 'cl-cuda::cu-device-ptr)
 (is-error (cl-cuda::array-cffi-type 'float  ) simple-error           )
 (is-error (cl-cuda::array-cffi-type 'float3 ) simple-error           )
+(is       (cl-cuda::array-cffi-type 'double* ) 'cl-cuda::cu-device-ptr)
+(is       (cl-cuda::array-cffi-type 'double3*) 'cl-cuda::cu-device-ptr)
+(is       (cl-cuda::array-cffi-type 'double4*) 'cl-cuda::cu-device-ptr)
+(is-error (cl-cuda::array-cffi-type 'double  ) simple-error           )
+(is-error (cl-cuda::array-cffi-type 'double3 ) simple-error           )
 
 ;; test array-type-pointer-size
-(is       (cl-cuda::array-type-pointer-size 'float* ) 4)
-(is       (cl-cuda::array-type-pointer-size 'float3*) 4)
-(is       (cl-cuda::array-type-pointer-size 'float4*) 4)
+(is       (cl-cuda::array-type-pointer-size 'float* )
+          (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
+(is       (cl-cuda::array-type-pointer-size 'float3*)
+          (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
+(is       (cl-cuda::array-type-pointer-size 'float4*)
+          (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
 (is-error (cl-cuda::array-type-pointer-size 'float  ) simple-error)
 (is-error (cl-cuda::array-type-pointer-size 'float3 ) simple-error)
+(is       (cl-cuda::array-type-pointer-size 'double* )
+          (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
+(is       (cl-cuda::array-type-pointer-size 'double3*)
+          (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
+(is       (cl-cuda::array-type-pointer-size 'double4*)
+          (cffi:foreign-type-size 'cl-cuda::cu-device-ptr))
+(is-error (cl-cuda::array-type-pointer-size 'double  ) simple-error)
+(is-error (cl-cuda::array-type-pointer-size 'double3 ) simple-error)
 
 ;; test array-type-dimension
 (is       (cl-cuda::array-type-dimension 'int*  ) 1)
@@ -914,6 +1008,9 @@
                                 "#include \"float.h\""
                                 "#include \"float3.h\""
                                 "#include \"float4.h\""
+                                "#include \"double.h\""
+                                "#include \"double3.h\""
+                                "#include \"double4.h\""
                                 ""
                                 "extern \"C\" __global__ void cl_cuda_test_foo ();"
                                 ""
@@ -1255,7 +1352,10 @@
 (is       (cl-cuda::function-candidates 'cl-cuda::%add) '(((int int) int t "+")
                                                           ((float float) float t "+")
                                                           ((float3 float3) float3 nil "float3_add")
-                                                          ((float4 float4) float4 nil "float4_add")))
+                                                          ((float4 float4) float4 nil "float4_add")
+                                                          ((double double) double t "+")
+                                                          ((double3 double3) double3 nil "double3_add")
+                                                          ((double4 double4) double4 nil "double4_add")))
 (is-error (cl-cuda::function-candidates 'foo) simple-error)
 
 ;; test built-in-function-argument-types
@@ -1408,14 +1508,14 @@
 (is (cl-cuda::literal-p 'nil)  t)
 (is (cl-cuda::literal-p 1)     t)
 (is (cl-cuda::literal-p 1.0)   t)
-(is (cl-cuda::literal-p 1.0d0) nil)
+(is (cl-cuda::literal-p 1.0d0) t)
 
 ;; test COMPILE-LITERAL function
 (is       (cl-cuda::compile-literal 't)    "true")
 (is       (cl-cuda::compile-literal 'nil)  "false")
 (is       (cl-cuda::compile-literal 1)     "1")
 (is       (cl-cuda::compile-literal 1.0)   "1.0")
-(is-error (cl-cuda::compile-literal 1.0d0) simple-error)
+(is       (cl-cuda::compile-literal 1.0d0) "(double)1.0")
 
 
 ;;;
@@ -1532,7 +1632,7 @@
 (is       (cl-cuda::type-of-literal 'nil  ) 'bool       )
 (is       (cl-cuda::type-of-literal '1    ) 'int        )
 (is       (cl-cuda::type-of-literal '1.0  ) 'float      )
-(is-error (cl-cuda::type-of-literal '1.0d0) simple-error)
+(is       (cl-cuda::type-of-literal '1.0d0) 'double     )
 
 ;; test type-of-symbol
 (cl-cuda::with-variable-environment (var-env ((x :variable int)
