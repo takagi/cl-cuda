@@ -173,15 +173,23 @@ Specifies additional command-line options to be pass to the NVIDIA CUDA Compiler
 
 Default: `(list "-arch=sm_11")`
 
-    (setf *nvcc-options* (list "--verbose"))
+    (setf *nvcc-options* (list "-arch=sm_20 --verbose"))
 
 ### [Special Variable] \*tmp-path\*
 
-Specifies a path where temporary .cu files and .ptx files are put.
+Specifies the temporary directory in which cl-cuda generates files such as .cu file and .ptx file to compile kernel module.
 
 Default: `"/tmp/"`
 
     (setf *tmp-path* "/path/to/tmp/")
+
+### [Special Variable] \*nvcc-binary\*
+
+Specifies the path to the NVIDIA CUDA Compiler so that cl-cuda can call it internally.
+
+Default: `nvcc`
+
+    (setf *nvcc-binary* "/path/to/nvcc")
 
 ### [Special Variable] \*show-messages\*
 
