@@ -23,7 +23,7 @@
          (setf ,device (cffi:mem-ref device-ptr 'cu-device)))
        ;; create CUcontext
        (cffi:with-foreign-object (context-ptr 'cu-context)
-         (cu-ctx-create context-ptr 0 device)
+         (cu-ctx-create context-ptr 0 ,device)
          (setf ,context (cffi:mem-ref context-ptr 'cu-context)))
      (unwind-protect
           (progn ,@body)
