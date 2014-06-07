@@ -42,7 +42,7 @@
   nil)
 
 (defun kernel-function-c-name (kernel name)
-  (when (eq name 'bar)
+  (unless (eq name 'foo)
     (error "The kernel function ~S does not exist." name))
   "foo")
 

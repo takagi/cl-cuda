@@ -10,11 +10,9 @@
            :float3 :make-float3
            :float3-p
            :float3-x :float3-y :float3-z :float3-=
-           :x :y :z
            :float4 :make-float4
            :float4-p
            :float4-x :float4-y :float4-z :float4-w :float4-=
-           :x :y :z :w
            :double3 :make-double3
            :double3-p
            :double3-x :double3-y :double3-z :double3-=

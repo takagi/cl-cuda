@@ -37,6 +37,7 @@
                   :components
                   ((:file "nvcc")
                    (:file "kernel-manager")
+                   (:file "defkernel")
                    (:file "memory")
                    (:file "context")
                    (:file "timer")

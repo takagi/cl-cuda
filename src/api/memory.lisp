@@ -71,6 +71,7 @@
   (let ((cffi-type (cffi-type type)))
     (cl-pattern:match cffi-type
       (:int (cffi:mem-aref host-ptr :int index))
+      ((:boolean :int8) (cffi:mem-aref host-ptr '(:boolean :int8) index))
       ((:struct 'float3) (cffi:mem-aref host-ptr '(:struct float3) index))
       ((:struct 'float4) (cffi:mem-aref host-ptr '(:struct float4) index))
       (_ (error "The value ~S is an invalid CFFI type." cffi-type)))))
@@ -79,12 +80,13 @@
   ;; give type as constant explicitly for performance reason
   (let ((cffi-type (cffi-type type)))
     (cl-pattern:match cffi-type
-      (:int
-       (setf (cffi:mem-aref host-ptr :int index) new-value))
-      ((:struct 'float3)
-       (setf (cffi:mem-aref host-ptr '(:struct float3) index) new-value))
-      ((:struct 'float4)
-       (setf (cffi:mem-aref host-ptr '(:struct float4) index) new-value))
+      (:int (setf (cffi:mem-aref host-ptr :int index) new-value))
+      ((:boolean :int8) (setf (cffi:mem-aref host-ptr '(:boolean :int8) index)
+                              new-value))
+      ((:struct 'float3) (setf (cffi:mem-aref host-ptr '(:struct float3) index)
+                               new-value))
+      ((:struct 'float4) (setf (cffi:mem-aref host-ptr '(:struct float4) index)
+                               new-value))
       (_ (error "The value ~S is an invalid CFFI type." cffi-type)))))
 
 

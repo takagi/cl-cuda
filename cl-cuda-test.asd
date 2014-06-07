@@ -30,7 +30,7 @@
                   :serial t
                   :components
                   ((:file "kernel-manager")
+                   ;(:file "defkernel")
                    (:file "memory")
                    (:file "timer"))))))
-                   ;(:file "api"))))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
