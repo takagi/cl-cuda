@@ -29,7 +29,8 @@
                  (:module "api"
                   :serial t
                   :components
-                  ((:file "memory")
+                  ((:file "kernel-manager")
+                   (:file "memory")
                    (:file "timer"))))))
                    ;(:file "api"))))))
   :perform (load-op :after (op c) (asdf:clear-system c)))

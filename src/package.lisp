@@ -6,6 +6,7 @@
 (in-package :cl-user)
 (defpackage cl-cuda
   (:use :cl
+        :cl-reexport
         :cl-cuda.driver-api
         :cl-cuda.lang
         :cl-cuda.api)
@@ -41,10 +42,8 @@
            :rsqrt
            :atomic-add
            :pointer
-           :dot)
-  (:shadowing-import-from :cl-cuda.api
-                          :expand-macro
-                          :expand-macro-1))
+           :dot))
+(in-package :cl-cuda)
 
-(cl-reexport:reexport-from :cl-cuda.driver-api :cl-cuda)
-(cl-reexport:reexport-from :cl-cuda.api :cl-cuda)
+(reexport-from :cl-cuda.driver-api)
+(reexport-from :cl-cuda.api)

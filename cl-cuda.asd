@@ -35,12 +35,12 @@
                  (:module "api"
                   :serial t
                   :components
-                  ((:file "kernel-manager")
+                  ((:file "nvcc")
+                   (:file "kernel-manager")
                    (:file "memory")
                    (:file "context")
                    (:file "timer")
-                   ;(:file "api")
-                   (:file "package")))
+                   (:file "api")))
                  (:file "package"))))
   :description ""
   :long-description
