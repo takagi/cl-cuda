@@ -54,7 +54,7 @@
        (= (float4-z a) (float4-z b))
        (= (float4-w a) (float4-w b))))
 
-(cffi:defcstruct float4
+(cffi:defcstruct (float4 :class float4-c)
   (x :float)
   (y :float)
   (z :float)
@@ -69,7 +69,7 @@
           z (float4-z value)
           w (float4-w value))))
 
-(defmethod cffi:translate-from-foreign (value (type float3-c))
+(defmethod cffi:translate-from-foreign (value (type float4-c))
   (cffi:with-foreign-slots ((x y z w) value (:struct float4))
     (make-float4 x y z w)))
 
@@ -88,7 +88,7 @@
        (= (double3-y a) (double3-y b))
        (= (double3-z a) (double3-z b))))
 
-(cffi:defcstruct double3
+(cffi:defcstruct (double3 :class double3-c)
   (x :double)
   (y :double)
   (z :double))
@@ -122,7 +122,7 @@
        (= (double4-z a) (double4-z b))
        (= (double4-w a) (double4-w b))))
 
-(cffi:defcstruct double4
+(cffi:defcstruct (double4 :class double4-c)
   (x :double)
   (y :double)
   (z :double)
