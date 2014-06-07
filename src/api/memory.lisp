@@ -22,6 +22,7 @@
            ;; Memory block
            :alloc-memory-block
            :free-memory-block
+           :memory-block-p
            :memory-block-device-ptr
            :memory-block-host-ptr
            :memory-block-type

@@ -32,6 +32,8 @@
 ;;; Stubs
 ;;;
 
+(shadow '(:foo :bar))
+
 (defun make-kernel ()
   nil)
 

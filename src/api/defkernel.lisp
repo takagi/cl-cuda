@@ -7,6 +7,7 @@
 (defpackage :cl-cuda.api.defkernel
   (:use :cl
         :cl-cuda.api.kernel-manager
+        :cl-cuda.api.memory
         :cl-cuda.lang
         :cl-cuda.driver-api)
   (:export :defkernel
@@ -59,9 +60,15 @@
 
 (defun setf-to-foreign-object-form (argument)
   (let ((var (argument-var argument))
+        (type (argument-type argument))
         (var-ptr (argument-var-ptr argument))
         (cffi-type (argument-cffi-type argument)))
-    `(setf (cffi:mem-ref ,var-ptr ',cffi-type) ,var)))
+    (if (array-type-p type)
+        `(setf (cffi:mem-ref ,var-ptr ',cffi-type)
+               (if (memory-block-p ,var)
+                   (memory-block-device-ptr ,var)
+                   ,var))
+        `(setf (cffi:mem-ref ,var-ptr ',cffi-type) ,var))))
 
 (defun setf-to-argument-array-form (var argument i)
   (let ((var-ptr (argument-var-ptr argument)))
