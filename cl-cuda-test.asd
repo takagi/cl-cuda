@@ -24,7 +24,9 @@
                  (:module "lang"
                   :serial t
                   :components
-                  ((:file "package")
+                  ((:file "data")
+                   (:file "type")
+                   (:file "package")
                    (:file "lang")))
                  (:module "api"
                   :serial t

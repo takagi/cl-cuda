@@ -16,7 +16,8 @@
   :author "Masayuki Takagi"
   :license "LLGPL"
   :depends-on (:cffi :alexandria :anaphora :external-program :osicat
-               :cl-pattern :split-sequence :cl-reexport :cl-opengl #|:cl-glut|#)
+               :cl-pattern :split-sequence :cl-reexport :cl-opengl #|:cl-glut|#
+               :cl-ppcre)
   :components ((:module "src"
                 :serial t
                 :components
@@ -30,7 +31,9 @@
                  (:module "lang"
                   :serial t
                   :components
-                  ((:file "package")
+                  ((:file "data")
+                   (:file "type")
+                   (:file "package")
                    (:file "lang")))
                  (:module "api"
                   :serial t
