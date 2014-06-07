@@ -74,7 +74,7 @@
       ((:boolean :int8) (cffi:mem-aref host-ptr '(:boolean :int8) index))
       ((:struct 'float3) (cffi:mem-aref host-ptr '(:struct float3) index))
       ((:struct 'float4) (cffi:mem-aref host-ptr '(:struct float4) index))
-      (_ (error "The value ~S is an invalid CFFI type." cffi-type)))))
+      (_ (error "The value ~S is an invalid CFFI type to access host memory." cffi-type)))))
 
 (defun (setf host-memory-aref) (new-value host-ptr type index)
   ;; give type as constant explicitly for performance reason
@@ -87,7 +87,7 @@
                                new-value))
       ((:struct 'float4) (setf (cffi:mem-aref host-ptr '(:struct float4) index)
                                new-value))
-      (_ (error "The value ~S is an invalid CFFI type." cffi-type)))))
+      (_ (error "The value ~S is an invalid CFFI type to access host memory." cffi-type)))))
 
 
 ;;;
