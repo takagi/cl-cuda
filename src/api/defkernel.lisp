@@ -20,17 +20,6 @@
 
 
 ;;;
-;;; Stubs
-;;;
-
-(defun argument-var (argument)
-  (car argument))
-
-(defun argument-type (argument)
-  (cadr argument))
-
-
-;;;
 ;;; DEFKERNEL - argument helper
 ;;;
 

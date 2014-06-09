@@ -26,6 +26,8 @@
                   :components
                   ((:file "data")
                    (:file "type")
+                   (:file "syntax")
+                   (:file "environment")
                    (:file "package")
                    (:file "lang")))
                  (:module "api"
