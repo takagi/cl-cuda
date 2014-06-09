@@ -6,6 +6,7 @@
 (in-package :cl-user)
 (defpackage cl-cuda-test.lang.syntax
   (:use :cl :cl-test-more
+        :cl-cuda.lang.data
         :cl-cuda.lang.syntax))
 (in-package :cl-cuda-test.lang.syntax)
 
@@ -86,15 +87,15 @@
 
 (diag "Inline-if")
 
-(is (inline-if-p '(if)) nil
+(is (inline-if-p '(if)) t
     "basic case 1")
-(is (inline-if-p '(if t)) nil
+(is (inline-if-p '(if t)) t
     "basic case 2")
-(is (inline-if-p '(if t 2)) nil
+(is (inline-if-p '(if t 2)) t
     "basic case 3")
 (is (inline-if-p '(if t 2 3)) t
     "basic case 4")
-(is (inline-if-p '(if t 2 3 4)) nil
+(is (inline-if-p '(if t 2 3 4)) t
     "basic case 5")
 
 

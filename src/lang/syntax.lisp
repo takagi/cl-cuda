@@ -87,6 +87,7 @@
            :do-binding-init
            :do-binding-step
            ;; With-shared-memory statement
+           :with-shared-memory
            :with-shared-memory-p
            :with-shared-memory-specs
            :with-shared-memory-statements
@@ -96,6 +97,7 @@
            :with-shared-memory-spec-type
            :with-shared-memory-spec-dimensions
            ;; Set statement
+           :set
            :set-p
            :set-reference
            :set-expr
@@ -106,6 +108,7 @@
            :return-p
            :return-expr
            ;; Syncthreads statement
+           :syncthreads
            :syncthreads-p
            ;; Argument
            :argument-p
@@ -216,7 +219,7 @@
 
 (defun structure-reference-p (form)
   (cl-pattern:match form
-    ((accessor _) (cl-cuda.lang.type::structure-accessor-p accessor))
+    ((accessor _) (structure-accessor-p accessor))
     (_ nil)))
 
 (defun structure-reference-accessor (form)
@@ -450,8 +453,7 @@
 (defun do-bindings (form)
   (cl-pattern:match form
     (('do bindings _ . _)
-     (or (and (listp bindings)
-              (every #'do-binding-p bindings)
+     (or (and (every #'do-binding-p bindings)
               bindings)
          (error "The statement ~S is malformed." form)))
     (('do . _) (error "The statement ~S is malformed." form))
@@ -460,7 +462,8 @@
 (defun do-end-tests (form)
   (cl-pattern:match form
     (('do _ end-tests . _)
-     (or (listp end-tests)
+     (or (and (listp end-tests)
+              end-tests)
          (error "The statement ~S is malformed." form)))
     (('do . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
@@ -510,8 +513,7 @@
 (defun with-shared-memory-specs (form)
   (cl-pattern:match form
     (('with-shared-memory specs . _)
-     (or (and (listp specs)
-              (every #'with-shared-memory-spec-p specs)
+     (or (and (every #'with-shared-memory-spec-p specs)
               specs)
          (error "The statement ~S is malformed." form)))
     (('with-shared-memory . _)
