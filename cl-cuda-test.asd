@@ -32,6 +32,7 @@
                    (:file "kernel")
                    (:file "compiler/compile-data")
                    (:file "compiler/compile-type")
+                   (:file "compiler/compile-type-of")
                    (:file "package")
                    (:file "lang")))
                  (:module "api"

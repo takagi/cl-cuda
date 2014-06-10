@@ -229,7 +229,7 @@
   (car form))
 
 (defun structure-reference-expr (form)
-  (unless (structure-reference-expr form)
+  (unless (structure-reference-p form)
     (error "The form ~S is invalid." form))
   (cadr form))
 
