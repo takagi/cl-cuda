@@ -4,10 +4,10 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-test.lang.compile.compile-type-of
+(defpackage cl-cuda-test.lang.compiler.compile-type-of
   (:use :cl :cl-test-more
-        :cl-cuda.lang.compile.compile-type-of))
-(in-package :cl-cuda-test.lang.compile.compile-type-of)
+        :cl-cuda.lang.compiler.compile-type-of))
+(in-package :cl-cuda-test.lang.compiler.compile-type-of)
 
 (plan nil)
 

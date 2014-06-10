@@ -4,10 +4,10 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-test.lang.compile.compile-expression
+(defpackage cl-cuda-test.lang.compiler.compile-expression
   (:use :cl :cl-test-more
-        :cl-cuda.lang.compile.compile-expression))
-(in-package :cl-cuda-test.lang.compile.compile-expression)
+        :cl-cuda.lang.compiler.compile-expression))
+(in-package :cl-cuda-test.lang.compiler.compile-expression)
 
 (plan nil)
 
