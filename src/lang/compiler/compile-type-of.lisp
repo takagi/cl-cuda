@@ -14,6 +14,14 @@
 
 
 ;;;
+;;; Stubs
+;;;
+
+(defun built-in-function-return-type (operator argument-types)
+  'bool)
+
+
+;;;
 ;;; Type of expression
 ;;;
 
@@ -152,7 +160,7 @@
       (unless (eq test-type 'bool)
         (error "The type of expression ~S is invalid." form)))
     (let ((then-type (type-of-expression then-expr var-env func-env))
-          (else-type (type-of-expression else-type var-env func-env)))
+          (else-type (type-of-expression else-expr var-env func-env)))
       ;; check if the then part of inline-of expression has the same
       ;; type as the else part of it
       (unless (eq then-type else-type)
