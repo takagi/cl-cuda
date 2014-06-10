@@ -35,6 +35,7 @@
                    (:file "type")
                    (:file "syntax")
                    (:file "environment")
+                   (:file "kernel")
                    (:file "package")
                    (:file "lang")))
                  (:module "api"
