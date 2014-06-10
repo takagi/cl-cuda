@@ -61,7 +61,7 @@
 
 
 ;;;
-;;; test STRUCTURE-ACCESSOR-P
+;;; test STRUCTURE-ACCESSOR-P function
 ;;;
 
 (diag "STRUCTURE-ACCESSOR-P")
@@ -72,7 +72,7 @@
 
 
 ;;;
-;;; test STRUCTURE-ACCESSOR-CUDA-ACCESSOR
+;;; test STRUCTURE-ACCESSOR-CUDA-ACCESSOR function
 ;;;
 
 (diag "STRUCTURE-ACCESSOR-CUDA-ACCESSOR")
@@ -84,7 +84,7 @@
 
 
 ;;;
-;;; test STRUCTURE-ACCESSOR-RETURN-TYPE
+;;; test STRUCTURE-ACCESSOR-RETURN-TYPE function
 ;;;
 
 (diag "STRUCTURE-ACCESSOR-RETURN-TYPE")
@@ -93,6 +93,32 @@
 (is (structure-accessor-return-type 'double4-w) 'double "basic case 2")
 (is-error (structure-accessor-return-type 'float3-w) simple-error
           "ACCESSOR which is not an invalid accessor.")
+
+
+;;;
+;;; test ARRAY-TYPE-BASE function
+;;;
+
+(diag "ARRAY-TYPE-BASE")
+
+(is (array-type-base 'int*) 'int
+    "basic case 1")
+
+(is (array-type-base 'int**) 'int
+    "basic case 2")
+
+
+;;;
+;;; test ARRAY-TYPE-DIMENSION function
+;;;
+
+(diag "ARRAY-TYPE-DIMENSION")
+
+(is (array-type-dimension 'int*) 1
+    "basic case 1")
+
+(is (array-type-dimension 'int**) 2
+    "basic case 2")
 
 
 (finalize)

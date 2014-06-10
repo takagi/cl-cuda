@@ -39,10 +39,13 @@
            :vector-type-p
            ;; Structure accessor
            :structure-accessor-p
+           :structure-from-accessor
            :structure-accessor-cuda-accessor
            :structure-accessor-return-type
            ;; Array type
-           :array-type-p))
+           :array-type-p
+           :array-type-base
+           :array-type-dimension))
 (in-package :cl-cuda.lang.type)
 
 
@@ -98,14 +101,16 @@
        t))
 
 (defun scalar-cffi-type (type)
-  (declare (scalar-type type))
+  (unless (scalar-type-p type)
+    (error "The vaue ~S is an invalid type." type))
   (cadr (assoc type +scalar-types+)))
 
 (defun scalar-cffi-type-size (type)
   (cffi:foreign-type-size (scalar-cffi-type type)))
 
 (defun scalar-cuda-type (type)
-  (declare (scalar-type type))
+  (unless (scalar-type-p type)
+    (error "The vaue ~S is an invalid type." type))
   (caddr (assoc type +scalar-types+)))
 
 
@@ -216,6 +221,9 @@
         (+array-type-regex+ type-string)
       (declare (ignore _))
       (intern (string stars-string) 'cl-cuda.lang.type))))
+
+(defun array-type-dimension (type)
+  (length (princ-to-string (array-type-stars type))))
 
 (defun array-cffi-type (type)
   (unless (array-type-p type)
