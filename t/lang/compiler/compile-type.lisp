@@ -6,10 +6,21 @@
 (in-package :cl-user)
 (defpackage cl-cuda-test.lang.compile.compile-type
   (:use :cl :cl-test-more
-        :cl-cuda.lang.compile.compile-type))
+        :cl-cuda.lang.type
+        :cl-cuda.lang.compiler.compile-type))
 (in-package :cl-cuda-test.lang.compile.compile-type)
 
 (plan nil)
+
+
+;;;
+;;; test COMPILE-TYPE function
+;;;
+
+(diag "COMPILE-TYPE")
+
+(is (compile-type 'int) "int"
+    "basic case 1")
 
 
 

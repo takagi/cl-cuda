@@ -31,6 +31,7 @@
                    (:file "environment")
                    (:file "kernel")
                    (:file "compiler/compile-data")
+                   (:file "compiler/compile-type")
                    (:file "package")
                    (:file "lang")))
                  (:module "api"
