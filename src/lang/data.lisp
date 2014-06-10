@@ -234,7 +234,7 @@
 
 
 ;;;
-;;; CURAND
+;;; CURAND State XORWOW
 ;;;
 
 (cffi:defcstruct curand-state-xorwow
