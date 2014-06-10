@@ -28,6 +28,7 @@
            :double3*
            :double4*
            ;; Type
+           :cl-cuda-type
            :cl-cuda-type-p
            :cffi-type
            :cffi-type-size
@@ -48,6 +49,9 @@
 ;;;
 ;;; Type
 ;;;
+
+(deftype cl-cuda-type ()
+  `(satisfies cl-cuda-type-p))
 
 (defun cl-cuda-type-p (object)
   (or (scalar-type-p object)
