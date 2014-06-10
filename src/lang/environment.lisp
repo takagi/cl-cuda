@@ -152,6 +152,7 @@
 ;;; Variable
 ;;;
 
+;; use name begining with '%' to avoid package locking
 (defstruct (%variable (:constructor %make-variable)
                       (:conc-name variable-)
                       (:predicate variable-p))
@@ -184,6 +185,7 @@
 ;;; Function
 ;;;
 
+;; use name begining with '%' to avoid package locking
 (defstruct (%function (:constructor %make-function)
                       (:conc-name function-)
                       (:predicate function-p))
@@ -198,7 +200,8 @@
     (error 'type-error :datum return-type :expected-type 'cl-cuda-type))
   (dolist (argument-type argument-types)
     (unless (cl-cuda-type-p argument-type)
-      (error 'type-error :datum argument-type :expected-type 'cl-cuda-type)))
+      (error 'type-error :datum argument-type
+                         :expected-type 'cl-cuda-type)))
   (%make-function :name name
                   :return-type return-type
                   :argument-types argument-types))
