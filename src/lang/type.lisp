@@ -28,6 +28,7 @@
            :double3*
            :double4*
            ;; Type
+           :cl-cuda-type
            :cl-cuda-type-p
            :cffi-type
            :cffi-type-size
@@ -49,28 +50,34 @@
 ;;; Type
 ;;;
 
+(deftype cl-cuda-type ()
+  `(satisfies cl-cuda-type-p))
+
 (defun cl-cuda-type-p (object)
   (or (scalar-type-p object)
       (structure-type-p object)
       (array-type-p object)))
 
 (defun cffi-type (type)
-  (etypecase type
-    (scalar-type (scalar-cffi-type type))
-    (structure-type (structure-cffi-type type))
-    (array-type (array-cffi-type type))))
+  (cond
+    ((scalar-type-p type) (scalar-cffi-type type))
+    ((structure-type-p type) (structure-cffi-type type))
+    ((array-type-p type) (array-cffi-type type))
+    (t (error "The value ~S is an invalid cl-cuda type." type))))
 
 (defun cffi-type-size (type)
-  (etypecase type
-    (scalar-type (scalar-cffi-type-size type))
-    (structure-type (structure-cffi-type-size type))
-    (array-type (array-cffi-type-size type))))
+  (cond
+    ((scalar-type-p type) (scalar-cffi-type-size type))
+    ((structure-type-p type) (structure-cffi-type-size type))
+    ((array-type-p type) (array-cffi-type-size type))
+    (t (error "The value ~S is an invalid cl-cuda type." type))))
 
 (defun cuda-type (type)
-  (etypecase type
-    (scalar-type (scalar-cuda-type type))
-    (structure-type (structure-cuda-type type))
-    (array-type (array-cuda-type type))))
+  (cond
+    ((scalar-type-p type) (scalar-cuda-type type))
+    ((structure-type-p type) (structure-cuda-type type))
+    ((array-type-p type) (array-cuda-type type))
+    (t (error "The value ~S is an invalid cl-cuda type." type))))
 
 
 ;;;
@@ -85,9 +92,6 @@
     (double :double "double")
     (curand-state-xorwow (:struct curand-state-xorwow)
                          "curandStateXORWOW_t")))
-
-(deftype scalar-type ()
-  '(satisfies scalar-type-p))
 
 (defun scalar-type-p (object)
   (and (assoc object +scalar-types+)
@@ -127,9 +131,6 @@
 
 (defparameter +structure-types+
   (mapcar #'car +structure-table+))
-
-(deftype structure-type ()
-  '(satisfies structure-type-p))
 
 (defun structure-type-p (object)
   (and (member object +structure-types+)
@@ -186,9 +187,6 @@
 
 (defparameter +array-type-regex+
   "^([^\\*]+)(\\*+)$")
-
-(deftype array-type ()
-  '(satisfies array-type-p))
 
 (defun array-type-p (object)
   (when (symbolp object)
