@@ -63,21 +63,21 @@
     ((scalar-type-p type) (scalar-cffi-type type))
     ((structure-type-p type) (structure-cffi-type type))
     ((array-type-p type) (array-cffi-type type))
-    (t (error "The value ~S is an invalid cl-cuda type." type))))
+    (t (error "The value ~S is an invalid type." type))))
 
 (defun cffi-type-size (type)
   (cond
     ((scalar-type-p type) (scalar-cffi-type-size type))
     ((structure-type-p type) (structure-cffi-type-size type))
     ((array-type-p type) (array-cffi-type-size type))
-    (t (error "The value ~S is an invalid cl-cuda type." type))))
+    (t (error "The value ~S is an invalid type." type))))
 
 (defun cuda-type (type)
   (cond
     ((scalar-type-p type) (scalar-cuda-type type))
     ((structure-type-p type) (structure-cuda-type type))
     ((array-type-p type) (array-cuda-type type))
-    (t (error "The value ~S is an invalid cl-cuda type." type))))
+    (t (error "The value ~S is an invalid type." type))))
 
 
 ;;;
@@ -137,18 +137,21 @@
        t))
 
 (defun structure-cffi-type (type)
-  (declare (structure-type type))
+  (unless (structure-type-p type)
+    (error "The vaue ~S is an invalid type." type))
   `(:struct ,type))
 
 (defun structure-cffi-type-size (type)
   (cffi:foreign-type-size (structure-cffi-type type)))
 
 (defun structure-cuda-type (type)
-  (declare (structure-type type))
+  (unless (structure-type-p type)
+    (error "The vaue ~S is an invalid type." type))
   (cadr (assoc type +structure-table+)))
 
 (defun structure-accessors (type)
-  (declare (structure-type type))
+  (unless (structure-type-p type)
+    (error "The vaue ~S is an invalid type." type))
   (caddr (assoc type +structure-table+)))
 
 
@@ -198,14 +201,16 @@
           (cl-cuda-type-p base))))))
 
 (defun array-type-base (type)
-  (declare (array-type type))
+  (unless (array-type-p type)
+    (error "The value ~S is an invalid type." type))
   (let ((type-string (princ-to-string type)))
     (cl-ppcre:register-groups-bind (base-string nil)
         (+array-type-regex+ type-string)
       (intern (string base-string) 'cl-cuda.lang.type))))
 
 (defun array-type-stars (type)
-  (declare (array-type type))
+  (unless (array-type-p type)
+    (error "The value ~S is an invalid type." type))
   (let ((type-string (princ-to-string type)))
     (cl-ppcre:register-groups-bind (_ stars-string)
         (+array-type-regex+ type-string)
@@ -213,8 +218,8 @@
       (intern (string stars-string) 'cl-cuda.lang.type))))
 
 (defun array-cffi-type (type)
-  (declare (array-type type))
-  (declare (ignorable type))
+  (unless (array-type-p type)
+    (error "The value ~S is an invalid type." type))
   'cu-device-ptr)
 
 (defun array-cffi-type-size (type)
