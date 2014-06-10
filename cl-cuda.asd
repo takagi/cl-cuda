@@ -31,11 +31,13 @@
                  (:module "lang"
                   :serial t
                   :components
-                  ((:file "data")
+                  ((:file "util")
+                   (:file "data")
                    (:file "type")
                    (:file "syntax")
                    (:file "environment")
                    (:file "kernel")
+                   (:file "compiler/compile-data")
                    (:file "package")
                    (:file "lang")))
                  (:module "api"
