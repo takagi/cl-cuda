@@ -111,6 +111,7 @@
            :syncthreads
            :syncthreads-p
            ;; Argument
+           :argument
            :argument-p
            :argument-var
            :argument-type))
@@ -626,6 +627,9 @@
 ;;;
 ;;; Argument
 ;;;
+
+(deftype argument ()
+  `(satisfies argument-p))
 
 (defun argument-p (object)
   (cl-pattern:match object
