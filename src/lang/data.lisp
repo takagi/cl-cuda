@@ -7,6 +7,7 @@
 (defpackage cl-cuda.lang.data
   (:use :cl)
   (:export ;; Symbol
+           :cl-cuda-symbol
            :cl-cuda-symbol-p
            ;; Bool
            :cl-cuda-bool-p
@@ -56,6 +57,9 @@
 ;;;
 ;;; Symbol
 ;;;
+
+(deftype cl-cuda-symbol ()
+  `(satisfies cl-cuda-symbol-p))
 
 (defun cl-cuda-symbol-p (object)
   (symbolp object))
