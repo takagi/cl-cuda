@@ -6,6 +6,7 @@
 (in-package :cl-user)
 (defpackage cl-cuda.lang.environment
   (:use :cl
+        :cl-cuda.lang.util
         :cl-cuda.lang.data
         :cl-cuda.lang.type)
   (:export ;; Variable environment
@@ -26,6 +27,7 @@
            :function-environment-add-function
            :function-environment-function-exists-p
            :function-environment-function-name
+           :function-environment-function-c-name
            :function-environment-function-return-type
            :function-environment-function-argument-types
            ;; Function environment - Macro
@@ -117,6 +119,9 @@
 
 (defun function-environment-function-name (func-env name)
   (function-name (%lookup-function func-env name)))
+
+(defun function-environment-function-c-name (func-env name)
+  (c-identifier (function-environment-function-name func-env name)))
 
 (defun function-environment-function-return-type (func-env name)
   (function-return-type (%lookup-function func-env name)))

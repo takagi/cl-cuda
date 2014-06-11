@@ -40,6 +40,7 @@
                    (:file "compiler/compile-data")
                    (:file "compiler/compile-type")
                    (:file "compiler/compile-type-of")
+                   (:file "compiler/compile-expression")
                    (:file "package")
                    (:file "lang")))
                  (:module "api"

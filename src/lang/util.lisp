@@ -6,7 +6,10 @@
 (in-package :cl-user)
 (defpackage cl-cuda.lang.util
   (:use :cl)
-  (:export :c-identifier))
+  (:export :c-identifier
+           :lines
+           :unlines
+           :indent))
 (in-package cl-cuda.lang.util)
 
 
@@ -16,3 +19,14 @@
                             (not (char= #\_ char))
                             (not (char= #\* char))))
                  (string-downcase object)))
+
+(defun lines (str)
+  (split-sequence:split-sequence #\LineFeed str :remove-empty-subseqs t))
+
+(defun unlines (&rest args)
+  (format nil "~{~A~%~}" args))
+
+(defun indent (n str)
+  (labels ((aux (x)
+             (format nil "~vT~A" n x)))
+    (apply #'unlines (mapcar #'aux (lines str)))))

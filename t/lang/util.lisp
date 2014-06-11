@@ -30,4 +30,46 @@
     "basic case 5")
 
 
+;;;
+;;; test LINES function
+;;;
+
+(diag "LINES")
+
+(is (lines (format nil "1~%2~%3~%")) '("1" "2" "3")
+    "basic case 1")
+
+(is (lines (format nil "1~%2~%3")) '("1" "2" "3")
+    "basic case 2")
+
+
+;;;
+;;; test UNLINES function
+;;;
+
+(diag "UNLINES")
+
+(is (unlines "1" "2" "3") "1
+2
+3
+" "basic case 1")
+
+
+;;;
+;;; test INDENT function
+;;;
+
+(diag "INDENT")
+
+(is (indent 2 (format nil "1~%2~%3~%")) "  1
+  2
+  3
+" "basic case 1")
+
+(is (indent 2 (format nil "1~%2~%3")) "  1
+  2
+  3
+" "basic case 2")
+
+
 (finalize)
