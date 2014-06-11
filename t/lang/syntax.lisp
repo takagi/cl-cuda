@@ -146,6 +146,11 @@
 ;;; test If statement
 ;;;
 
+(diag "If statement")
+
+(is (if-else-stmt '(if (= 1 1) (return 1))) nil
+    "basic case 1")
+
 
 ;;;
 ;;; test Let statement
