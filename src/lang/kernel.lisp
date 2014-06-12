@@ -6,6 +6,7 @@
 (in-package :cl-user)
 (defpackage cl-cuda.lang.kernel
   (:use :cl
+        :cl-cuda.lang.util
         :cl-cuda.lang.data
         :cl-cuda.lang.type)
   (:export ;; Kernel
@@ -17,6 +18,7 @@
            :kernel-define-function
            :kernel-function-exists-p
            :kernel-function-name
+           :kernel-function-c-name
            :kernel-function-return-type
            :kernel-function-arguments
            :kernel-function-argument-vars
@@ -94,6 +96,9 @@
 
 (defun kernel-function-name (kernel name)
   (function-name (%lookup-function kernel name)))
+
+(defun kernel-function-c-name (kernel name)
+  (c-identifier (kernel-function-name kernel name) t))
 
 (defun kernel-function-return-type (kernel name)
   (function-return-type (%lookup-function kernel name)))
