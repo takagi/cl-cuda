@@ -121,7 +121,7 @@
   (function-name (%lookup-function func-env name)))
 
 (defun function-environment-function-c-name (func-env name)
-  (c-identifier (function-environment-function-name func-env name)))
+  (c-identifier (function-environment-function-name func-env name) t))
 
 (defun function-environment-function-return-type (func-env name)
   (function-return-type (%lookup-function func-env name)))
