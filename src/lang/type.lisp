@@ -23,6 +23,7 @@
            :int*
            :float*
            :double*
+           :curand-state-xorwow*
            :float3*
            :float4*
            :double3*
