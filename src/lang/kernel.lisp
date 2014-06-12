@@ -114,6 +114,8 @@
   (mapcar #'argument-type
     (kernel-function-arguments kernel name)))
 
+(defun kernel-function-body (kernel name)
+  (function-body (%lookup-function kernel name)))
 
 ;;;
 ;;; Kernel definition - macro

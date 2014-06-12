@@ -225,7 +225,7 @@
         (error "The type of statement ~S is invalid." form)))
     (let ((reference1 (compile-expression reference var-env func-env))
           (expr1 (compile-expression expr var-env func-env)))
-      (format nil "~A = ~A;" reference1 expr1))))
+      (format nil "~A = ~A;~%" reference1 expr1))))
 
 
 ;;;
@@ -237,7 +237,7 @@
            (compile-statement statement var-env func-env)))
     (let ((statements (progn-statements form)))
       (let ((statements1 (mapcar #'aux statements)))
-        (format nil "~{~A~}~%" statements1)))))
+        (format nil "~{~A~}" statements1)))))
 
 
 ;;;
@@ -268,4 +268,4 @@
 (defun compile-function (form var-env func-env)
   (let ((code (cl-cuda.lang.compiler.compile-expression::compile-function
                 form var-env func-env)))
-    (format nil "~A;" code)))
+    (format nil "~A;~%" code)))

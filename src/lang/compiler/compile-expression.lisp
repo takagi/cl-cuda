@@ -16,17 +16,6 @@
 
 
 ;;;
-;;; Stubs
-;;;
-
-(defun built-in-function-infix-p (form var-env func-env)
-  t)
-
-(defun built-in-function-c-name (form var-env func-env)
-  "foo")
-
-
-;;;
 ;;; Compile expression
 ;;;
 
@@ -252,7 +241,7 @@
     (let ((operator1 (function-environment-function-c-name func-env
                                                            operator))
           (operands1 (compile-operands operands var-env func-env)))
-      (format nil "~A(~{ ~A~^,~} )~%" operator1 operands1))))
+      (format nil "~A(~{ ~A~^,~} )" operator1 operands1))))
 
 (defun compile-built-in-function (form var-env func-env)
   (if (built-in-function-infix-p form var-env func-env)
@@ -270,4 +259,4 @@
   (let ((operands (function-operands form)))
     (let ((operator1 (built-in-function-c-name form var-env func-env))
           (operands1 (compile-operands operands var-env func-env)))
-      (format nil "~A(~{ ~A~^,~} )~%" operator1 operands1))))
+      (format nil "~A(~{ ~A~^,~} )" operator1 operands1))))
