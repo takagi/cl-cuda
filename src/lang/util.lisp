@@ -13,12 +13,22 @@
 (in-package cl-cuda.lang.util)
 
 
-(defun c-identifier (object)
+(defun %c-identifier (object)
   (substitute-if #\_ (lambda (char)
                        (and (not (alphanumericp char))
                             (not (char= #\_ char))
                             (not (char= #\* char))))
                  (string-downcase object)))
+
+(defun c-identifier (symbol &optional package-p)
+  (let ((symbol-name (%c-identifier
+                       (symbol-name symbol)))
+        (package-name (%c-identifier
+                        (package-name
+                          (symbol-package symbol)))))
+    (if package-p
+        (concatenate 'string package-name "_" symbol-name)
+        symbol-name)))
 
 (defun lines (str)
   (split-sequence:split-sequence #\LineFeed str :remove-empty-subseqs t))
@@ -30,3 +40,5 @@
   (labels ((aux (x)
              (format nil "~vT~A" n x)))
     (apply #'unlines (mapcar #'aux (lines str)))))
+
+

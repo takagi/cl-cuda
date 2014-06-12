@@ -39,6 +39,7 @@
                    (:file "kernel")
                    (:file "compiler/compile-data")
                    (:file "compiler/compile-type")
+                   (:file "compiler/compile-built-in")
                    (:file "compiler/compile-type-of")
                    (:file "compiler/compile-expression")
                    (:file "compiler/compile-statement")
