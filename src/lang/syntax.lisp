@@ -354,6 +354,7 @@
   (cl-pattern:match form
     (('if _ _ _ _ . _) (error "The statement ~S is malformed." form))
     (('if _ _ else-stmt) else-stmt)
+    (('if _ _) nil)
     (('if . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
 
@@ -370,8 +371,8 @@
 (defun let-bindings (form)
   (cl-pattern:match form
     (('let bindings . _)
-     (or (and (every #'let-binding-p bindings)
-              bindings)
+     (if (every #'let-binding-p bindings)
+         bindings
          (error "The statement ~S is malformed." form)))
     (('let . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
@@ -415,8 +416,8 @@
 (defun symbol-macrolet-bindings (form)
   (cl-pattern:match form
     (('symbol-macrolet bindings . _)
-     (or (and (every #'symbol-macrolet-binding-p bindings)
-              bindings)
+     (if (every #'symbol-macrolet-binding-p bindings)
+         bindings
          (error "The statement ~S is malformed." form)))
     (('symbol-macrolet . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
@@ -454,8 +455,8 @@
 (defun do-bindings (form)
   (cl-pattern:match form
     (('do bindings _ . _)
-     (or (and (every #'do-binding-p bindings)
-              bindings)
+     (if (every #'do-binding-p bindings)
+         bindings
          (error "The statement ~S is malformed." form)))
     (('do . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
@@ -463,8 +464,8 @@
 (defun do-end-tests (form)
   (cl-pattern:match form
     (('do _ end-tests . _)
-     (or (and (listp end-tests)
-              end-tests)
+     (if (listp end-tests)
+         end-tests
          (error "The statement ~S is malformed." form)))
     (('do . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
@@ -514,8 +515,8 @@
 (defun with-shared-memory-specs (form)
   (cl-pattern:match form
     (('with-shared-memory specs . _)
-     (or (and (every #'with-shared-memory-spec-p specs)
-              specs)
+     (if (every #'with-shared-memory-spec-p specs)
+         specs
          (error "The statement ~S is malformed." form)))
     (('with-shared-memory . _)
      (error "The statement ~S is malformed." form))
@@ -523,7 +524,7 @@
 
 (defun with-shared-memory-statements (form)
   (cl-pattern:match form
-    (('with-shared-memory _ statements) statements)
+    (('with-shared-memory _ . statements) statements)
     (('with-shared-memory . _)
      (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
@@ -535,10 +536,9 @@
 
 (defun with-shared-memory-spec-p (object)
   (cl-pattern:match object
-    ((var type dimensions) (and (cl-cuda-symbol-p var)
-                                (cl-cuda-type-p type)
-                                (listp dimensions)
-                                (every #'int-literal-p dimensions)))
+    ((var type . dimensions) (and (cl-cuda-symbol-p var)
+                                  (cl-cuda-type-p type)
+                                  (every #'int-literal-p dimensions)))
     (_ nil)))
 
 (defun with-shared-memory-spec-var (spec)
@@ -554,7 +554,7 @@
 (defun with-shared-memory-spec-dimensions (spec)
   (unless (with-shared-memory-spec-p spec)
     (error "The value ~S is an invalid shared memory spec." spec))
-  (caddr spec))
+  (cddr spec))
 
 
 ;;;
@@ -568,8 +568,8 @@
 
 (defun set-reference (form)
   (cl-pattern:match form
-    (('set reference _) (or (and (reference-p reference)
-                                 reference)
+    (('set reference _) (if (reference-p reference)
+                            reference
                             (error "The statement ~S is malformed." form)))
     (('set . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))

@@ -41,6 +41,7 @@
                    (:file "compiler/compile-type")
                    (:file "compiler/compile-type-of")
                    (:file "compiler/compile-expression")
+                   (:file "compiler/compile-statement")
                    (:file "package")
                    (:file "lang")))
                  (:module "api"

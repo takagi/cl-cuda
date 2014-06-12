@@ -45,7 +45,10 @@
            ;; Array type
            :array-type-p
            :array-type-base
-           :array-type-dimension))
+           :array-type-dimension
+           :array-type)
+  (:import-from :alexandria
+                :format-symbol))
 (in-package :cl-cuda.lang.type)
 
 
@@ -237,3 +240,10 @@
   (let ((base (array-type-base type))
         (stars (array-type-stars type)))
     (format nil "~A~A" (cuda-type base) stars)))
+
+(defun array-type (type dimension)
+  (unless (and (cl-cuda-type-p type)
+               (not (array-type-p type)))
+    (error "The value ~S is an invalid type." type))
+  (let ((stars (loop repeat dimension collect #\*)))
+    (format-symbol 'cl-cuda.lang.type "~A~{~A~}" type stars)))
