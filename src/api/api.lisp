@@ -8,12 +8,10 @@
   (:use :cl :cl-reexport))
 (in-package :cl-cuda.api)
 
-(import '(cl-cuda.api.nvcc:*tmp-path*
-          cl-cuda.api.nvcc:*nvcc-options*
-          cl-cuda.api.nvcc:*nvcc-binary*))
-(export '(cl-cuda.api.nvcc:*tmp-path*
-          cl-cuda.api.nvcc:*nvcc-options*
-          cl-cuda.api.nvcc:*nvcc-binary*))
+(reexport-from :cl-cuda.api.nvcc
+               :include '(:*tmp-path*
+                          :*nvcc-options*
+                          :*nvcc-binary*))
 (reexport-from :cl-cuda.api.kernel-manager)
 (reexport-from :cl-cuda.api.context)
 (reexport-from :cl-cuda.api.memory)
