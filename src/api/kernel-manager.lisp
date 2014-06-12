@@ -7,6 +7,7 @@
 (defpackage cl-cuda.api.kernel-manager
   (:use :cl
         :cl-cuda.driver-api
+        :cl-cuda.lang
         :cl-cuda.api.nvcc)
   (:export :kernel-manager
            :make-kernel-manager
@@ -26,76 +27,6 @@
            :ensure-kernel-function-loaded
            :*kernel-manager*))
 (in-package :cl-cuda.api.kernel-manager)
-
-
-;;;
-;;; Stubs
-;;;
-
-(shadow '(:foo :bar))
-
-(defun make-kernel ()
-  nil)
-
-(defun kernel-define-function (kernel name return-type arguments body)
-  nil)
-
-(defun kernel-function-exists-p (kernel name)
-  nil)
-
-(defun kernel-function-c-name (kernel name)
-  (unless (eq name 'foo)
-    (error "The kernel function ~S does not exist." name))
-  "foo")
-
-(defun kernel-function-return-type (kernel name)
-  (if (eq name 'foo)
-      'void
-      nil))
-
-(defun kernel-function-arguments (kernel name)
-  (if (eq name 'foo)
-      '()
-      nil))
-
-(defun kernel-function-body (kernel name)
-  (if (eq name 'foo)
-      '()
-      nil))
-
-(defun kernel-define-macro (kernel name arguments body expander)
-  nil)
-
-(defun kernel-macro-exists-p (kernel name)
-  nil)
-
-(defun kernel-macro-arguments (kernel name)
-  nil)
-
-(defun kernel-macro-body (kernel name)
-  nil)
-
-(defun kernel-macro-expander (kernel name)
-  nil)
-
-(defun kernel-define-symbol-macro (kernel name expansion)
-  nil)
-
-(defun kernel-symbol-macro-exists-p (kernel name)
-  nil)
-
-(defun kernel-symbol-macro-expansion (kernel name)
-  nil)
-
-(defun compile-kernel (kernel)
-  (declare (ignorable kernel))
-  "extern \"C\" {
-__global__ void foo ()
-{
-  return;
-}
-}
-")
 
 
 ;;;

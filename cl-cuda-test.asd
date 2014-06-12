@@ -36,9 +36,7 @@
                    (:file "compiler/compile-type-of")
                    (:file "compiler/compile-expression")
                    (:file "compiler/compile-statement")
-                   (:file "compiler/compile-kernel")
-                   (:file "package")
-                   (:file "lang")))
+                   (:file "compiler/compile-kernel")))
                  (:module "api"
                   :serial t
                   :components

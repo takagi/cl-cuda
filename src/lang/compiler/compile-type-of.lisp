@@ -8,17 +8,10 @@
   (:use :cl
         :cl-cuda.lang.type
         :cl-cuda.lang.syntax
-        :cl-cuda.lang.environment)
+        :cl-cuda.lang.environment
+        :cl-cuda.lang.compiler.compile-built-in)
   (:export :type-of-expression))
 (in-package :cl-cuda.lang.compiler.compile-type-of)
-
-
-;;;
-;;; Stubs
-;;;
-
-(defun built-in-function-return-type (operator argument-types)
-  'bool)
 
 
 ;;;

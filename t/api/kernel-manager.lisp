@@ -6,10 +6,9 @@
 (in-package :cl-user)
 (defpackage cl-cuda-test.api.kernel-manager
   (:use :cl :cl-test-more
+        :cl-cuda.lang
         :cl-cuda.api.context
-        :cl-cuda.api.kernel-manager)
-  (:import-from :cl-cuda.api.kernel-manager
-                :foo :bar))
+        :cl-cuda.api.kernel-manager))
 (in-package :cl-cuda-test.api.kernel-manager)
 
 (plan nil)
@@ -25,6 +24,7 @@
        (*kernel-manager* mgr))
   (with-cuda-context (0)
     ;; I - initial state
+    (kernel-manager-define-function mgr 'foo 'void '() '())
     (is (kernel-manager-compiled-p mgr) nil
         "basic case 1")
     (is (kernel-manager-module-handle mgr) nil
@@ -64,7 +64,7 @@
     (is (kernel-manager-function-handles-empty-p mgr) t
         "basic case 15")
     ;; I - initial state
-    (kernel-manager-define-function mgr 'foo 'void '() '())
+    (kernel-manager-define-function mgr 'bar 'void '() '())
     (is (kernel-manager-compiled-p mgr) nil
         "basic case 16")
     (is (kernel-manager-module-handle mgr) nil
@@ -83,7 +83,7 @@
        (*kernel-manager* mgr))
   (with-cuda-context (0)
     ;; I - initial state
-    nil
+    (kernel-manager-define-function mgr 'foo 'void '() '())
     ;; II - compiled state
     (kernel-manager-compile-module mgr)
     (is-error (kernel-manager-compile-module mgr) simple-error
@@ -108,6 +108,7 @@
        (*kernel-manager* mgr))
   (with-cuda-context (0)
     ;; I - initial state
+    (kernel-manager-define-function mgr 'foo 'void '() '())
     (is-error (kernel-manager-load-module mgr) simple-error
               "KERNEL-MANAGER whose state is initial state.")
     ;; II - compiled state
@@ -133,6 +134,7 @@
        (*kernel-manager* mgr))
   (with-cuda-context (0)
     ;; I - initial state
+    (kernel-manager-define-function mgr 'foo 'void '() '())
     (is-error (kernel-manager-load-function mgr 'foo) simple-error
               "KERNEL-MANAGER whose state is initial state.")
     ;; II - compiled state

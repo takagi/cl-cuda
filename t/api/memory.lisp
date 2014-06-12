@@ -31,10 +31,6 @@
             "TYPE which is a void type"))
 
 (with-cuda-context (0)
-  (is-error (alloc-memory-block 'int* 1024) simple-error
-            "TYPE which is a pointer type"))
-
-(with-cuda-context (0)
   (is-error (alloc-memory-block 'int  (* 1024 1024 1024 1024))
             simple-error
             "SIZE which specifies memory larger than available on the gpu"))

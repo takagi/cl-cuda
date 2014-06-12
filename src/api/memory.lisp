@@ -122,8 +122,6 @@
   (size :size :read-only t))
 
 (defun alloc-memory-block (type size)
-  (unless (non-pointer-type-p type)
-    (error "The value ~S is an invalid type." type))
   (let ((device-ptr (alloc-device-memory type size))
         (host-ptr (alloc-host-memory type size)))
     (%make-memory-block :device-ptr device-ptr

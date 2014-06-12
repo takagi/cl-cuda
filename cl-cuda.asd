@@ -44,7 +44,6 @@
                    (:file "compiler/compile-expression")
                    (:file "compiler/compile-statement")
                    (:file "compiler/compile-kernel")
-                   (:file "package")
                    (:file "lang")))
                  (:module "api"
                   :serial t

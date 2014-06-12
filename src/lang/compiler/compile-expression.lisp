@@ -10,6 +10,7 @@
         :cl-cuda.lang.syntax
         :cl-cuda.lang.environment
         :cl-cuda.lang.compiler.compile-data
+        :cl-cuda.lang.compiler.compile-built-in
         :cl-cuda.lang.compiler.compile-type-of)
   (:export :compile-expression))
 (in-package :cl-cuda.lang.compiler.compile-expression)
@@ -244,19 +245,24 @@
       (format nil "~A(~{ ~A~^,~} )" operator1 operands1))))
 
 (defun compile-built-in-function (form var-env func-env)
-  (if (built-in-function-infix-p form var-env func-env)
-      (compile-built-in-infix-function form var-env func-env)
-      (compile-built-in-prefix-function form var-env func-env)))
+  (let ((operator (function-operator form))
+        (operands (function-operands form)))
+    (let ((operand-types (type-of-operands operands var-env func-env)))
+      (if (built-in-function-infix-p operator operand-types)
+          (compile-built-in-infix-function operator operands operand-types
+                                           var-env func-env)
+          (compile-built-in-prefix-function operator operands operand-types
+                                            var-env func-env)))))
 
-(defun compile-built-in-infix-function (form var-env func-env)
-  (let ((operands (function-operands form)))
-    (let ((op (built-in-function-c-name form var-env func-env))
+(defun compile-built-in-infix-function (operator operands operand-types
+                                        var-env func-env)
+    (let ((op (built-in-function-c-name operator operand-types))
           (lhe (compile-expression (car operands) var-env func-env))
           (rhe (compile-expression (cadr operands) var-env func-env)))
-      (format nil "(~A ~A ~A)" lhe op rhe))))
+      (format nil "(~A ~A ~A)" lhe op rhe)))
 
-(defun compile-built-in-prefix-function (form var-env func-env)
-  (let ((operands (function-operands form)))
-    (let ((operator1 (built-in-function-c-name form var-env func-env))
+(defun compile-built-in-prefix-function (operator operands operand-types
+                                         var-env func-env)
+    (let ((operator1 (built-in-function-c-name operator operand-types))
           (operands1 (compile-operands operands var-env func-env)))
-      (format nil "~A(~{ ~A~^,~} )" operator1 operands1))))
+      (format nil "~A(~{ ~A~^,~} )" operator1 operands1)))

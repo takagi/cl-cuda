@@ -203,14 +203,16 @@
 (let ((var-env (variable-environment-add-variable 'x 'int
                  (empty-variable-environment)))
       (func-env (empty-function-environment)))
-  (is (compile-set '(set x 1) var-env func-env) "x = 1;"
+  (is (compile-set '(set x 1) var-env func-env)
+      (unlines "x = 1;")
       "basic case 1")
   (is-error (compile-set '(set x 1.0) var-env func-env) simple-error))
 
 (let ((var-env (variable-environment-add-variable 'x 'int*
                  (empty-variable-environment)))
       (func-env (empty-function-environment)))
-  (is (compile-set '(set (aref x 0) 1) var-env func-env) "x[0] = 1;"
+  (is (compile-set '(set (aref x 0) 1) var-env func-env)
+      (unlines "x[0] = 1;")
       "basic case 2")
   (is-error (compile-set '(set (aref x 0) 1.0) var-env func-env)
             simple-error))
@@ -218,7 +220,8 @@
 (let ((var-env (variable-environment-add-variable 'x 'float3
                  (empty-variable-environment)))
       (func-env (empty-function-environment)))
-  (is (compile-set '(set (float3-x x) 1.0) var-env func-env) "x.x = 1.0;"
+  (is (compile-set '(set (float3-x x) 1.0) var-env func-env)
+      (unlines "x.x = 1.0;")
       "basic case 3")
   (is-error (compile-set '(set (float3-x x) 1) var-env func-env)
             simple-error))

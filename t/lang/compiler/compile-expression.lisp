@@ -147,13 +147,15 @@
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
   (is (compile-inline-if '(if (= 1 1) 1 2) var-env func-env)
-      "((1 = 1) ? 1 1 : 2"
+      "((1 == 1) ? 1 : 2)"
       "basic case 1"))
 
 
 ;;;
-;;; test TYPE-OF-ARITHMETIC function
+;;; test COMPILE-ARITHMETIC function
 ;;;
+
+(diag "COMPILE-ARITHMETIC")
 
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
@@ -170,7 +172,8 @@
 (let ((var-env (empty-variable-environment))
       (func-env (function-environment-add-function 'foo 'int '(int int)
                   (empty-function-environment))))
-  (is (compile-function '(foo 1 1) var-env func-env) "foo( 1, 1 )"
+  (is (compile-function '(foo 1 1) var-env func-env)
+      "cl_cuda_test_lang_compiler_compile_expression_foo( 1, 1 )"
       "basic case 1")
   (is-error (compile-function '(foo 1 1 1) var-env func-env) simple-error))
 
@@ -181,7 +184,7 @@
 
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
-  (is (compile-function '(negate 1) var-env func-env) "int_negate( 1 )"
+  (is (compile-function '(- 1) var-env func-env) "int_negate( 1 )"
       "basic case 3")
   (is (compile-function '(+ (float3 1.0 1.0 1.0) (float3 2.0 2.0 2.0))
                         var-env func-env)
