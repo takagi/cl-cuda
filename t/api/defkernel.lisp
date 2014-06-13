@@ -229,9 +229,6 @@
 (defkernelmacro bar (x)
   `(foo ,x))
 
-(defmacro is-values (got expected &rest args)
-  `(is (multiple-value-list ,got) ,expected ,@args))
-
 (is-values (expand-macro-1 '(foo 1)) '((return 1) t))
 (is-values (expand-macro-1 '(bar 1)) '((foo 1) t))
 (is-values (expand-macro-1 '(baz 1)) '((baz 1) nil))

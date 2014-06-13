@@ -323,9 +323,6 @@
 
 (diag "EXPAND-MACRO")
 
-(defmacro is-values (got expected &rest args)
-  `(is (multiple-value-list ,got) ,expected ,@args))
-
 (let ((mgr (make-kernel-manager)))
   (kernel-manager-define-macro mgr 'foo '(x) '(`(return ,x)))
   (kernel-manager-define-macro mgr 'bar '(x) '(`(foo ,x)))

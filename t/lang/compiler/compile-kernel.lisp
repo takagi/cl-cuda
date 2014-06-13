@@ -68,9 +68,6 @@ __global__ void cl_cuda_test_lang_compiler_compile_kernel_foo( int* x )
 
 (diag "EXPAND-MACRO")
 
-(defmacro is-values (got expected &rest args)
-  `(is (multiple-value-list ,got) ,expected ,@args))
-
 (let ((kernel (make-kernel)))
   (kernel-define-macro kernel 'foo '(x) '(`(return ,x)))
   (kernel-define-macro kernel 'bar '(x) '(`(foo ,x)))
