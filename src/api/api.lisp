@@ -12,7 +12,9 @@
                :include '(:*tmp-path*
                           :*nvcc-options*
                           :*nvcc-binary*))
-(reexport-from :cl-cuda.api.kernel-manager)
+(reexport-from :cl-cuda.api.kernel-manager
+               :exclude '(:expand-macro-1
+                          :expand-macro))
 (reexport-from :cl-cuda.api.context)
 (reexport-from :cl-cuda.api.memory)
 (reexport-from :cl-cuda.api.defkernel)

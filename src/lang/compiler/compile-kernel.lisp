@@ -14,7 +14,9 @@
         :cl-cuda.lang.compiler.compile-data
         :cl-cuda.lang.compiler.compile-type
         :cl-cuda.lang.compiler.compile-statement)
-  (:export :compile-kernel))
+  (:export :compile-kernel
+           :expand-macro-1
+           :expand-macro))
 (in-package :cl-cuda.lang.compiler.compile-kernel)
 
 
@@ -152,3 +154,23 @@
         (prototypes (compile-prototypes kernel))
         (definitions (compile-definitions kernel)))
     (format nil "~A~%~%~A~%~%~A" includes prototypes definitions)))
+
+
+;;;
+;;; Kernel macro expansion
+;;;
+
+(defun expand-macro-1 (form kernel)
+  (let ((func-env (kernel->function-environment kernel)))
+    (cl-cuda.lang.compiler.compile-expression::%expand-macro-1 form func-env)))
+
+(defun expand-macro (form kernel)
+  (labels ((aux (form func-env expanded-p)
+             (multiple-value-bind (form1 newly-expanded-p)
+                 (cl-cuda.lang.compiler.compile-expression::%expand-macro-1
+                   form func-env)
+               (if newly-expanded-p
+                   (aux form1 func-env t)
+                   (values form1 expanded-p)))))
+    (let ((func-env (kernel->function-environment kernel)))
+      (aux form func-env nil))))

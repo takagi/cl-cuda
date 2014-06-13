@@ -317,4 +317,29 @@
               "KERNEL-MANAGER whose state is function-loaded state.")))
 
 
+;;;
+;;; test EXPAND-MACRO function
+;;;
+
+(diag "EXPAND-MACRO")
+
+(defmacro is-values (got expected &rest args)
+  `(is (multiple-value-list ,got) ,expected ,@args))
+
+(let ((mgr (make-kernel-manager)))
+  (kernel-manager-define-macro mgr 'foo '(x) '(`(return ,x)))
+  (kernel-manager-define-macro mgr 'bar '(x) '(`(foo ,x)))
+
+  (is-values (expand-macro-1 '(foo 1) mgr) '((return 1) t))
+  (is-values (expand-macro-1 '(bar 1) mgr) '((foo 1) t))
+  (is-values (expand-macro-1 '(baz 1) mgr) '((baz 1) nil))
+  (is-error (expand-macro-1 '(foo)) error)
+
+  (is-values (expand-macro '(foo 1) mgr) '((return 1) t))
+  (is-values (expand-macro '(bar 1) mgr) '((return 1) t))
+  (is-values (expand-macro '(baz 1) mgr) '((baz 1) nil))
+  (is-error (expand-macro '(foo)) error))
+
+
+
 (finalize)
