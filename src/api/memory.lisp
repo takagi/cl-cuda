@@ -72,6 +72,8 @@
   (let ((cffi-type (cffi-type type)))
     (cl-pattern:match cffi-type
       (:int (cffi:mem-aref host-ptr :int index))
+      (:float (cffi:mem-aref host-ptr :float index))
+      (:double (cffi:mem-aref host-ptr :double index))
       ((:boolean :int8) (cffi:mem-aref host-ptr '(:boolean :int8) index))
       ((:struct 'float3) (cffi:mem-aref host-ptr '(:struct float3) index))
       ((:struct 'float4) (cffi:mem-aref host-ptr '(:struct float4) index))
@@ -84,6 +86,8 @@
   (let ((cffi-type (cffi-type type)))
     (cl-pattern:match cffi-type
       (:int (setf (cffi:mem-aref host-ptr :int index) new-value))
+      (:float (setf (cffi:mem-aref host-ptr :float index) new-value))
+      (:double (setf (cffi:mem-aref host-ptr :double index) new-value))
       ((:boolean :int8)
        (setf (cffi:mem-aref host-ptr '(:boolean :int8) index) new-value))
       ((:struct 'float3)
