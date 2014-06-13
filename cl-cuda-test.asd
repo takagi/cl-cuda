@@ -19,8 +19,7 @@
                 ((:module "driver-api"
                   :serial t
                   :components
-                  ((:file "package")
-                   (:file "driver-api")))
+                  ((:file "driver-api")))
                  (:module "lang"
                   :serial t
                   :components
