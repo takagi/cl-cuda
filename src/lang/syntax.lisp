@@ -137,12 +137,12 @@
 
 (defun macro-operator (form)
   (unless (macro-p form)
-    (error "The form ~S is invalid." form))
+    (error "The value ~S is an invalid form." form))
   (car form))
 
 (defun macro-operands (form)
   (unless (macro-p form)
-    (error "The form ~S is invalid." form))
+    (error "The value ~S is an invalid form." form))
   (cdr form))
 
 

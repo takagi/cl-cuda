@@ -175,11 +175,11 @@
       (kernel-manager-load-function manager name)))
 
 (defun expand-macro-1 (form manager)
-  (let ((kernel (kernel-manager-kernel *kernel-manager*)))
-    (cl-cuda.lang.compiler.compile-kernel:expand-macro-1 form kernel)))
+  (let ((kernel (kernel-manager-kernel manager)))
+    (cl-cuda.lang.kernel:expand-macro-1 form kernel)))
 
 (defun expand-macro (form manager)
-  (let ((kernel (kernel-manager-kernel *kernel-manager*)))
-    (cl-cuda.lang.compiler.compile-kernel:expand-macro form kernel)))
+  (let ((kernel (kernel-manager-kernel manager)))
+    (cl-cuda.lang.kernel:expand-macro form kernel)))
 
 (defvar *kernel-manager* (make-kernel-manager))

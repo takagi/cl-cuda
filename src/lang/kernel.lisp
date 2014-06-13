@@ -31,6 +31,8 @@
            :kernel-macro-arguments
            :kernel-macro-body
            :kernel-macro-expander
+           :expand-macro-1
+           :expand-macro
            ;; Symbol macro
            :kernel-define-symbol-macro
            :kernel-symbol-macro-exists-p
@@ -150,6 +152,25 @@
 
 (defun kernel-macro-expander (kernel name)
   (macro-expander (%lookup-macro kernel name)))
+
+(defun expand-macro-1 (form kernel)
+  (if (cl-cuda.lang.syntax:macro-p form)
+      (let ((operator (cl-cuda.lang.syntax:macro-operator form))
+            (operands (cl-cuda.lang.syntax:macro-operands form)))
+        (if (kernel-macro-exists-p kernel operator)
+            (let ((expander (kernel-macro-expander kernel operator)))
+              (values (funcall expander operands) t))
+            (values form nil)))
+      (values form nil)))
+
+(defun expand-macro (form kernel)
+  (labels ((aux (form expanded-p)
+             (multiple-value-bind (form1 newly-expanded-p)
+                 (expand-macro-1 form kernel)
+               (if newly-expanded-p
+                   (aux form1 t)
+                   (values form1 expanded-p)))))
+    (aux form nil)))
 
 
 ;;;

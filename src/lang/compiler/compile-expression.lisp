@@ -42,8 +42,11 @@
   (cl-cuda.lang.compiler.compile-type-of::%macro-p form func-env))
 
 (defun compile-macro (form var-env func-env)
-  (let ((form1 (%expand-macro-1 form func-env)))
-    (compile-expression form1 var-env func-env)))
+  (let ((operator (macro-operator form))
+        (operands (macro-operands form)))
+    (let ((expander (function-environment-macro-expander func-env operator)))
+      (let ((form1 (funcall expander operands)))
+        (compile-expression form1 var-env func-env)))))
 
 (defun %expand-macro-1 (form func-env)
   (if (%macro-p form func-env)

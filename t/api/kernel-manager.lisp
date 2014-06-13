@@ -318,25 +318,31 @@
 
 
 ;;;
+;;; test EXPAND-MACRO-1 function
+;;;
+
+(diag "EXPAND-MACRO-1")
+
+(let ((mgr (make-kernel-manager)))
+  (kernel-manager-define-macro mgr 'foo '(x) '(`(return ,x)))
+  (kernel-manager-define-macro mgr 'bar '(x) '(`(foo ,x)))
+  (is-values (expand-macro-1 '(foo 1) mgr) '((return 1) t))
+  (is-values (expand-macro-1 '(bar 1) mgr) '((foo 1) t))
+  (is-values (expand-macro-1 '(baz 1) mgr) '((baz 1) nil))
+  (is-error (expand-macro-1 '(foo)) error))
+
+
+;;;
 ;;; test EXPAND-MACRO function
 ;;;
 
 (diag "EXPAND-MACRO")
 
 (let ((mgr (make-kernel-manager)))
-  (kernel-manager-define-macro mgr 'foo '(x) '(`(return ,x)))
-  (kernel-manager-define-macro mgr 'bar '(x) '(`(foo ,x)))
-
-  (is-values (expand-macro-1 '(foo 1) mgr) '((return 1) t))
-  (is-values (expand-macro-1 '(bar 1) mgr) '((foo 1) t))
-  (is-values (expand-macro-1 '(baz 1) mgr) '((baz 1) nil))
-  (is-error (expand-macro-1 '(foo)) error)
-
   (is-values (expand-macro '(foo 1) mgr) '((return 1) t))
   (is-values (expand-macro '(bar 1) mgr) '((return 1) t))
   (is-values (expand-macro '(baz 1) mgr) '((baz 1) nil))
   (is-error (expand-macro '(foo)) error))
-
 
 
 (finalize)
