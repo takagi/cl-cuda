@@ -39,6 +39,8 @@
            :kernel-symbol-macro-name
            :kernel-symbol-macro-expansion)
   (:import-from :cl-cuda.lang.syntax
+                :macro-operator
+                :macro-operands
                 :argument-p
                 :argument-var
                 :argument-type)
@@ -155,8 +157,8 @@
 
 (defun expand-macro-1 (form kernel)
   (if (cl-cuda.lang.syntax:macro-p form)
-      (let ((operator (cl-cuda.lang.syntax:macro-operator form))
-            (operands (cl-cuda.lang.syntax:macro-operands form)))
+      (let ((operator (macro-operator form))
+            (operands (macro-operands form)))
         (if (kernel-macro-exists-p kernel operator)
             (let ((expander (kernel-macro-expander kernel operator)))
               (values (funcall expander operands) t))
