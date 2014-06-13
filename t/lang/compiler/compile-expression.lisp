@@ -43,10 +43,7 @@
 (diag "COMPILE-MACRO")
 
 (let ((var-env (empty-variable-environment))
-      (func-env (function-environment-add-macro 'foo
-                                                #'(lambda (arg)
-                                                    (destructuring-bind (x) arg
-                                                      `(+ ,x ,x)))
+      (func-env (function-environment-add-macro 'foo '(arg) '(`(+ ,x ,x))
                   (empty-function-environment))))
   (is (compile-macro '(foo 1) var-env func-env) "(1 + 1)"
       "basic case 1"))

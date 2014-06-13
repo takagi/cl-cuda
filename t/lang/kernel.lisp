@@ -34,8 +34,7 @@
 
 (let ((kernel (make-kernel)))
   (kernel-define-function kernel 'foo 'int '((x int)) '((return x)))
-  (kernel-define-macro kernel 'bar '(x) '(`(return ,x))
-                              #'(lambda (x) `(return ,x)))
+  (kernel-define-macro kernel 'bar '(x) '(`(return ,x)))
   (is (kernel-function-names kernel) '(foo)
       "basic case 1"))
 
@@ -48,8 +47,7 @@
 
 (let ((kernel (make-kernel)))
   (kernel-define-function kernel 'foo 'int '((x int)) '((return x)))
-  (kernel-define-macro kernel 'bar '(x) '(`(return ,x))
-                              #'(lambda (x) `(return ,x)))
+  (kernel-define-macro kernel 'bar '(x) '(`(return ,x)))
   (is (kernel-macro-names kernel) '(bar)
       "basic case 1"))
 
@@ -101,8 +99,7 @@
 
 (let ((kernel (make-kernel)))
   (kernel-define-function kernel 'foo 'int '((x int)) '((return x)))
-  (kernel-define-macro kernel 'bar '(x) '(`(return ,x))
-                              #'(lambda (x) `(return ,x)))
+  (kernel-define-macro kernel 'bar '(x) '(`(return ,x)))
   (is (kernel-function-exists-p kernel 'foo) t
       "basic case 1")
   (is (kernel-function-exists-p kernel 'bar) nil
@@ -156,13 +153,11 @@
 (diag "KERNEL-DEFINE-MACRO")
 
 (let ((kernel (make-kernel)))
-  (is (kernel-define-macro kernel 'foo '(x) '(`(return ,x))
-                           #'(lambda (x) `(return ,x)))
+  (is (kernel-define-macro kernel 'foo '(x) '(`(return ,x)))
       'foo "basic case 1"))
 
 (let ((kernel (make-kernel)))
-  (is-error (kernel-define-macro kernel 1 '(x) '(`(return ,x))
-                                 #'(lambda (x) `(return ,x)))
+  (is-error (kernel-define-macro kernel 1 '(x) '(`(return ,x)))
             type-error
             "NAME which is not a cl-cuda symbol."))
 
@@ -175,8 +170,7 @@
 
 (let ((kernel (make-kernel)))
   (kernel-define-function kernel 'foo 'int '((x int)) '((return x)))
-  (kernel-define-macro kernel 'bar '(x) '(`(return ,x))
-                              #'(lambda (x) `(return ,x)))
+  (kernel-define-macro kernel 'bar '(x) '(`(return ,x)))
   (is (kernel-macro-exists-p kernel 'foo) nil
       "basic case 1")
   (is (kernel-macro-exists-p kernel 'bar) t

@@ -61,8 +61,7 @@
 
 (diag "Function environment - Function")
 
-(let ((func-env (function-environment-add-macro 'bar #'(lambda (x)
-                                                         `(return ,x))
+(let ((func-env (function-environment-add-macro 'bar '(x) '(`(return ,x))
                   (function-environment-add-function 'foo 'int '(int)
                     (empty-function-environment)))))
   (is (function-environment-function-exists-p func-env 'foo) t
@@ -85,8 +84,7 @@
 
 (diag "Function environment - Macro")
 
-(let ((func-env (function-environment-add-macro 'bar #'(lambda (x)
-                                                         `(return ,x))
+(let ((func-env (function-environment-add-macro 'bar '(x) '(`(return ,x))
                   (function-environment-add-function 'foo 'int '(int)
                     (empty-function-environment)))))
   (is (function-environment-macro-exists-p func-env 'foo) nil

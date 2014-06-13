@@ -241,16 +241,16 @@
        (*kernel-manager* mgr))
   (with-cuda-context (0)
     ;; transfer state from I to II
-    (kernel-manager-define-macro mgr 'foo '() '() #'(lambda ()))
+    (kernel-manager-define-macro mgr 'foo '() '())
     (kernel-manager-compile-module mgr)
     (is (kernel-manager-compiled-p mgr) t
         "basic case 1")
     ;; defining macro without change makes no state transfer
-    (kernel-manager-define-macro mgr 'foo '() '() #'(lambda ()))
+    (kernel-manager-define-macro mgr 'foo '() '())
     (is (kernel-manager-compiled-p mgr) t
         "basic case 2")
     ;; defining macro with change makes state transfer
-    (kernel-manager-define-macro mgr 'foo '(a) '(a) #'(lambda (a) a))
+    (kernel-manager-define-macro mgr 'foo '(a) '(a))
     (is (kernel-manager-compiled-p mgr) nil
         "basic case 3")))
 
@@ -265,12 +265,12 @@
     nil
     ;; III - module-loaded state
     (kernel-manager-load-module mgr)
-    (is-error (kernel-manager-define-macro mgr 'bar '() '() #'(lambda ()))
+    (is-error (kernel-manager-define-macro mgr 'bar '() '())
               simple-error
               "KERNEL-MANAGER whose state is module-loaded state.")
     ;; IV - function-loaded state
     (kernel-manager-load-function mgr 'foo)
-    (is-error (kernel-manager-define-macro mgr 'bar '() '() #'(lambda ()))
+    (is-error (kernel-manager-define-macro mgr 'bar '() '())
               simple-error
               "KERNEL-MANAGER whose state is function-loaded state.")))
 
