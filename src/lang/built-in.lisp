@@ -145,7 +145,7 @@
 (defun inferred-function (name argument-types)
   (let ((candidates (inferred-function-candidates name)))
     (or (assoc argument-types candidates :test #'equal)
-        (error "The function ~S is undefined."))))
+        (error "The function ~S is undefined." name))))
 
 (defun built-in-function-return-type (name argument-types)
   (cadr (inferred-function name argument-types)))
