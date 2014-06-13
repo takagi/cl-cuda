@@ -80,13 +80,13 @@
             (equal arguments (kernel-function-arguments kernel name))
             (equal body (kernel-function-body kernel name)))))
 
-(defun kernel-manager-define-macro (manager name arguments body expander)
+(defun kernel-manager-define-macro (manager name arguments body)
   (unless (not (kernel-manager-module-handle manager))
     (error "The kernel manager has already loaded the kernel module."))
   (symbol-macrolet ((module-path (kernel-manager-module-path manager))
                     (kernel (kernel-manager-kernel manager)))
     (when (macro-modified-p kernel name arguments body)
-      (kernel-define-macro kernel name arguments body expander)
+      (kernel-define-macro kernel name arguments body)
       (setf module-path nil)))
   name)
 

@@ -121,9 +121,9 @@
 ;;; Kernel definition - macro
 ;;;
 
-(defun kernel-define-macro (kernel name arguments body expander)
+(defun kernel-define-macro (kernel name arguments body)
   (symbol-macrolet ((namespace (kernel-function-namespace kernel)))
-    (let ((macro (make-macro name arguments body expander)))
+    (let ((macro (make-macro name arguments body)))
       (setf (getf namespace name) macro)))
   name)
 
@@ -221,16 +221,22 @@
 (defstruct (macro (:constructor %make-macro))
   (name :name :read-only t)
   (arguments :arguments :read-only t)
-  (body :body :read-only t)
-  (expander :expander :read-only t))
+  (body :body :read-only t))
 
-(defun make-macro (name arguments body expander)
+(defun make-macro (name arguments body)
   (unless (cl-cuda-symbol-p name)
     (error 'type-error :datum name :expected-type 'cl-cuda-symbol))
   (%make-macro :name name
                :arguments arguments
-               :body body
-               :expander expander))
+               :body body))
+
+(defun macro-expander (macro)
+  (let ((arguments (macro-arguments macro))
+        (body (macro-body macro)))
+    (with-gensyms (arguments1)
+      (eval #'(lambda (,arguments1)
+                (destructuring-bind ,arguments ,arguments1
+                  ,@body))))))
 
 
 ;;;

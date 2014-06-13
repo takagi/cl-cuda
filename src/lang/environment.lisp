@@ -134,8 +134,8 @@
 ;;; Function environment - Macro
 ;;;
 
-(defun function-environment-add-macro (name expander func-env)
-  (let ((elem (make-macro name expander)))
+(defun function-environment-add-macro (name arguments body func-env)
+  (let ((elem (make-macro name arguments body)))
     (acons name elem func-env)))
 
 (defun function-environment-macro-exists-p (func-env name)
@@ -218,9 +218,18 @@
 
 (defstruct (macro (:constructor %make-macro))
   (name :name :read-only t)
-  (expander :expander :read-only t))
+  (arguments :arguments :read-only t)
+  (body :body :read-only t))
 
-(defun make-macro (name expander)
+(defun make-macro (name arguments body)
   (unless (cl-cuda-symbol-p name)
     (error 'type-error :datum name :expected-type 'cl-cuda-symbol))
-  (%make-macro :name name :expander expander))
+  (%make-macro :name name :arguments arguments :body body))
+
+(defun macro-expander (macro)
+  (let ((arguments (macro-arguments macro))
+        (body (macro-body macro)))
+    (with-gensyms (arguments1)
+      (eval #'(lambda (,arguments1)
+                (destructuring-bind ,arguments ,arguments1
+                  ,@body))))))

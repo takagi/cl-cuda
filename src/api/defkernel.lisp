@@ -120,11 +120,7 @@
 ;;;
 
 (defmacro defkernelmacro (name arguments &body body)
-  (with-gensyms (arguments1)
-    `(kernel-manager-define-macro *kernel-manager* ',name ',arguments ',body
-       #'(lambda (,arguments1)
-           (destructuring-bind (,@arguments) ,arguments1
-             ,@body)))))
+  `(kernel-manager-define-macro *kernel-manager* ',name ',arguments ',body))
 
 
 ;;;
