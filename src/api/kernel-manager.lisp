@@ -25,6 +25,8 @@
            :ensure-kernel-module-compiled
            :ensure-kernel-module-loaded
            :ensure-kernel-function-loaded
+           :expand-macro-1
+           :expand-macro
            :*kernel-manager*))
 (in-package :cl-cuda.api.kernel-manager)
 
@@ -168,5 +170,13 @@
   (ensure-kernel-module-loaded manager)
   (or (kernel-manager-function-handle manager name)
       (kernel-manager-load-function manager name)))
+
+(defun expand-macro-1 (form manager)
+  (let ((kernel (kernel-manager-kernel *kernel-manager*)))
+    (cl-cuda.lang.compiler.compile-kernel:expand-macro-1 form kernel)))
+
+(defun expand-macro (form manager)
+  (let ((kernel (kernel-manager-kernel *kernel-manager*)))
+    (cl-cuda.lang.compiler.compile-kernel:expand-macro form kernel)))
 
 (defvar *kernel-manager* (make-kernel-manager))

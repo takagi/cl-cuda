@@ -12,6 +12,8 @@
         :cl-cuda.driver-api)
   (:export :defkernel
            :defkernelmacro
+           :expand-macro-1
+           :expand-macro
            :defkernel-symbol-macro)
   (:import-from :alexandria
                 :format-symbol
@@ -121,6 +123,12 @@
 
 (defmacro defkernelmacro (name arguments &body body)
   `(kernel-manager-define-macro *kernel-manager* ',name ',arguments ',body))
+
+(defun expand-macro-1 (form)
+  (cl-cuda.api.kernel-manager:expand-macro-1 form *kernel-manager*))
+
+(defun expand-macro (form manager)
+  (cl-cuda.api.kernel-manager:expand-macro form *kernel-manager*))
 
 
 ;;;

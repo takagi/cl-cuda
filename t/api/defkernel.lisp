@@ -230,18 +230,14 @@
   `(is (multiple-value-list ,got) ,expected ,@args))
 
 (is-values (expand-macro-1 '(foo 1)) '((return 1) t))
-(is-error (expand-macro-1 '(foo)) simple-error)
-(is-error (expand-macro-1 '(foo 1 2)) simple-error)
-(is-values (expand-macro-1 '(1)) '((1) nil))
-(is-values (expand-macro-1 1) '(1 nil))
 (is-values (expand-macro-1 '(bar 1)) '((foo 1) t))
 (is-values (expand-macro-1 '(baz 1)) '((baz 1) nil))
+(is-error (expand-macro-1 '(foo)) simple-error)
+
 (is-values (expand-macro '(foo 1)) '((return 1) t))
 (is-values (expand-macro '(bar 1)) '((return 1) t))
 (is-values (expand-macro '(baz 1)) '((baz 1) nil))
-(is-values (expand-macro 1) '(1 nil))
-(is-values (expand-macro '()) '(() nil))
-(is-values (expand-macro '(foo (foo 1))) '((return (foo 1)) t))
+(is-error (expand-macro '(foo)) simple-error)
 
 
 (finalize)
