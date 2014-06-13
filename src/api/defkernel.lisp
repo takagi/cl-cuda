@@ -112,8 +112,7 @@
                                  grid-dim-x  grid-dim-y  grid-dim-z
                                  block-dim-x block-dim-y block-dim-z
                                  0 (cffi:null-pointer)
-                                 ,kargs (cffi:null-pointer))))))
-         t))))
+                                 ,kargs (cffi:null-pointer))))))))))
 
 
 ;;;
