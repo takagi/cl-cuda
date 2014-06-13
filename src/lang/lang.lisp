@@ -81,7 +81,7 @@
                           :set
                           :syncthreads))
 
-(reexport-from :cl-cuda.lang.compiler.compile-built-in
+(reexport-from :cl-cuda.lang.built-in
                :include '(:rsqrt
                           :atomic-add
                           :pointer

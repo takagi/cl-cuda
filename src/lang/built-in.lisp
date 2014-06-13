@@ -4,7 +4,7 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda.lang.compiler.compile-built-in
+(defpackage cl-cuda.lang.built-in
   (:use :cl
         :cl-cuda.lang.type)
   (:export ;; Built-in functions
@@ -20,7 +20,7 @@
            :built-in-function-return-type
            :built-in-function-infix-p
            :built-in-function-c-name))
-(in-package :cl-cuda.lang.compiler.compile-built-in)
+(in-package :cl-cuda.lang.built-in)
 
 
 ;;;
@@ -145,7 +145,7 @@
 (defun inferred-function (name argument-types)
   (let ((candidates (inferred-function-candidates name)))
     (or (assoc argument-types candidates :test #'equal)
-        (error "The function ~S is undefined." name))))
+        (error "The function ~S is undefined."))))
 
 (defun built-in-function-return-type (name argument-types)
   (cadr (inferred-function name argument-types)))

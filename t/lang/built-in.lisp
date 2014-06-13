@@ -4,11 +4,11 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-test.lang.compiler.compile-built-in
+(defpackage cl-cuda-test.lang.built-in
   (:use :cl :cl-test-more
         :cl-cuda.lang.type
-        :cl-cuda.lang.compiler.compile-built-in))
-(in-package :cl-cuda-test.lang.compiler.compile-built-in)
+        :cl-cuda.lang.built-in))
+(in-package :cl-cuda-test.lang.built-in)
 
 (plan nil)
 

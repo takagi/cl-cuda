@@ -9,8 +9,8 @@
         :cl-cuda.lang.type
         :cl-cuda.lang.syntax
         :cl-cuda.lang.environment
+        :cl-cuda.lang.built-in
         :cl-cuda.lang.compiler.compile-data
-        :cl-cuda.lang.compiler.compile-built-in
         :cl-cuda.lang.compiler.compile-type-of)
   (:export :compile-expression))
 (in-package :cl-cuda.lang.compiler.compile-expression)
