@@ -54,9 +54,9 @@
 ;;;
 
 (defun compile-if (form var-env func-env)
-  (let ((test-expr (if-test-expr form))
-        (then-stmt (if-then-stmt form))
-        (else-stmt (if-else-stmt form)))
+  (let ((test-expr (if-test-expression form))
+        (then-stmt (if-then-statement form))
+        (else-stmt (if-else-statement form)))
     ;; check if the test part of inline-if expression has bool type
     (let ((test-type (type-of-expression test-expr var-env func-env)))
       (unless (eq test-type 'bool)

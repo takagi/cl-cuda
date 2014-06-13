@@ -57,9 +57,9 @@
            :function-operands
            ;; If statement
            :if-p
-           :if-test-expr
-           :if-then-stmt
-           :if-else-stmt
+           :if-test-expression
+           :if-then-statement
+           :if-else-statement
            ;; Let statement
            :let-p
            :let-bindings
@@ -336,21 +336,21 @@
 (defun if-p (form)
   (inline-if-p form))
 
-(defun if-test-expr (form)
+(defun if-test-expression (form)
   (cl-pattern:match form
     (('if _ _ _ _ . _) (error "The statement ~S is malformed." form))
     (('if test-expr _ . _) test-expr)
     (('if . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
 
-(defun if-then-stmt (form)
+(defun if-then-statement (form)
   (cl-pattern:match form
     (('if _ _ _ _ . _) (error "The statement ~S is malformed." form))
     (('if _ then-stmt . _) then-stmt)
     (('if . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
 
-(defun if-else-stmt (form)
+(defun if-else-statement (form)
   (cl-pattern:match form
     (('if _ _ _ _ . _) (error "The statement ~S is malformed." form))
     (('if _ _ else-stmt) else-stmt)
