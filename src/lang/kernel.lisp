@@ -39,7 +39,9 @@
   (:import-from :cl-cuda.lang.syntax
                 :argument-p
                 :argument-var
-                :argument-type))
+                :argument-type)
+  (:import-from :alexandria
+                :with-gensyms))
 (in-package :cl-cuda.lang.kernel)
 
 
@@ -234,9 +236,9 @@
   (let ((arguments (macro-arguments macro))
         (body (macro-body macro)))
     (with-gensyms (arguments1)
-      (eval #'(lambda (,arguments1)
-                (destructuring-bind ,arguments ,arguments1
-                  ,@body))))))
+      (eval `#'(lambda (,arguments1)
+                 (destructuring-bind ,arguments ,arguments1
+                   ,@body))))))
 
 
 ;;;

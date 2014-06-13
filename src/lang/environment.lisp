@@ -34,7 +34,9 @@
            :function-environment-add-macro
            :function-environment-macro-exists-p
            :function-environment-macro-name
-           :function-environment-macro-expander))
+           :function-environment-macro-expander)
+  (:import-from :alexandria
+                :with-gensyms))
 (in-package :cl-cuda.lang.environment)
 
 
@@ -230,6 +232,6 @@
   (let ((arguments (macro-arguments macro))
         (body (macro-body macro)))
     (with-gensyms (arguments1)
-      (eval #'(lambda (,arguments1)
-                (destructuring-bind ,arguments ,arguments1
-                  ,@body))))))
+      (eval `#'(lambda (,arguments1)
+                 (destructuring-bind ,arguments ,arguments1
+                   ,@body))))))

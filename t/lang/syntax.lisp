@@ -148,7 +148,7 @@
 
 (diag "If statement")
 
-(is (if-else-stmt '(if (= 1 1) (return 1))) nil
+(is (if-else-statement '(if (= 1 1) (return 1))) nil
     "basic case 1")
 
 

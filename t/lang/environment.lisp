@@ -95,7 +95,7 @@
       "basic case 3")
   (is (function-environment-macro-name func-env 'bar) 'bar
       "basic case 4")
-  (is (funcall (function-environment-macro-expander func-env 'bar) 1)
+  (is (funcall (function-environment-macro-expander func-env 'bar) '(1))
       '(return 1)
       "basic case 5"))
 
