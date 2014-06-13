@@ -32,7 +32,10 @@
                               (a-ptr 'cu-device-ptr))
     (setf (cffi:mem-ref x-ptr ':int) x)
     (setf (cffi:mem-ref y-ptr '(:struct float3)) y)
-    (setf (cffi:mem-ref a-ptr 'cu-device-ptr) a)
+    (setf (cffi:mem-ref a-ptr 'cu-device-ptr)
+          (if (memory-block-p a)
+              (memory-block-device-ptr a)
+              a))
     (cffi:with-foreign-object (kargs :pointer 3)
       (setf (cffi:mem-aref kargs :pointer 0) x-ptr)
       (setf (cffi:mem-aref kargs :pointer 1) y-ptr)
@@ -122,12 +125,12 @@
 
 (with-cuda-context (0)
   (with-memory-blocks ((x 'int 1))
-    (setf (memory-block-aref x 0))
+    (setf (memory-block-aref x 0) 0)
     (sync-memory-block x :host-to-device)
     (ok (test-do-kernel x :grid-dim '(1 1 1) :block-dim '(1 1 1))
         "basic case 9")
     (sync-memory-block x :device-to-host)
-    (is (mem-aref x 0) 16
+    (is (memory-block-aref x 0) 16
         "basic case 10")))
 
 ;; test multi-argument arithmetic
@@ -164,9 +167,9 @@
         "basic case 14")
     (sync-memory-block x :device-to-host)
     (sync-memory-block y :host-to-device)
-    (is (mem-aref x 0) 256
+    (is (memory-block-aref x 0) 256
         "basic case 15")
-    (isnt (mem-aref y 0) 256
+    (isnt (memory-block-aref y 0) 256
           "basic case 16")))
 
 ;; test built-in vector type
@@ -180,7 +183,7 @@
     (ok (test-float3-add x :grid-dim '(1 1 1) :block-dim '(1 1 1))
         "basic case 17")
     (sync-memory-block x :device-to-host)
-    (is (mem-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=
+    (is (memory-block-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=
         "basic case 18")))
 
 ;; test kernel macro
@@ -207,7 +210,7 @@
   (with-memory-blocks ((x 'int 1))
     (setf (memory-block-aref x 0) 0)
     (sync-memory-block x :host-to-device)
-    (ok (test-const x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+    (ok (test-symbol-macro x :grid-dim '(1 1 1) :block-dim '(1 1 1))
         "basic case 20")
     (sync-memory-block x :device-to-host)
     (is (memory-block-aref x 0) 1

@@ -6,10 +6,11 @@
 (in-package :cl-user)
 (defpackage :cl-cuda.api.defkernel
   (:use :cl
+        :cl-cuda.driver-api
+        :cl-cuda.lang.syntax
+        :cl-cuda.lang.type
         :cl-cuda.api.kernel-manager
-        :cl-cuda.api.memory
-        :cl-cuda.lang
-        :cl-cuda.driver-api)
+        :cl-cuda.api.memory)
   (:export :defkernel
            :defkernelmacro
            :defkernel-symbol-macro)

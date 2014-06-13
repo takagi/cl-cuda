@@ -42,6 +42,6 @@
                   :components
                   ((:file "kernel-manager")
                    (:file "memory")
-                   ;(:file "defkernel")
+                   (:file "defkernel")
                    (:file "timer"))))))
   :perform (load-op :after (op c) (asdf:clear-system c)))

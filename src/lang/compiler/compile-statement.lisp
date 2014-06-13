@@ -24,7 +24,7 @@
 
 (defun compile-statement (form var-env func-env)
   (cond
-    ((%macro-p form func-env) (compile-macro form func-env))
+    ((%macro-p form func-env) (compile-macro form var-env func-env))
     ((if-p form) (compile-if form var-env func-env))
     ((let-p form) (compile-let form var-env func-env))
     ((do-p form) (compile-do form var-env func-env))
@@ -45,8 +45,12 @@
 (defun %macro-p (form func-env)
   (cl-cuda.lang.compiler.compile-expression::%macro-p form func-env))
 
-(defun compile-macro (form func-env)
-  (cl-cuda.lang.compiler.compile-expression::%macro-p form func-env))
+(defun compile-macro (form var-env func-env)
+  (let ((name (macro-operator form))
+        (arguments (macro-operands form)))
+    (let ((expander (function-environment-macro-expander func-env name)))
+      (let ((form1 (funcall expander arguments)))
+        (compile-statement form1 var-env func-env)))))
 
 
 ;;;

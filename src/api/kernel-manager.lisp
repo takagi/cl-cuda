@@ -7,7 +7,8 @@
 (defpackage cl-cuda.api.kernel-manager
   (:use :cl
         :cl-cuda.driver-api
-        :cl-cuda.lang
+        :cl-cuda.lang.kernel
+        :cl-cuda.lang.compiler.compile-kernel
         :cl-cuda.api.nvcc)
   (:export :kernel-manager
            :make-kernel-manager

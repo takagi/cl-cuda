@@ -97,7 +97,7 @@
 
 (defun compile-arguments (arguments)
   (let ((arguments1 (mapcar #'compile-argument arguments)))
-    (format nil "~{~A~^, ~}" arguments1)))
+    (format nil "~{ ~A~^,~}" arguments1)))
 
 (defun compile-declaration (kernel name)
   (let ((c-name (kernel-function-c-name kernel name))
@@ -106,7 +106,7 @@
     (let ((specifier (compile-specifier return-type))
           (return-type1 (compile-type return-type))
           (arguments1 (compile-arguments arguments)))
-      (format nil "~A ~A ~A( ~A )" specifier return-type1 c-name arguments1))))
+      (format nil "~A ~A ~A(~A )" specifier return-type1 c-name arguments1))))
 
 (defun compile-prototype (kernel name)
   (let ((declaration (compile-declaration kernel name)))
