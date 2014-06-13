@@ -55,8 +55,9 @@
 
 (defun %add-macros (kernel func-env)
   (flet ((aux (func-env0 name)
-           (let ((expander (kernel-macro-expander kernel name)))
-             (function-environment-add-macro name expander func-env0))))
+           (let ((arguments (kernel-macro-arguments kernel name))
+                 (body (kernel-macro-body kernel name)))
+             (function-environment-add-macro name arguments body func-env0))))
     (reduce #'aux (kernel-macro-names kernel)
             :initial-value func-env)))
 
