@@ -26,8 +26,11 @@
                   :components
                   ((:file "package")
                    (:file "get-error-string")
-                   (cffi-grovel:grovel-file "grovel")
-                   (:file "driver-api")))
+                   (:file "cffi-grovel")
+                   (:file "load")
+                   (cffi-grovel:grovel-file "type-grovel")
+                   (cffi-grovel:grovel-file "enum-grovel")
+                   (:file "function")))
                  (:module "lang"
                   :serial t
                   :components

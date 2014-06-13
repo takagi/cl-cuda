@@ -146,10 +146,9 @@
                               (milliseconds :float))
     (cu-event-create start-event cu-event-default)
     (cu-event-create stop-event  cu-event-default)
-    (cu-event-record (cffi:mem-ref start-event 'cu-event) (cffi:null-pointer))
-    (cu-event-record (cffi:mem-ref stop-event  'cu-event) (cffi:null-pointer))
+    (cu-event-record (cffi:mem-ref start-event 'cu-event) 0)
+    (cu-event-record (cffi:mem-ref stop-event  'cu-event) 0)
     (cu-event-synchronize (cffi:mem-ref stop-event 'cu-event))
-    (cu-event-query       (cffi:mem-ref stop-event 'cu-event))
     (cu-event-elapsed-time milliseconds
                            (cffi:mem-ref start-event 'cu-event)
                            (cffi:mem-ref stop-event  'cu-event))

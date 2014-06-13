@@ -14,22 +14,13 @@
            :cu-function
            :cu-stream
            :cu-event
-           :cu-graphics-resource
            :cu-device-ptr
            :size-t
-           ;; Enums
+           ;; Enumerations
            :cu-event-default
            :cu-event-blocking-sync
            :cu-event-disable-timing
            :cu-event-interprocess
-           :cu-graphics-register-flags-none
-           :cu-graphics-register-flags-read-only
-           :cu-graphics-register-flags-write-discard
-           :cu-graphics-register-flags-surface-ldst
-           :cu-graphics-register-flags-texture-gather
-           :cu-graphics-map-resource-flags-none
-           :cu-graphics-map-resource-flags-read-only
-           :cu-graphics-map-resource-flags-write-discard
            ;; Functions
            :cu-init
            :cu-device-get
@@ -37,7 +28,6 @@
            :cu-device-compute-capability
            :cu-device-get-name
            :cu-ctx-create
-           :cu-gl-ctx-create
            :cu-ctx-destroy
            :cu-ctx-synchronize
            :cu-mem-alloc
@@ -51,18 +41,9 @@
            :cu-event-create
            :cu-event-destroy
            :cu-event-elapsed-time
-           :cu-event-query
            :cu-event-record
            :cu-event-synchronize
-           :cu-graphics-gl-register-buffer
-           :cu-graphics-map-resources
-           :cu-graphics-resource-get-mapped-pointer
-           :cu-graphics-resource-set-map-flags
-           :cu-graphics-unmap-resources
-           :cu-graphics-unregister-resource
            ;; Messages
            :*show-messages*)
   (:import-from :alexandria
-                :ensure-list
-                :symbolicate
-                :with-gensyms))
+                :format-symbol))
