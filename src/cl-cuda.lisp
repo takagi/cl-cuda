@@ -4,7 +4,9 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-test
-  (:use :cl
-        :cl-cuda
-        :cl-test-more))
+(defpackage cl-cuda
+  (:use :cl :cl-reexport))
+(in-package :cl-cuda)
+
+(reexport-from :cl-cuda.lang)
+(reexport-from :cl-cuda.api)

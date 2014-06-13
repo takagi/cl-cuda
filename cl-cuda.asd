@@ -58,7 +58,7 @@
                    (:file "defkernel")
                    (:file "timer")
                    (:file "api")))
-                 (:file "package"))))
+                 (:file "cl-cuda"))))
   :description ""
   :long-description
   #.(with-open-file (stream (merge-pathnames
