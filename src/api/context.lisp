@@ -12,7 +12,7 @@
            :init-cuda-context
            :release-cuda-context
            :with-cuda-context
-           :synchronize-cuda-context))
+           :synchronize-context))
 (in-package :cl-cuda.api.context)
 
 
@@ -62,5 +62,5 @@
      (unwind-protect (progn ,@body)
        (release-cuda-context *cuda-context*))))
 
-(defun synchronize-cuda-context ()
+(defun synchronize-context ()
   (cu-ctx-synchronize))
