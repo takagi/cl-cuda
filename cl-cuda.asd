@@ -56,6 +56,7 @@
                    (:file "memory")
                    (:file "context")
                    (:file "defkernel")
+                   (:file "macro")
                    (:file "timer")
                    (:file "api")))
                  (:file "cl-cuda"))))

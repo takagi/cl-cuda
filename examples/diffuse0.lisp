@@ -56,9 +56,8 @@
 (defkernel cuda-diffusion2d (void ((f float*) (fn float*)
                                    (nx int) (ny int)
                                    (c0 float) (c1 float) (c2 float)))
-  (let ((jy (+ (* block-dim-y block-idx-y) thread-idx-y))
-        (jx (+ (* block-dim-x block-idx-x) thread-idx-x)))
-    (let (
+  (let* ((jy (+ (* block-dim-y block-idx-y) thread-idx-y))
+         (jx (+ (* block-dim-x block-idx-x) thread-idx-x))
          (j (+ (* nx jy) jx)))
     (let ((fcc (aref f j))
           (fcw 0.0)
@@ -79,7 +78,7 @@
           (set fcn (aref f (+ j nx))))
       (set (aref fn j) (+ (* c0 (+ fce fcw))
                           (* c1 (+ fcn fcs))
-                          (* c2 fcc)))))))
+                          (* c2 fcc))))))
 
 (defun initialize-device-memory (nx ny dx dy f)
   (let ((alpha 30.0))

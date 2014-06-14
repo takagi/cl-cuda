@@ -18,4 +18,5 @@
 (reexport-from :cl-cuda.api.context)
 (reexport-from :cl-cuda.api.memory)
 (reexport-from :cl-cuda.api.defkernel)
+(reexport-from :cl-cuda.api.macro)
 (reexport-from :cl-cuda.api.timer)
