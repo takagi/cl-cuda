@@ -141,43 +141,44 @@
             (origin-y (- box-min-y delta))
             (origin-z (- box-min-z delta)))
           (let ((info (alloc-memory-block 'float 15)))
-            (setf (mem-aref info 0)  box-min-x
-                  (mem-aref info 1)  box-min-y
-                  (mem-aref info 2)  box-min-z
-                  (mem-aref info 3)  (+ box-min-x (* delta size-x))
-                  (mem-aref info 4)  (+ box-min-y (* delta size-y))
-                  (mem-aref info 5)  (+ box-min-z (* delta size-z))
-                  (mem-aref info 6)  origin-x
-                  (mem-aref info 7)  origin-y
-                  (mem-aref info 8)  origin-z
-                  (mem-aref info 9)  delta
-                  (mem-aref info 10) (float capacity)
-                  (mem-aref info 11) (+ size-x 2)
-                  (mem-aref info 12) (+ size-y 2)
-                  (mem-aref info 13) (+ size-z 2)
-                  (mem-aref info 14) (* (mem-aref info 11)   ; size-x
-                                        (mem-aref info 12)   ; size-y
-                                        (mem-aref info 13))) ; size-z
+            (setf (memory-block-aref info 0)  box-min-x
+                  (memory-block-aref info 1)  box-min-y
+                  (memory-block-aref info 2)  box-min-z
+                  (memory-block-aref info 3)  (+ box-min-x (* delta size-x))
+                  (memory-block-aref info 4)  (+ box-min-y (* delta size-y))
+                  (memory-block-aref info 5)  (+ box-min-z (* delta size-z))
+                  (memory-block-aref info 6)  origin-x
+                  (memory-block-aref info 7)  origin-y
+                  (memory-block-aref info 8)  origin-z
+                  (memory-block-aref info 9)  delta
+                  (memory-block-aref info 10) (float capacity)
+                  (memory-block-aref info 11) (+ size-x 2)
+                  (memory-block-aref info 12) (+ size-y 2)
+                  (memory-block-aref info 13) (+ size-z 2)
+                  (memory-block-aref info 14)
+                    (* (memory-block-aref info 11)   ; size-x
+                       (memory-block-aref info 12)   ; size-y
+                       (memory-block-aref info 13))) ; size-z
             info))))))
 
 (defun free-neighbor-map-info (info)
   (free-memory-block info))
 
-(defun info-min-x-cpu    (info) (mem-aref info 0))
-(defun info-min-y-cpu    (info) (mem-aref info 1))
-(defun info-min-z-cpu    (info) (mem-aref info 2))
-(defun info-max-x-cpu    (info) (mem-aref info 3))
-(defun info-max-y-cpu    (info) (mem-aref info 4))
-(defun info-max-z-cpu    (info) (mem-aref info 5))
-(defun info-origin-x-cpu (info) (mem-aref info 6))
-(defun info-origin-y-cpu (info) (mem-aref info 7))
-(defun info-origin-z-cpu (info) (mem-aref info 8))
-(defun info-delta-cpu    (info) (mem-aref info 9))
-(defun info-capacity-cpu (info) (floor (mem-aref info 10)))
-(defun info-size-x-cpu   (info) (floor (mem-aref info 11)))
-(defun info-size-y-cpu   (info) (floor (mem-aref info 12)))
-(defun info-size-z-cpu   (info) (floor (mem-aref info 13)))
-(defun info-size-cpu     (info) (floor (mem-aref info 14)))
+(defun info-min-x-cpu    (info) (memory-block-aref info 0))
+(defun info-min-y-cpu    (info) (memory-block-aref info 1))
+(defun info-min-z-cpu    (info) (memory-block-aref info 2))
+(defun info-max-x-cpu    (info) (memory-block-aref info 3))
+(defun info-max-y-cpu    (info) (memory-block-aref info 4))
+(defun info-max-z-cpu    (info) (memory-block-aref info 5))
+(defun info-origin-x-cpu (info) (memory-block-aref info 6))
+(defun info-origin-y-cpu (info) (memory-block-aref info 7))
+(defun info-origin-z-cpu (info) (memory-block-aref info 8))
+(defun info-delta-cpu    (info) (memory-block-aref info 9))
+(defun info-capacity-cpu (info) (floor (memory-block-aref info 10)))
+(defun info-size-x-cpu   (info) (floor (memory-block-aref info 11)))
+(defun info-size-y-cpu   (info) (floor (memory-block-aref info 12)))
+(defun info-size-z-cpu   (info) (floor (memory-block-aref info 13)))
+(defun info-size-cpu     (info) (floor (memory-block-aref info 14)))
 
 (defkernel info-min-x    (float ((info float*))) (return (aref info 0)))
 (defkernel info-min-y    (float ((info float*))) (return (aref info 1)))
@@ -278,13 +279,13 @@
   (return (aref nbr offset)))
 
 (defun cell-number-of-particles-cpu (offset nbr)
-  (mem-aref nbr offset))
+  (memory-block-aref nbr offset))
 
 (defkernel cell-nth-particle (int ((n int) (offset int) (nbr int*)))
   (return (aref nbr (+ offset n 1))))   ; increment need because n begins with 0
 
 (defun cell-nth-particle-cpu (n offset nbr)
-  (mem-aref nbr (+ offset n 1)))
+  (memory-block-aref nbr (+ offset n 1)))
 
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel insert-cell (int ((p int) (offset int) (nbr int*)))
@@ -293,9 +294,9 @@
   (return 0))
 
 (defun insert-cell-cpu (p offset nbr)
-  (let ((n (mem-aref nbr offset)))
-    (setf (mem-aref nbr offset) (+ (mem-aref nbr offset) 1))
-    (setf (mem-aref nbr (+ offset n 1)) p)))
+  (let ((n (memory-block-aref nbr offset)))
+    (setf (memory-block-aref nbr offset) (+ (memory-block-aref nbr offset) 1))
+    (setf (memory-block-aref nbr (+ offset n 1)) p)))
 
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel clear-cell (int ((offset int) (nbr int*)))
@@ -303,7 +304,7 @@
   (return 0))
 
 (defun clear-cell-cpu (offset nbr)
-  (setf (mem-aref nbr offset) 0))
+  (setf (memory-block-aref nbr offset) 0))
 
 (defkernel cell-offset (int ((nbr int*) (info float*) (i int) (j int) (k int)))
   (let ((size-x (info-size-x info))
@@ -456,7 +457,7 @@
     (%update-neighbor-map i pos nbr info)))
 
 (defun %update-neighbor-map-cpu (i pos nbr info)
-  (let ((x (mem-aref pos i)))
+  (let ((x (memory-block-aref pos i)))
     (insert-particle-in-neighbor-map-cpu i x nbr info)))
 
 (defun update-neighbor-map-cpu (pos nbr info n &key grid-dim block-dim)
@@ -477,11 +478,9 @@
           (k block-idx-y))
       (clear-particles-in-cell-cpu nbr info i j k))))
 
-(defun memcpy-neighbor-map-host-to-device (nbr info)
-  (memcpy-host-to-device nbr info))
-
-(defun memcpy-neighbor-map-device-to-host (nbr info)
-  (memcpy-device-to-host nbr info))
+(defun sync-neighbor-map (nbr info direction)
+  (sync-memory-block nbr direction)
+  (sync-memory-block info direction))
 
 (defmacro with-neighbor-map ((nbr info box-min box-max delta capacity) &body body)
   `(let* ((,info (alloc-neighbor-map-info ,box-min ,box-max ,delta ,capacity))
@@ -502,21 +501,21 @@
 ;;     (setf (car val) 'make-float4))
 ;;   `(defparameter ,var ,val))
 
-(defkernelconst h           float  0.01)
-(defkernelconst dt          float  0.004)
-(defkernelconst pi          float  3.1415927)
-(defkernelconst visc        float  0.2)
-(defkernelconst limit       float  200.0)
-(defkernelconst pmass       float  0.00020543)
-(defkernelconst radius      float  0.004)
-(defkernelconst epsilon     float  0.00001)
-(defkernelconst extdamp     float  256.0)
-(defkernelconst simscale    float  0.004)
-(defkernelconst intstiff    float  3.0)
-(defkernelconst extstiff    float  10000.0)
-(defkernelconst restdensity float  600.0)
-(defkernelconst pdist       float  (expt (/ pmass restdensity) (/ 1.0 3.0)))
-(defkernelconst g           float4 (float4  0.0 -9.8   0.0 0.0))
+(defkernel-symbol-macro h 0.01)
+(defkernel-symbol-macro dt 0.004)
+(defkernel-symbol-macro pi 3.1415927)
+(defkernel-symbol-macro visc 0.2)
+(defkernel-symbol-macro limit 200.0)
+(defkernel-symbol-macro pmass 0.00020543)
+(defkernel-symbol-macro radius 0.004)
+(defkernel-symbol-macro epsilon 0.00001)
+(defkernel-symbol-macro extdamp 256.0)
+(defkernel-symbol-macro simscale 0.004)
+(defkernel-symbol-macro intstiff 3.0)
+(defkernel-symbol-macro extstiff 10000.0)
+(defkernel-symbol-macro restdensity 600.0)
+(defkernel-symbol-macro pdist (expt (/ pmass restdensity) (/ 1.0 3.0)))
+(defkernel-symbol-macro g (float4 0.0 -9.8 0.0 0.0))
 
 (defparameter h           0.01)
 (defparameter dt          0.004)
@@ -598,9 +597,9 @@
     (%update-density i rho x nbr info)))
 
 (defun %update-density-cpu (i rho x nbr info)
-  (symbol-macrolet ((xi (mem-aref x i))
-                    (xj (mem-aref x j))
-                    (rhoi (mem-aref rho i)))
+  (symbol-macrolet ((xi (memory-block-aref x i))
+                    (xj (memory-block-aref x j))
+                    (rhoi (memory-block-aref rho i)))
     (let ((tmp 0.0))
       (do-neighbor-particles-cpu (j nbr info xi)
         (let ((dr (float4-scale-cpu (float4-sub-cpu xi xj) simscale)))
@@ -626,8 +625,8 @@
     (%update-pressure i prs rho)))
 
 (defun %update-pressure-cpu (i prs rho)
-  (symbol-macrolet ((rhoi (mem-aref rho i))
-                    (prsi (mem-aref prs i)))
+  (symbol-macrolet ((rhoi (memory-block-aref rho i))
+                    (prsi (memory-block-aref prs i)))
     (setf prsi (* (- rhoi restdensity)
                   intstiff))))
 
@@ -645,9 +644,9 @@
                (grad-spiky-kernel dr)))))
 
 (defun pressure-term-cpu (i j dr rho prs)
-  (symbol-macrolet ((rhoj (mem-aref rho j))
-                    (prsi (mem-aref prs i))
-                    (prsj (mem-aref prs j)))
+  (symbol-macrolet ((rhoj (memory-block-aref rho j))
+                    (prsi (memory-block-aref prs i))
+                    (prsj (memory-block-aref prs j)))
     (float4-scale-flipped-cpu (/ (* (- pmass) (+ prsi prsj))
                                  (* 2.0 rhoj))
                               (grad-spiky-kernel-cpu dr))))
@@ -661,9 +660,9 @@
                (rap-visc-kernel dr)))))
 
 (defun viscosity-term-cpu (i j dr v rho)
-  (symbol-macrolet ((vi (mem-aref v i))
-                    (vj (mem-aref v j))
-                    (rhoj (mem-aref rho j)))
+  (symbol-macrolet ((vi (memory-block-aref v i))
+                    (vj (memory-block-aref v j))
+                    (rhoj (memory-block-aref rho j)))
     (float4-scale-cpu (float4-scale-inverted-cpu (float4-scale-flipped-cpu (* visc pmass) (float4-sub-cpu vj vi))
                                                  rhoj)
                       (rap-visc-kernel-cpu dr))))
@@ -691,9 +690,9 @@
     (%update-force i f x v rho prs nbr info)))
 
 (defun %update-force-cpu (i f x v rho prs nbr info)
-  (symbol-macrolet ((xi (mem-aref x i))
-                    (xj (mem-aref x j))
-                    (fi (mem-aref f i)))
+  (symbol-macrolet ((xi (memory-block-aref x i))
+                    (xj (memory-block-aref x j))
+                    (fi (memory-block-aref f i)))
     (let ((tmp (make-float4 0.0 0.0 0.0 0.0)))
       (do-neighbor-particles-cpu (j nbr info xi)
         (when (/= i j)
@@ -735,7 +734,7 @@
   (return 0))
 
 (defun apply-collision-cpu (a i x0 x1 v normal)
-  (symbol-macrolet ((ai (mem-aref a i)))
+  (symbol-macrolet ((ai (memory-block-aref a i)))
     (let ((diff (collision-diff-cpu x0 x1)))
       (when (< epsilon diff)
         (float4-incf-cpu ai (collision-adj-cpu diff v normal))))))
@@ -755,7 +754,7 @@
   (return 0))
 
 (defun apply-accel-limit-cpu (a i)
-  (symbol-macrolet ((ai (mem-aref a i)))
+  (symbol-macrolet ((ai (memory-block-aref a i)))
     (let ((accel (norm-cpu ai)))
       (when (< limit accel)
         (setf ai (float4-scale-cpu ai (accel-limit-adj-cpu accel)))))))
@@ -785,8 +784,8 @@
     (%boundary-condition i x v a info)))
 
 (defun %boundary-condition-cpu (i x v a info)
-  (symbol-macrolet ((xi (mem-aref x i))
-                    (vi (mem-aref v i)))
+  (symbol-macrolet ((xi (memory-block-aref x i))
+                    (vi (memory-block-aref v i)))
     ;; left boundary
     (apply-collision-cpu a i (info-min-x-cpu info) (float4-x xi) vi (make-float4 1.0 0.0 0.0 0.0))
     ;; right boundary
@@ -820,9 +819,9 @@
     (%update-acceleration i a f rho)))
 
 (defun %update-acceleration-cpu (i a f rho)
-  (symbol-macrolet ((ai   (mem-aref a i))
-                    (fi   (mem-aref f i))
-                    (rhoi (mem-aref rho i)))
+  (symbol-macrolet ((ai   (memory-block-aref a i))
+                    (fi   (memory-block-aref f i))
+                    (rhoi (memory-block-aref rho i)))
     (setf ai (float4-add-cpu (float4-scale-inverted-cpu fi rhoi)
                              g))))
 
@@ -843,8 +842,8 @@
     (%update-velocity i v a)))
 
 (defun %update-velocity-cpu (i v a)
-  (symbol-macrolet ((vi (mem-aref v i))
-                    (ai (mem-aref a i)))
+  (symbol-macrolet ((vi (memory-block-aref v i))
+                    (ai (memory-block-aref a i)))
     (float4-incf-cpu vi (float4-scale-cpu ai dt))))
 
 (defun update-velocity-cpu (v a n &key grid-dim block-dim)
@@ -865,8 +864,8 @@
     (%update-position i x v)))
 
 (defun %update-position-cpu (i x v)
-  (symbol-macrolet ((xi (mem-aref x i))
-                    (vi (mem-aref v i)))
+  (symbol-macrolet ((xi (memory-block-aref x i))
+                    (vi (memory-block-aref v i)))
     (float4-incf-cpu xi (float4-scale-inverted-cpu (float4-scale-cpu vi dt)
                                                    simscale))))
 
@@ -918,11 +917,11 @@
   (format nil *file-name-template* i))
 
 (defun sphere (pos i)
-  (with-float4-cpu (x y z _) (mem-aref pos i)
+  (with-float4-cpu (x y z _) (memory-block-aref pos i)
     (format nil *sphere-template* x y z)))
 
 (defun output (pos i)
-  (let ((n (memory-block-length pos))
+  (let ((n (memory-block-size pos))
         (fname (file-name i)))
     (with-open-file (out fname :direction :output :if-exists :supersede)
       (princ *header* out)
@@ -938,8 +937,8 @@
   (let ((zero (float4-zero)))
     (loop for p in particles
           for i from 0
-       do (setf (mem-aref x i) p
-                (mem-aref v i) zero))))
+       do (setf (memory-block-aref x i) p
+                (memory-block-aref v i) zero))))
 
 (defun run-sph (particles)
   (let ((dev-id 0)
@@ -962,9 +961,10 @@
         ;; apply given initial condition
         (initialize x v particles)
         ;; copy initial position and velocity to device memory
-        (memcpy-host-to-device x v)
+        (sync-memory-block x :host-to-device)
+        (sync-memory-block v :host-to-device)
         ;; copy neighbor map to device memory
-        (memcpy-neighbor-map-host-to-device nbr info)
+        (sync-neighbor-map nbr info :host-to-device)
         ;; loop
         (time
          (dotimes (_ 300)
@@ -1133,7 +1133,7 @@
 (defun kernel-test-neighbor-map1-cpu (result nbr info i j k)
   (let ((index 0))
     (do-particles-in-cell-cpu (p nbr info i j k)
-      (setf (mem-aref result index) p)
+      (setf (memory-block-aref result index) p)
       (setf index (+ index 1)))))
 
 ;; test functions of neighbor map for one cell
@@ -1158,11 +1158,11 @@
       (cl-test-more:is (nth-particle-in-cell-cpu 0 nbr info 1 0 0) 2)
       (with-memory-blocks ((x 'int 2))
         (kernel-test-neighbor-map1-cpu x nbr info 0 0 0)
-        (cl-test-more:is (mem-aref x 0) 0)
-        (cl-test-more:is (mem-aref x 1) 1))
+        (cl-test-more:is (memory-block-aref x 0) 0)
+        (cl-test-more:is (memory-block-aref x 1) 1))
       (with-memory-blocks ((x 'int 1))
         (kernel-test-neighbor-map1-cpu x nbr info 1 0 0)
-        (cl-test-more:is (mem-aref x 0) 2))
+        (cl-test-more:is (memory-block-aref x 0) 2))
       ;; test to insert particles out of neighbor map
       (clear-particles-in-cell-cpu nbr info -1 0 0)
       (insert-particle-in-cell-cpu 0 nbr info -1 0 0)
@@ -1179,7 +1179,7 @@
 (defun kernel-test-neighbor-map2-cpu (result nbr info x y z)
   (let ((index 0))
     (do-neighbor-particles-cpu (p nbr info (make-float4 x y z 0.0))
-      (setf (mem-aref result index) p)
+      (setf (memory-block-aref result index) p)
       (setf index (+ index 1)))))
 
 ;; test functions of neighbor map for cells
@@ -1190,31 +1190,31 @@
     (with-neighbor-map (nbr info test-box-min test-box-max test-delta test-capacity)
       (cl-test-more:plan nil)
       ;; initialize
-      (setf (mem-aref xs 0) (make-float4 1.0 1.0 1.0 0.0)
-            (mem-aref xs 1) (make-float4 1.0 1.0 1.0 0.0)
-            (mem-aref xs 2) (make-float4 3.0 1.0 1.0 0.0))
+      (setf (memory-block-aref xs 0) (make-float4 1.0 1.0 1.0 0.0)
+            (memory-block-aref xs 1) (make-float4 1.0 1.0 1.0 0.0)
+            (memory-block-aref xs 2) (make-float4 3.0 1.0 1.0 0.0))
       ;; clear neighbor map and test it
       (clear-neighbor-map-cpu nbr info :grid-dim '(7 7 1) :block-dim '(7 1 1))
       (cl-test-more:is (number-of-particles-in-cell-cpu nbr info 0 0 0) 0)
       (cl-test-more:is (number-of-particles-in-cell-cpu nbr info 1 0 0) 0)
       ;; update neighbor map and test it
-      (let ((n (memory-block-length xs)))
+      (let ((n (memory-block-size xs)))
         (update-neighbor-map-cpu xs nbr info n :grid-dim '(1 1 1) :block-dim '(32 1 1))
         (cl-test-more:is (number-of-particles-in-cell-cpu nbr info 1 1 1) 2)
         (cl-test-more:is (number-of-particles-in-cell-cpu nbr info 2 1 1) 1))
       (with-memory-blocks ((x 'int 3))
         (kernel-test-neighbor-map2-cpu x nbr info 1.0 1.0 1.0)
-        (cl-test-more:is (mem-aref x 0) 0)
-        (cl-test-more:is (mem-aref x 1) 1)
-        (cl-test-more:is (mem-aref x 2) 2))
+        (cl-test-more:is (memory-block-aref x 0) 0)
+        (cl-test-more:is (memory-block-aref x 1) 1)
+        (cl-test-more:is (memory-block-aref x 2) 2))
       (with-memory-blocks ((x 'int 3))
         (kernel-test-neighbor-map2-cpu x nbr info 3.0 1.0 1.0)
-        (cl-test-more:is (mem-aref x 0) 0)
-        (cl-test-more:is (mem-aref x 1) 1)
-        (cl-test-more:is (mem-aref x 2) 2))
+        (cl-test-more:is (memory-block-aref x 0) 0)
+        (cl-test-more:is (memory-block-aref x 1) 1)
+        (cl-test-more:is (memory-block-aref x 2) 2))
       (with-memory-blocks ((x 'int 1))
         (kernel-test-neighbor-map2-cpu x nbr info 5.0 1.0 1.0)
-        (cl-test-more:is (mem-aref x 0) 2))
+        (cl-test-more:is (memory-block-aref x 0) 2))
       (cl-test-more:finalize)))))
 
 (defun test-neighbor-map2-gpu ()
@@ -1224,34 +1224,34 @@
     (with-neighbor-map (nbr info test-box-min test-box-max test-delta test-capacity)
       (cl-test-more:plan nil)
       ;; initialize
-      (setf (mem-aref xs 0) (make-float4 1.0 1.0 1.0 0.0)
-            (mem-aref xs 1) (make-float4 1.0 1.0 1.0 0.0)
-            (mem-aref xs 2) (make-float4 3.0 1.0 1.0 0.0))
+      (setf (memory-block-aref xs 0) (make-float4 1.0 1.0 1.0 0.0)
+            (memory-block-aref xs 1) (make-float4 1.0 1.0 1.0 0.0)
+            (memory-block-aref xs 2) (make-float4 3.0 1.0 1.0 0.0))
       ;; copy required data from host to device
-      (memcpy-host-to-device xs)
-      (memcpy-neighbor-map-host-to-device nbr info)
+      (sync-memory-block xs :host-to-device)
+      (sync-neighbor-map nbr info :host-to-device)
       ;; clear neighbor map
       (clear-neighbor-map nbr info :grid-dim '(7 7 1) :block-dim '(7 1 1))
       ;; update neighbor map
-      (let ((n (memory-block-length xs)))
+      (let ((n (memory-block-size xs)))
         (update-neighbor-map xs nbr info n :grid-dim '(1 1 1) :block-dim '(32 1 1)))
       ;; test contained particles in neighbor map
       (with-memory-blocks ((x 'int 3))
         (kernel-test-neighbor-map2 x nbr info 1.0 1.0 1.0)
-        (memcpy-device-to-host x)
-        (cl-test-more:is (mem-aref x 0) 0)
-        (cl-test-more:is (mem-aref x 1) 1)
-        (cl-test-more:is (mem-aref x 2) 2))
+        (sync-memory-block x :device-to-host)
+        (cl-test-more:is (memory-block-aref x 0) 0)
+        (cl-test-more:is (memory-block-aref x 1) 1)
+        (cl-test-more:is (memory-block-aref x 2) 2))
       (with-memory-blocks ((x 'int 3))
         (kernel-test-neighbor-map2 x nbr info 3.0 1.0 1.0)
-        (memcpy-device-to-host x)
-        (cl-test-more:is (mem-aref x 0) 0)
-        (cl-test-more:is (mem-aref x 1) 1)
-        (cl-test-more:is (mem-aref x 2) 2))
+        (sync-memory-block x :device-to-host)
+        (cl-test-more:is (memory-block-aref x 0) 0)
+        (cl-test-more:is (memory-block-aref x 1) 1)
+        (cl-test-more:is (memory-block-aref x 2) 2))
       (with-memory-blocks ((x 'int 1))
         (kernel-test-neighbor-map2 x nbr info 5.0 1.0 1.0)
-        (memcpy-device-to-host x)
-        (cl-test-more:is (mem-aref x 0) 2))
+        (sync-memory-block x :device-to-host)
+        (cl-test-more:is (memory-block-aref x 0) 2))
       (cl-test-more:finalize)))))
 
 (defun test ()
