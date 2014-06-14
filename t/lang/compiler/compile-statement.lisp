@@ -16,6 +16,7 @@
                 :compile-macro
                 :compile-if
                 :compile-let
+                :compile-symbol-macrolet
                 :compile-do
                 :compile-with-shared-memory
                 :compile-set
@@ -99,6 +100,24 @@
             simple-error)
   (is-error (compile-let '(let ((x 1) (y x)) (return y)) var-env func-env)
             simple-error))
+
+
+;;;
+;;; test COMPILE-SYMBOL-MACROLET function
+;;;
+
+(diag "COMPILE-SYMBOL-MACROLET")
+
+(let ((var-env (empty-variable-environment))
+      (func-env (empty-function-environment)))
+  (let ((lisp-code '(symbol-macrolet ((x 1))
+                      (return x)))
+        (c-code (unlines "{"
+                         "  return 1;"
+                         "}")))
+    (is (compile-symbol-macrolet lisp-code var-env func-env) c-code
+        "basic case 1")))
+
 
 
 ;;;

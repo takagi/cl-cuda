@@ -27,6 +27,7 @@
     ((%macro-p form func-env) (compile-macro form var-env func-env))
     ((if-p form) (compile-if form var-env func-env))
     ((let-p form) (compile-let form var-env func-env))
+    ((symbol-macrolet-p form) (compile-symbol-macrolet form var-env func-env))
     ((do-p form) (compile-do form var-env func-env))
     ((with-shared-memory-p form)
      (compile-with-shared-memory form var-env func-env))
@@ -116,6 +117,33 @@
         (let ((bindings2 (indent 2 bindings1))
               (statements2 (indent 2 statements1)))
           (format nil "{~%~A~A}~%" bindings2 statements2))))))
+
+
+;;;
+;;; Symbol-macrolet statement
+;;;
+
+(defun var-env-add-symbol-macrolet-bindings (var-env bindings)
+  (flet ((aux (var-env0 binding)
+           (let* ((symbol (symbol-macrolet-binding-symbol binding))
+                  (expansion (symbol-macrolet-binding-expansion binding)))
+             (variable-environment-add-symbol-macro symbol expansion
+                                                    var-env0))))
+    (reduce #'aux bindings :initial-value var-env)))
+
+(defun compile-symbol-macrolet-statements (statements var-env func-env)
+  (compile-statement `(progn ,@statements) var-env func-env))
+
+(defun compile-symbol-macrolet (form var-env func-env)
+  (let ((bindings (symbol-macrolet-bindings form))
+        (statements (symbol-macrolet-statements form)))
+    (let ((var-env1 (var-env-add-symbol-macrolet-bindings var-env
+                                                          bindings)))
+      (let ((statements1 (compile-symbol-macrolet-statements statements
+                                                             var-env1
+                                                             func-env)))
+        (let ((statements2 (indent 2 statements1)))
+          (format nil "{~%~A}~%" statements2))))))
 
 
 ;;;
