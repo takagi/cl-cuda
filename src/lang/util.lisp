@@ -22,12 +22,12 @@
 
 (defun c-identifier (symbol &optional package-p)
   (let ((symbol-name (%c-identifier
-                       (symbol-name symbol)))
-        (package-name (%c-identifier
-                        (package-name
-                          (symbol-package symbol)))))
+                       (symbol-name symbol))))
     (if package-p
-        (concatenate 'string package-name "_" symbol-name)
+        (let ((package-name (%c-identifier
+                              (package-name
+                                (symbol-package symbol)))))
+          (concatenate 'string package-name "_" symbol-name))
         symbol-name)))
 
 (defun lines (str)
