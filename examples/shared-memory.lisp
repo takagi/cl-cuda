@@ -54,13 +54,13 @@
 
 (defun init (a n)
   (dotimes (i n)
-    (setf (mem-aref a i) 0.0)))
+    (setf (memory-block-aref a i) 0.0)))
 
 (defun verify (a n expected)
   (dotimes (i n)
-    (unless (= (mem-aref a i) expected)
+    (unless (= (memory-block-aref a i) expected)
       (error (format nil "verification fault: ~A ~A"
-                         (mem-aref a i) expected))))
+                         (memory-block-aref a i) expected))))
   (format t "verification succeed.~%"))
 
 (defun main (func expected)
@@ -68,14 +68,14 @@
     (with-cuda-context (0)
       (with-memory-blocks ((a 'float n))
         (init a n)
-        (memcpy-host-to-device a)
+        (sync-memory-block a :host-to-device)
         (time
          (dotimes (i 100)
            (funcall func a
                     :grid-dim (list (/ n 16) 1 1)
                     :block-dim '(16 1 1))
            (synchronize-context)))
-        (memcpy-device-to-host a)
+        (sync-memory-block a :device-to-host)
         (verify a n expected)))))
 
 (defun main-shared-memory ()
