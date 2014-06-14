@@ -16,13 +16,13 @@
 
 (defun random-init (data n)
   (dotimes (i n)
-    (setf (mem-aref data i) (random 1.0))))
+    (setf (memory-block-aref data i) (random 1.0))))
 
 (defun verify-result (as bs cs n)
   (dotimes (i n)
-    (let ((a (mem-aref as i))
-          (b (mem-aref bs i))
-          (c (mem-aref cs i)))
+    (let ((a (memory-block-aref as i))
+          (b (memory-block-aref bs i))
+          (c (memory-block-aref cs i)))
       (let ((sum (+ a b)))
         (when (> (abs (- c sum)) 1.0)
           (error (format nil "verification fault, i:~A a:~A b:~A c:~A"
@@ -46,9 +46,10 @@
                            (c 'float n))
         (random-init a n)
         (random-init b n)
-        (memcpy-host-to-device a b)
+        (sync-memory-block a :host-to-device)
+        (sync-memory-block b :host-to-device)
         (vec-add-kernel a b c n
                         :grid-dim (list blocks-per-grid 1 1)
                         :block-dim (list threads-per-block 1 1))
-        (memcpy-device-to-host c)
+        (sync-memory-block c :device-to-host)
         (verify-result a b c n)))))
