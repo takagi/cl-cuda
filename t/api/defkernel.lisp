@@ -57,9 +57,9 @@
   (let ((i 0))))
 
 (with-cuda-context (0)
-  (ok (let1 :grid-dim (list 1 1 1)
+  (is (let1 :grid-dim (list 1 1 1)
             :block-dim (list 1 1 1))
-      "basic case 1"))
+      nil "basic case 1"))
 
 ;; test "use-one" kernel
 (defkernel use-one (void ())
@@ -70,18 +70,18 @@
   (return 1))
 
 (with-cuda-context (0)
-  (ok (use-one :grid-dim (list 1 1 1)
+  (is (use-one :grid-dim (list 1 1 1)
                :block-dim (list 1 1 1))
-      "basic case 2"))
+      nil "basic case 2"))
 
 ;; test "argument" kernel
 (defkernel argument (void ((i int) (j float3)))
   (return))
 
 (with-cuda-context (0)
-  (ok (argument 1 (make-float3 0.0 0.0 0.0) :grid-dim (list 1 1 1)
+  (is (argument 1 (make-float3 0.0 0.0 0.0) :grid-dim (list 1 1 1)
                                             :block-dim (list 1 1 1))
-      "basic case 3"))
+      nil "basic case 3"))
 
 ;; test "kernel-bool" kernel
 (defkernel kernel-bool (void ((a bool*)))
@@ -94,8 +94,8 @@
     (setf (memory-block-aref a 0) nil
           (memory-block-aref a 1) t)
     (sync-memory-block a :host-to-device)
-    (ok (kernel-bool a :grid-dim '(1 1 1) :block-dim '(1 1 1))
-        "basic case 4")
+    (is (kernel-bool a :grid-dim '(1 1 1) :block-dim '(1 1 1))
+        nil "basic case 4")
     (sync-memory-block a :device-to-host)
     (is (memory-block-aref a 0) t
         "basic case 5")
@@ -111,8 +111,8 @@
     (with-memory-blocks ((a 'float 1))
       (setf (memory-block-aref a 0) 1.0)
       (sync-memory-block a :host-to-device)
-      (ok (kernel-float3 a x :grid-dim '(1 1 1) :block-dim '(1 1 1))
-          "basic case 7")
+      (is (kernel-float3 a x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+          nil "basic case 7")
       (sync-memory-block a :device-to-host)
       (is (memory-block-aref a 0) 6.0
           "basic case 8"))))
@@ -127,8 +127,8 @@
   (with-memory-blocks ((x 'int 1))
     (setf (memory-block-aref x 0) 0)
     (sync-memory-block x :host-to-device)
-    (ok (test-do-kernel x :grid-dim '(1 1 1) :block-dim '(1 1 1))
-        "basic case 9")
+    (is (test-do-kernel x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+        nil "basic case 9")
     (sync-memory-block x :device-to-host)
     (is (memory-block-aref x 0) 16
         "basic case 10")))
@@ -141,8 +141,8 @@
   (with-memory-blocks ((x 'int 1))
     (setf (memory-block-aref x 0) 0)
       (sync-memory-block x :host-to-device)
-      (ok (test-add x :grid-dim '(1 1 1) :block-dim '(1 1 1))
-          "basic case 11")
+      (is (test-add x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+          nil "basic case 11")
       (sync-memory-block x :device-to-host)
       (is (memory-block-aref x 0) 3
           "basic case 12")))
@@ -161,10 +161,10 @@
           (memory-block-aref y 0) 0)
     (sync-memory-block x :host-to-device)
     (sync-memory-block y :host-to-device)
-    (ok (test-atomic-add x :grid-dim '(1 1 1) :block-dim '(256 1 1))
-        "basic case 13")
-    (ok (test-no-atomic-add y :grid-dim '(1 1 1) :block-dim '(256 1 1))
-        "basic case 14")
+    (is (test-atomic-add x :grid-dim '(1 1 1) :block-dim '(256 1 1))
+        nil "basic case 13")
+    (is (test-no-atomic-add y :grid-dim '(1 1 1) :block-dim '(256 1 1))
+        nil "basic case 14")
     (sync-memory-block x :device-to-host)
     (sync-memory-block y :host-to-device)
     (is (memory-block-aref x 0) 256
@@ -180,8 +180,8 @@
   (with-memory-blocks ((x 'float3 1))
     (setf (memory-block-aref x 0) (make-float3 0.0 0.0 0.0))
     (sync-memory-block x :host-to-device)
-    (ok (test-float3-add x :grid-dim '(1 1 1) :block-dim '(1 1 1))
-        "basic case 17")
+    (is (test-float3-add x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+        nil "basic case 17")
     (sync-memory-block x :device-to-host)
     (is (memory-block-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=
         "basic case 18")))
@@ -196,8 +196,8 @@
   (return))
 
 (with-cuda-context (0)
-  (ok (test-when :grid-dim '(1 1 1) :block-dim '(1 1 1))
-      "basic case 19"))
+  (is (test-when :grid-dim '(1 1 1) :block-dim '(1 1 1))
+      nil "basic case 19"))
 
 ;; test kernel symbol macro
 (defkernel-symbol-macro x 1)
@@ -210,8 +210,8 @@
   (with-memory-blocks ((x 'int 1))
     (setf (memory-block-aref x 0) 0)
     (sync-memory-block x :host-to-device)
-    (ok (test-symbol-macro x :grid-dim '(1 1 1) :block-dim '(1 1 1))
-        "basic case 20")
+    (is (test-symbol-macro x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+        nil "basic case 20")
     (sync-memory-block x :device-to-host)
     (is (memory-block-aref x 0) 1
         "basic case 21")))
