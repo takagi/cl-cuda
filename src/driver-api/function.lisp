@@ -150,4 +150,4 @@
     (error "~A failed with driver API error No. ~A.~%~A"
            name return-code (get-error-string return-code)))
   (when *show-messages*
-    (format t "Invoking ~A succedded.~%" name)))
+    (format t "Invoking ~A succeded.~%" name)))
