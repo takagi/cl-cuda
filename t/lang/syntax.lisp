@@ -7,7 +7,9 @@
 (defpackage cl-cuda-test.lang.syntax
   (:use :cl :cl-test-more
         :cl-cuda.lang.data
-        :cl-cuda.lang.syntax))
+        :cl-cuda.lang.syntax)
+  (:import-from :cl-cuda.lang.syntax
+                :with-shared-memory-spec-p))
 (in-package :cl-cuda-test.lang.syntax)
 
 (plan nil)
@@ -211,7 +213,7 @@
 ;;; test With-shared-memory statement
 ;;;
 
-(diag "With-shared-memory statement")
+(diag "WITH-SHARED-MEMORY-P")
 
 (ok (with-shared-memory-p '(with-shared-memory ((a float 16))
                              (return)))
@@ -223,6 +225,14 @@
     "basic case 3")
 (ok (with-shared-memory-p '(with-shared-memory))
     "basic case 4")
+
+
+(diag "WITH-SHARED-MEMORY-SPEC-P")
+
+(ok (with-shared-memory-spec-p '(a float 16))
+    "basic case 1")
+(ok (with-shared-memory-spec-p '(a float (+ 16 2)))
+    "basic case 2")
 
 
 ;;;

@@ -215,14 +215,20 @@
                (variable-environment-add-variable var type1 var-env0)))))
     (reduce #'aux specs :initial-value var-env)))
 
-(defun compile-with-shared-memory-specs (specs)
+(defun compile-with-shared-memory-spec-dimensions (dims var-env func-env)
+  (flet ((aux (dim)
+           (compile-expression dim var-env func-env)))
+    (mapcar #'aux dims)))
+
+(defun compile-with-shared-memory-specs (specs var-env func-env)
   (flet ((aux (spec)
            (let ((var (with-shared-memory-spec-var spec))
                  (type (with-shared-memory-spec-type spec))
                  (dims (with-shared-memory-spec-dimensions spec)))
              (let ((var1 (compile-symbol var))
                    (type1 (compile-type type))
-                   (dims1 (mapcar #'compile-int dims)))
+                   (dims1 (compile-with-shared-memory-spec-dimensions
+                            dims var-env func-env)))
                (format nil "__shared__ ~A ~A~{[~A]~};~%" type1 var1 dims1)))))
     (format nil "~{~A~}" (mapcar #'aux specs))))
 
@@ -233,7 +239,7 @@
   (let ((specs (with-shared-memory-specs form))
         (statements (with-shared-memory-statements form)))
     (let ((var-env1 (var-env-add-with-shared-memory-specs var-env specs)))
-      (let ((specs1 (compile-with-shared-memory-specs specs))
+      (let ((specs1 (compile-with-shared-memory-specs specs var-env func-env))
             (statements1 (compile-with-shared-memory-statements statements
                                                                 var-env1
                                                                 func-env)))

@@ -200,6 +200,17 @@
 
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
+  (let ((lisp-code '(with-shared-memory ((a float (+ 16 2)))
+                      (set (aref a 0) 1.0)))
+        (c-code (unlines "{"
+                         "  __shared__ float a[(16 + 2)];"
+                         "  a[0] = 1.0;"
+                         "}")))
+    (is (compile-with-shared-memory lisp-code var-env func-env) c-code
+        "basic case 6")))
+
+(let ((var-env (empty-variable-environment))
+      (func-env (empty-function-environment)))
   (let ((lisp-code '(with-shared-memory (a float)
                       (return))))
     (is-error (compile-with-shared-memory lisp-code var-env func-env)

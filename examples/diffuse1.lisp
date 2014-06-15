@@ -62,7 +62,7 @@
                (* block-dim-x block-idx-x)
                thread-idx-x))
          (fcc (aref f j)))
-    (with-shared-memory ((fs float 18 18))
+    (with-shared-memory ((fs float (+ 16 2) (+ 16 2)))
       (set (aref fs jy jx) fcc)
       (if (= thread-idx-x 0)
           (if (= block-idx-x 0)

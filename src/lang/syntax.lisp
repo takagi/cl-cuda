@@ -536,9 +536,8 @@
 
 (defun with-shared-memory-spec-p (object)
   (cl-pattern:match object
-    ((var type . dimensions) (and (cl-cuda-symbol-p var)
-                                  (cl-cuda-type-p type)
-                                  (every #'int-literal-p dimensions)))
+    ((var type . _) (and (cl-cuda-symbol-p var)
+                         (cl-cuda-type-p type)))
     (_ nil)))
 
 (defun with-shared-memory-spec-var (spec)
