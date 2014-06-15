@@ -4,14 +4,14 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-test.lang.compiler.compile-type-of
+(defpackage cl-cuda-test.lang.compiler.type-of-expression
   (:use :cl :cl-test-more
-        :cl-cuda.lang.compiler.compile-type-of
+        :cl-cuda.lang.compiler.type-of-expression
         :cl-cuda.lang.data
         :cl-cuda.lang.type
         :cl-cuda.lang.syntax
         :cl-cuda.lang.environment)
-  (:import-from :cl-cuda.lang.compiler.compile-type-of
+  (:import-from :cl-cuda.lang.compiler.type-of-expression
                 :type-of-macro
                 :type-of-symbol-macro
                 :type-of-literal
@@ -20,7 +20,7 @@
                 :type-of-inline-if
                 :type-of-arithmetic
                 :type-of-function))
-(in-package :cl-cuda-test.lang.compiler.compile-type-of)
+(in-package :cl-cuda-test.lang.compiler.type-of-expression)
 
 (plan nil)
 

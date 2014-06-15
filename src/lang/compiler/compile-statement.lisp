@@ -12,7 +12,7 @@
         :cl-cuda.lang.environment
         :cl-cuda.lang.compiler.compile-data
         :cl-cuda.lang.compiler.compile-type
-        :cl-cuda.lang.compiler.compile-type-of
+        :cl-cuda.lang.compiler.type-of-expression
         :cl-cuda.lang.compiler.compile-expression)
   (:export :compile-statement))
 (in-package :cl-cuda.lang.compiler.compile-statement)

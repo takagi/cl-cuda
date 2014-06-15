@@ -4,14 +4,14 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda.lang.compiler.compile-type-of
+(defpackage cl-cuda.lang.compiler.type-of-expression
   (:use :cl
         :cl-cuda.lang.type
         :cl-cuda.lang.syntax
         :cl-cuda.lang.environment
         :cl-cuda.lang.built-in)
   (:export :type-of-expression))
-(in-package :cl-cuda.lang.compiler.compile-type-of)
+(in-package :cl-cuda.lang.compiler.type-of-expression)
 
 
 ;;;
