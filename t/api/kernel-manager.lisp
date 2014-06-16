@@ -329,7 +329,7 @@
   (is-values (expand-macro-1 '(foo 1) mgr) '((return 1) t))
   (is-values (expand-macro-1 '(bar 1) mgr) '((foo 1) t))
   (is-values (expand-macro-1 '(baz 1) mgr) '((baz 1) nil))
-  (is-error (expand-macro-1 '(foo)) error))
+  (is-error (expand-macro-1 '(foo) mgr) error))
 
 
 ;;;
@@ -339,10 +339,12 @@
 (diag "EXPAND-MACRO")
 
 (let ((mgr (make-kernel-manager)))
+  (kernel-manager-define-macro mgr 'foo '(x) '(`(return ,x)))
+  (kernel-manager-define-macro mgr 'bar '(x) '(`(foo ,x)))
   (is-values (expand-macro '(foo 1) mgr) '((return 1) t))
   (is-values (expand-macro '(bar 1) mgr) '((return 1) t))
   (is-values (expand-macro '(baz 1) mgr) '((baz 1) nil))
-  (is-error (expand-macro '(foo)) error))
+  (is-error (expand-macro '(foo) mgr) error))
 
 
 (finalize)
