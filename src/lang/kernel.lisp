@@ -104,7 +104,7 @@
   (function-name (%lookup-function kernel name)))
 
 (defun kernel-function-c-name (kernel name)
-  (c-identifier (kernel-function-name kernel name) t))
+  (function-c-name (%lookup-function kernel name)))
 
 (defun kernel-function-return-type (kernel name)
   (function-return-type (%lookup-function kernel name)))
@@ -229,6 +229,9 @@
 
 (defun function-p (object)
   (%function-p object))
+
+(defun function-c-name (function)
+  (c-identifier (function-name kernel name) t))
 
 (defun function-argument-vars (function)
   (mapcar #'argument-var

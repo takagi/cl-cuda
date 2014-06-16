@@ -114,6 +114,11 @@
 
 
 ;;;
+;;; test KERNEL-FUNCTION-C-NAME function
+;;;
+
+
+;;;
 ;;; test KERNEL-FUNCTION-RETURN-TYPE function
 ;;;
 
