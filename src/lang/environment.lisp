@@ -123,7 +123,7 @@
   (function-name (%lookup-function func-env name)))
 
 (defun function-environment-function-c-name (func-env name)
-  (c-identifier (function-environment-function-name func-env name) t))
+  (function-c-name (%lookup-function func-env name)))
 
 (defun function-environment-function-return-type (func-env name)
   (function-return-type (%lookup-function func-env name)))
@@ -212,6 +212,9 @@
   (%make-function :name name
                   :return-type return-type
                   :argument-types argument-types))
+
+(defun function-c-name (function)
+  (c-identifier (function-name function) t))
 
 
 ;;;

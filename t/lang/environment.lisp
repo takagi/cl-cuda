@@ -72,10 +72,12 @@
       "basic case 3")
   (is (function-environment-function-name func-env 'foo) 'foo
       "basic case 4")
-  (is (function-environment-function-return-type func-env 'foo) 'int
+  (is (function-environment-function-c-name func-env 'foo) "cl_cuda_test_lang_environment_foo"
       "basic case 5")
+  (is (function-environment-function-return-type func-env 'foo) 'int
+      "basic case 6")
   (is (function-environment-function-argument-types func-env 'foo) '(int)
-      "basic case 6"))
+      "basic case 7"))
 
 
 ;;;
