@@ -44,9 +44,9 @@
            :array-reference-indices
            ;; Inline-if
            :inline-if-p
-           :inline-if-test-expr
-           :inline-if-then-expr
-           :inline-if-else-expr
+           :inline-if-test-expression
+           :inline-if-then-expression
+           :inline-if-else-expression
            ;; Arithmetic
            :arithmetic-p
            :arithmetic-operator
@@ -266,19 +266,19 @@
     (('if . _) t)
     (_ nil)))
 
-(defun inline-if-test-expr (form)
+(defun inline-if-test-expression (form)
   (cl-pattern:match form
     (('if test-expr _ _) test-expr)
     (('if . _) (error "The expression ~S is malformed." form))
     (_ (error "The value ~S is an invalid expression." form))))
 
-(defun inline-if-then-expr (form)
+(defun inline-if-then-expression (form)
   (cl-pattern:match form
     (('if _ then-expr _) then-expr)
     (('if . _) (error "The expression ~S is malformed." form))
     (_ (error "The value ~S is an invalid expression." form))))
 
-(defun inline-if-else-expr (form)
+(defun inline-if-else-expression (form)
   (cl-pattern:match form
     (('if _ _ else-expr) else-expr)
     (('if . _) (error "The expression ~S is malformed." form))

@@ -145,9 +145,9 @@
 ;;;
 
 (defun type-of-inline-if (form var-env func-env)
-  (let ((test-expr (inline-if-test-expr form))
-        (then-expr (inline-if-then-expr form))
-        (else-expr (inline-if-else-expr form)))
+  (let ((test-expr (inline-if-test-expression form))
+        (then-expr (inline-if-then-expression form))
+        (else-expr (inline-if-else-expression form)))
     ;; check if the test part of inline-if expression has bool type
     (let ((test-type (type-of-expression test-expr var-env func-env)))
       (unless (eq test-type 'bool)
