@@ -254,7 +254,7 @@
 
 (defun compile-set (form var-env func-env)
   (let ((reference (set-reference form))
-        (expr (set-expr form)))
+        (expr (set-expression form)))
     ;; check if the reference part of set statement has the same type
     ;; as the expression part of that
     (let ((ref-type (type-of-expression reference var-env func-env))

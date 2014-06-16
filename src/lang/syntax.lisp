@@ -100,7 +100,7 @@
            :set
            :set-p
            :set-reference
-           :set-expr
+           :set-expression
            ;; Progn statement
            :progn-p
            :progn-statements
@@ -573,7 +573,7 @@
     (('set . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
 
-(defun set-expr (form)
+(defun set-expression (form)
   (cl-pattern:match form
     (('set _ expr) expr)
     (('set . _) (error "The statement ~S is malformed." form))
