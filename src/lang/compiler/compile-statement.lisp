@@ -261,7 +261,7 @@
           (expr-type (type-of-expression expr var-env func-env)))
       (unless (eq ref-type expr-type)
         (error "The type of statement ~S is invalid." form)))
-    (let ((reference1 (compile-expression reference var-env func-env))
+    (let ((reference1 (compile-reference reference var-env func-env))
           (expr1 (compile-expression expr var-env func-env)))
       (format nil "~A = ~A;~%" reference1 expr1))))
 
