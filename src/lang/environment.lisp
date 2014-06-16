@@ -226,6 +226,10 @@
 (defun make-macro (name arguments body)
   (unless (cl-cuda-symbol-p name)
     (error 'type-error :datum name :expected-type 'cl-cuda-symbol))
+  (unless (listp arguments)
+    (error 'type-error :datum arguments :expected-type 'list))
+  (unless (listp body)
+    (error 'type-error :datum body :expected-type 'list))
   (%make-macro :name name :arguments arguments :body body))
 
 (defun macro-expander (macro)

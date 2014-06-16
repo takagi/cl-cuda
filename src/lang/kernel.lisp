@@ -222,6 +222,8 @@
   (dolist (argument arguments)
     (unless (argument-p argument)
       (error 'type-error :datum argument :expected-type 'argument)))
+  (unless (listp body)
+    (error 'type-error :datum body :expected-type 'list))
   (%make-function :name name
                   :return-type return-type
                   :arguments arguments
@@ -254,6 +256,10 @@
 (defun make-macro (name arguments body)
   (unless (cl-cuda-symbol-p name)
     (error 'type-error :datum name :expected-type 'cl-cuda-symbol))
+  (unless (listp arguments)
+    (error 'type-error :datum arguments :expected-type 'list))
+  (unless (listp body)
+    (error 'type-error :datum body :expected-type 'list))
   (%make-macro :name name
                :arguments arguments
                :body body))
