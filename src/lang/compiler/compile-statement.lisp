@@ -66,19 +66,16 @@
     (let ((test-type (type-of-expression test-expr var-env func-env)))
       (unless (eq test-type 'bool)
         (error "The type of statement ~S is invalid." form)))
-    (if else-stmt
-        (let ((test-expr1 (compile-expression test-expr var-env func-env))
-              (then-stmt1 (compile-statement then-stmt var-env func-env))
-              (else-stmt1 (compile-statement else-stmt var-env func-env)))
-          (let ((then-stmt2 (indent 2 then-stmt1))
-                (else-stmt2 (indent 2 else-stmt1)))
-            (format nil "if (~A) {~%~A} else {~%~A}~%" test-expr1
-                                                       then-stmt2
-                                                       else-stmt2)))
-        (let ((test-expr1 (compile-expression test-expr var-env func-env))
-              (then-stmt1 (compile-statement then-stmt var-env func-env)))
-          (let ((then-stmt2 (indent 2 then-stmt1)))
-            (format nil "if (~A) {~%~A}~%" test-expr1 then-stmt2))))))
+    (let ((test-expr1 (compile-expression test-expr var-env func-env))
+          (then-stmt1 (compile-statement then-stmt var-env func-env))
+          (else-stmt1 (if else-stmt
+                          (compile-statement else-stmt var-env func-env))))
+      (let ((then-stmt2 (indent 2 then-stmt1))
+            (else-stmt2 (if else-stmt1
+                            (indent 2 else-stmt1))))
+        (format nil "if (~A) {~%~A}~@[ else {~%~A}~]~%" test-expr1
+                                                        then-stmt2
+                                                        else-stmt2)))))
 
 
 ;;;

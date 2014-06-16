@@ -59,10 +59,8 @@
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
   (let ((lisp-code '(if t (progn
-                            (return 0)
                             (return 0))))
         (c-code (unlines "if (true) {"
-                         "  return 0;"
                          "  return 0;"
                          "}")))
     (is (compile-if lisp-code var-env func-env) c-code
