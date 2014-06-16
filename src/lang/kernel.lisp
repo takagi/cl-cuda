@@ -233,7 +233,7 @@
   (%function-p object))
 
 (defun function-c-name (function)
-  (c-identifier (function-name kernel name) t))
+  (c-identifier (function-name function) t))
 
 (defun function-argument-vars (function)
   (mapcar #'argument-var
