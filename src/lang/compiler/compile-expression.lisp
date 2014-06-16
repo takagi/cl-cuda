@@ -48,15 +48,6 @@
       (let ((form1 (funcall expander operands)))
         (compile-expression form1 var-env func-env)))))
 
-(defun %expand-macro-1 (form func-env)
-  (if (%macro-p form func-env)
-      (let ((operator (macro-operator form))
-            (operands (macro-operands form)))
-        (let ((expander (function-environment-macro-expander func-env
-                                                             operator)))
-          (values (funcall expander operands) t)))
-      (values form nil)))
-
 
 ;;;
 ;;; Symbol macro
