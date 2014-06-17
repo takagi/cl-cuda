@@ -25,6 +25,7 @@
                                  '((set (aref x 0) (bar 1))
                                    (return)))
   (kernel-define-function kernel 'bar 'int '((x int)) '((return x)))
+  (kernel-define-function kernle 'baz 'void '() '((return)))
   (is (compile-kernel kernel)
       "#include \"int.h\"
 #include \"float.h\"
@@ -40,6 +41,7 @@
  *  Kernel function prototypes
  */
 
+extern \"C\" __device__ void cl_cuda_test_lang_compiler_compile_kernel_baz();
 extern \"C\" __device__ int cl_cuda_test_lang_compiler_compile_kernel_bar( int x );
 extern \"C\" __global__ void cl_cuda_test_lang_compiler_compile_kernel_foo( int* x );
 
@@ -47,6 +49,11 @@ extern \"C\" __global__ void cl_cuda_test_lang_compiler_compile_kernel_foo( int*
 /**
  *  Kernel function definitions
  */
+
+__global__ void cl_cuda_test_lang_compiler_compile_kernel_baz()
+{
+  return;
+}
 
 __device__ int cl_cuda_test_lang_compiler_compile_kernel_bar( int x )
 {

@@ -190,7 +190,7 @@
 
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
-  (is (compile-function '(syncthreads) var-env func-env) "__syncthreads( )"
+  (is (compile-function '(syncthreads) var-env func-env) "__syncthreads()"
       "basic case 1"))
 
 

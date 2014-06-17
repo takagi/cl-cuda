@@ -242,7 +242,9 @@
     (let ((operator1 (function-environment-function-c-name func-env
                                                            operator))
           (operands1 (compile-operands operands var-env func-env)))
-      (format nil "~A(~{ ~A~^,~} )" operator1 operands1))))
+      (if operands1
+          (format nil "~A( ~{~A~^, ~} )" operator1 operands1)
+          (format nil "~A()" operator1)))))
 
 (defun compile-built-in-function (form var-env func-env)
   (let ((operator (function-operator form))
@@ -265,4 +267,6 @@
                                          var-env func-env)
     (let ((operator1 (built-in-function-c-name operator operand-types))
           (operands1 (compile-operands operands var-env func-env)))
-      (format nil "~A(~{ ~A~^,~} )" operator1 operands1)))
+      (if operands1
+          (format nil "~A( ~{~A~^, ~} )" operator1 operands1)
+          (format nil "~A()" operator1))))
