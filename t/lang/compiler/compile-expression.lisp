@@ -9,6 +9,7 @@
         :cl-cuda.lang.syntax
         :cl-cuda.lang.data
         :cl-cuda.lang.type
+        :cl-cuda.lang.built-in
         :cl-cuda.lang.environment
         :cl-cuda.lang.compiler.compile-expression)
   (:import-from :cl-cuda.lang.compiler.compile-expression

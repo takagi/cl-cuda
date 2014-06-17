@@ -7,9 +7,7 @@
 (defpackage cl-cuda-test.lang.syntax
   (:use :cl :cl-test-more
         :cl-cuda.lang.data
-        :cl-cuda.lang.syntax)
-  (:import-from :cl-cuda.lang.syntax
-                :with-shared-memory-spec-p))
+        :cl-cuda.lang.syntax))
 (in-package :cl-cuda-test.lang.syntax)
 
 (plan nil)
@@ -255,16 +253,6 @@
 ;;;
 ;;; test Return statement
 ;;;
-
-
-;;;
-;;; test Syncthreads statement
-;;;
-
-(diag "Syncthreads statement")
-
-(ok (syncthreads-p '(syncthreads))
-    "basic case 1")
 
 
 ;;;

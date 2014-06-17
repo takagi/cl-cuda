@@ -43,8 +43,8 @@
                  (variable-environment-add-variable 'x 'int
                    (empty-variable-environment)))))
   (is (variable-environment-variable-exists-p var-env 'x) nil
-      "basic case 7"))
-  (is (variable-environment-symbol-macro-exists-p var-env 'x) nil
+      "basic case 7")
+  (is (variable-environment-symbol-macro-exists-p var-env 'x) t
       "basic case 8"))
 
 

@@ -39,7 +39,9 @@
            :kernel-symbol-macro-exists-p
            :kernel-symbol-macro-name
            :kernel-symbol-macro-expansion)
-  (:shadow :macro-p)
+  (:shadow :macro-p
+           :symbol-macro-p
+           :function-p)
   (:import-from :alexandria
                 :with-gensyms))
 (in-package :cl-cuda.lang.kernel)
@@ -165,7 +167,7 @@
          (let ((expansion (kernel-symbol-macro-expansion kernel form)))
            (values expansion t))
          (values form nil)))
-    (error "The value ~S is an invalid form." form)))
+    (t (values form nil))))
 
 (defun expand-macro (form kernel)
   (labels ((aux (form expanded-p)
