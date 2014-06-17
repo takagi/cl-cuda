@@ -7,7 +7,7 @@
 (defpackage cl-cuda.api.memory
   (:use :cl
         :cl-cuda.driver-api
-        :cl-cuda.lang)
+        :cl-cuda.lang.type)
   (:export ;; Device memory
            :alloc-device-memory
            :free-device-memory
