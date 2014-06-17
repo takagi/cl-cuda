@@ -3,7 +3,7 @@
   Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
 |#
 
-(in-package :cl-cuda-test-interop)
+(in-package :cl-cuda-interop-test)
 
 (setf *test-result-output* *standard-output*)
 

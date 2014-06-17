@@ -4,18 +4,18 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-test-interop-asd
+(defpackage cl-cuda-interop-test-asd
   (:use :cl :asdf))
-(in-package :cl-cuda-test-interop-asd)
+(in-package :cl-cuda-interop-test-asd)
 
-(defsystem cl-cuda-test-interop
+(defsystem cl-cuda-interop-test
   :author "Masayuki Takagi"
   :license "LLGPL"
-  :depends-on (:cl-cuda
+  :depends-on (:cl-cuda-interop
                :cl-test-more)
-  :components ((:module "t"
+  :components ((:module "interop/t"
                 :serial t
                 :components
-                ((:file "interop/package-interop")
-                 (:file "interop/test-cl-cuda-interop"))))
+                ((:file "package-interop")
+                 (:file "test-cl-cuda-interop"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))

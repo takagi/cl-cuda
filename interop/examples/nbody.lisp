@@ -8,12 +8,12 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-examples.nbody
+(defpackage cl-cuda-interop-examples.nbody
   (:use :cl
         :cl-cuda)
   (:export :main
            :*gpu*))
-(in-package :cl-cuda-examples.nbody)
+(in-package :cl-cuda-interop-examples.nbody)
 
 
 ;;;

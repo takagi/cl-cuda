@@ -21,7 +21,6 @@
                 :components
                 ((:file "diffuse0")
                  (:file "diffuse1")
-                 (:file "nbody")
                  ; (:file "shared-memory")
                  (:file "vector-add")
                  (:file "sph"))))
