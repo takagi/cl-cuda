@@ -56,7 +56,7 @@
     (return))
   (let ((i 0))))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (is (let1 :grid-dim (list 1 1 1)
             :block-dim (list 1 1 1))
       nil "basic case 1"))
@@ -69,7 +69,7 @@
 (defkernel one (int ())
   (return 1))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (is (use-one :grid-dim (list 1 1 1)
                :block-dim (list 1 1 1))
       nil "basic case 2"))
@@ -78,7 +78,7 @@
 (defkernel argument (void ((i int) (j float3)))
   (return))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (is (argument 1 (make-float3 0.0 0.0 0.0) :grid-dim (list 1 1 1)
                                             :block-dim (list 1 1 1))
       nil "basic case 3"))
@@ -89,7 +89,7 @@
   (set (aref a 1) nil)
   (return))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-blocks ((a 'bool 2))
     (setf (memory-block-aref a 0) nil
           (memory-block-aref a 1) t)
@@ -107,7 +107,7 @@
   (set (aref a 0) (+ (float3-x x) (float3-y x) (float3-z x))))
 
 (let ((x (make-float3 1.0 2.0 3.0)))
-  (with-cuda-context (0)
+  (with-cuda (0)
     (with-memory-blocks ((a 'float 1))
       (setf (memory-block-aref a 0) 1.0)
       (sync-memory-block a :host-to-device)
@@ -123,7 +123,7 @@
       ((> i 15))
     (set (aref x 0) (+ (aref x 0) 1))))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-blocks ((x 'int 1))
     (setf (memory-block-aref x 0) 0)
     (sync-memory-block x :host-to-device)
@@ -137,7 +137,7 @@
 (defkernel test-add (void ((x int*)))
   (set (aref x 0) (+ 1 1 1)))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-blocks ((x 'int 1))
     (setf (memory-block-aref x 0) 0)
       (sync-memory-block x :host-to-device)
@@ -154,7 +154,7 @@
 (defkernel test-no-atomic-add (void ((x int*)))
   (set (aref x 0) (+ (aref x 0) 1)))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-blocks ((x 'int 1)
                        (y 'int 1))
     (setf (memory-block-aref x 0) 0
@@ -176,7 +176,7 @@
 (defkernel test-float3-add (void ((x float3*)))
   (set (aref x 0) (+ (aref x 0) (float3 1.0 1.0 1.0))))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-blocks ((x 'float3 1))
     (setf (memory-block-aref x 0) (make-float3 0.0 0.0 0.0))
     (sync-memory-block x :host-to-device)
@@ -201,7 +201,7 @@
   (when t (return))
   (return))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (is (test-when :grid-dim '(1 1 1) :block-dim '(1 1 1))
       nil "basic case 19"))
 
@@ -218,7 +218,7 @@
   (set (aref ret 0) x)
   (return))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-blocks ((x 'int 1))
     (setf (memory-block-aref x 0) 0)
     (sync-memory-block x :host-to-device)

@@ -946,7 +946,7 @@
         (grid-dim '(16 1 1))
         (block-dim '(64 1 1)))
     ;; with CUDA context
-    (with-cuda-context (dev-id)
+    (with-cuda (dev-id)
       ;; with memory blocks
       (with-memory-blocks ((x   'float4 n)
                            (v   'float4 n)
@@ -995,7 +995,7 @@
         (grid-dim '(16 1 1))
         (block-dim '(64 1 1)))
     ;; with CUDA context
-    (with-cuda-context (dev-id)
+    (with-cuda (dev-id)
       ;; with memory blocks
       (with-memory-blocks ((x   'float4 n)
                            (v   'float4 n)
@@ -1049,7 +1049,7 @@
 
 (defun test-neighbor-map-info1 ()
   (cl-test-more:diag "test-neighbor-map-info1")
-  (with-cuda-context (0)
+  (with-cuda (0)
     (let ((info (alloc-neighbor-map-info test-box-min test-box-max test-delta test-capacity)))
       (unwind-protect
            (progn
@@ -1072,7 +1072,7 @@
 (defun test-neighbor-map-info2 ()
   (cl-test-more:diag "test-neighbor-map-info2")
   (let ((test-box-max (make-float4 9.0 9.0 9.0 0.0)))
-    (with-cuda-context (0)
+    (with-cuda (0)
       (let ((info (alloc-neighbor-map-info test-box-min test-box-max test-delta test-capacity)))
         (unwind-protect
              (progn
@@ -1089,7 +1089,7 @@
         (test-box-max1 (make-float4 -10.0  10.0  10.0 0.0))
         (test-box-max2 (make-float4  10.0 -10.0  10.0 0.0))
         (test-box-max3 (make-float4  10.0  10.0 -10.0 0.0)))
-    (with-cuda-context (0)
+    (with-cuda (0)
       (cl-test-more:plan nil)
       (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max1 test-delta test-capacity)
                              simple-error)
@@ -1103,7 +1103,7 @@
   (cl-test-more:diag "test-neighbor-map-info4")
   (let ((test-delta1 -1.0)
         (test-delta2  0.0))
-    (with-cuda-context (0)
+    (with-cuda (0)
       (cl-test-more:plan nil)
       (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max test-delta1 test-capacity)
                              simple-error)
@@ -1115,7 +1115,7 @@
   (cl-test-more:diag "test-neighbor-map-info5")
   (let ((test-capacity1 -1)
         (test-capacity2 0))
-    (with-cuda-context (0)
+    (with-cuda (0)
       (cl-test-more:plan nil)
       (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max test-delta test-capacity1)
                              simple-error)
@@ -1139,7 +1139,7 @@
 ;; test functions of neighbor map for one cell
 (defun test-neighbor-map1 ()
   (cl-test-more:diag "test-neighbor-map1")
-  (with-cuda-context (0)
+  (with-cuda (0)
     (with-neighbor-map (nbr info test-box-min test-box-max test-delta test-capacity)
       (cl-test-more:plan nil)
       ;; clear cells and test them
@@ -1185,7 +1185,7 @@
 ;; test functions of neighbor map for cells
 (defun test-neighbor-map2 ()
   (cl-test-more:diag "test-neighbor-map2")
-  (with-cuda-context (0)
+  (with-cuda (0)
     (with-memory-blocks ((xs 'float4 3))
     (with-neighbor-map (nbr info test-box-min test-box-max test-delta test-capacity)
       (cl-test-more:plan nil)
@@ -1219,7 +1219,7 @@
 
 (defun test-neighbor-map2-gpu ()
   (cl-test-more:diag "test-neighbor-map2-gpu")
-  (with-cuda-context (0)
+  (with-cuda (0)
     (with-memory-blocks ((xs 'float4 3))
     (with-neighbor-map (nbr info test-box-min test-box-max test-delta test-capacity)
       (cl-test-more:plan nil)

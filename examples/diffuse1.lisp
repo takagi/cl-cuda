@@ -128,7 +128,7 @@
          (dir (namestring (truename "./")))
          (time 0)
          (flo 0))
-    (with-cuda-context (dev-id)
+    (with-cuda (dev-id)
       (with-timer (timer)
         (with-memory-blocks ((f 'float (* nx ny))
                              (fn 'float (* nx ny)))

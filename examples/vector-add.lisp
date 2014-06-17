@@ -40,7 +40,7 @@
          (n 1024)
          (threads-per-block 256)
          (blocks-per-grid (/ n threads-per-block)))
-    (with-cuda-context (dev-id)
+    (with-cuda (dev-id)
       (with-memory-blocks ((a 'float n)
                            (b 'float n)
                            (c 'float n))

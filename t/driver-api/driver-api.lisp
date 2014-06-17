@@ -94,7 +94,7 @@
     (cu-mem-free (cffi:mem-ref dptr 'cu-device-ptr))
     (cu-ctx-destroy (cffi:mem-ref pctx 'cu-context))))
 
-(diag "test cuMemAlloc/cuMemFree using with-cuda-context")
+(diag "test cuMemAlloc/cuMemFree using WITH-CU-CONTEXT macro")
 (with-cu-context (0)
   (cffi:with-foreign-object (dptr 'cu-device-ptr)
     (cu-mem-alloc dptr 1024)

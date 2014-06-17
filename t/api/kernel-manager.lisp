@@ -22,7 +22,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; I - initial state
     (kernel-manager-define-function mgr 'foo 'void '() '())
     (is (kernel-manager-compiled-p mgr) nil
@@ -81,7 +81,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; I - initial state
     (kernel-manager-define-function mgr 'foo 'void '() '())
     ;; II - compiled state
@@ -106,7 +106,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; I - initial state
     (kernel-manager-define-function mgr 'foo 'void '() '())
     (is-error (kernel-manager-load-module mgr) simple-error
@@ -132,7 +132,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; I - initial state
     (kernel-manager-define-function mgr 'foo 'void '() '())
     (is-error (kernel-manager-load-function mgr 'foo) simple-error
@@ -153,7 +153,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; transfer state from I to II
     (kernel-manager-compile-module mgr)
     ;; delete kernel module
@@ -173,7 +173,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; I - initial state
     (ok (kernel-manager-unload mgr)
         "basic case 1")
@@ -195,7 +195,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; transfer state from I to II
     (kernel-manager-define-function mgr 'foo 'void '() '())
     (kernel-manager-compile-module mgr)
@@ -212,7 +212,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; I - initial state
     (kernel-manager-define-function mgr 'foo 'void '() '())
     nil
@@ -239,7 +239,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; transfer state from I to II
     (kernel-manager-define-macro mgr 'foo '() '())
     (kernel-manager-compile-module mgr)
@@ -256,7 +256,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; I - initial state
     (kernel-manager-define-function mgr 'foo 'void '() '())
     nil
@@ -283,7 +283,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; transfer state from I to II
     (kernel-manager-define-symbol-macro mgr 'foo 1)
     (kernel-manager-compile-module mgr)
@@ -300,7 +300,7 @@
 
 (let* ((mgr (make-kernel-manager))
        (*kernel-manager* mgr))
-  (with-cuda-context (0)
+  (with-cuda (0)
     ;; I - initial state
     (kernel-manager-define-function mgr 'foo 'void '() '())
     nil

@@ -17,10 +17,10 @@
            :create-cuda-context
            :destory-cuda-context
            :synchronize-context
-           ;; WITH-CUDA-CONTEXT macro
+           ;; WITH-CUDA macro
            :*cuda-device*
            :*cuda-context*
-           :with-cuda-context))
+           :with-cuda))
 (in-package :cl-cuda.api.context)
 
 
@@ -66,14 +66,14 @@
 
 
 ;;;
-;;; WITH-CUDA-CONTEXT macro
+;;; WITH-CUDA macro
 ;;;
 
 (defvar *cuda-device*)
 
 (defvar *cuda-context*)
 
-(defmacro with-cuda-context ((dev-id) &body body)
+(defmacro with-cuda ((dev-id) &body body)
   `(progn
      ;; initialize CUDA
      (init-cuda)

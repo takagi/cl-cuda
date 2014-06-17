@@ -19,7 +19,7 @@
 
 (diag "TIMER")
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-timer (timer)
     ;; start timer
     (start-timer timer)

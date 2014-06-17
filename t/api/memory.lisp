@@ -20,27 +20,27 @@
 
 (diag "ALLOC-MEMORY-BLOCK / FREE-MEMORY-BLOCK")
 
-(with-cuda-context (0)
+(with-cuda (0)
   (let (memory-block)
     (ok (setf memory-block (alloc-memory-block 'int 1024))
         "basic case 1")
     (free-memory-block memory-block)))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (is-error (alloc-memory-block 'void 1024) simple-error
             "TYPE which is a void type"))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (is-error (alloc-memory-block 'int  (* 1024 1024 1024 1024))
             simple-error
             "SIZE which specifies memory larger than available on the gpu"))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (is-error (alloc-memory-block 'int 0)
             simple-error
             "SIZE which is zero"))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (is-error (alloc-memory-block 'int -1)
             type-error
             "SIZE which is negative"))
@@ -52,7 +52,7 @@
 
 (diag "MEMORY-BLOCK-DEVICE-PTR")
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-block (a 'int 1)
     (ok (memory-block-device-ptr a)
         "basic case 1")))
@@ -64,7 +64,7 @@
 
 (diag "MEMORY-BLOCK-HOST-PTR")
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-block (a 'int 1)
     (ok (memory-block-host-ptr a)
         "basic case 1")))
@@ -76,7 +76,7 @@
 
 (diag "MEMORY-BLOCK-TYPE")
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-block (a 'int 1)
     (is (memory-block-type a) 'int
         "basic case 1")))
@@ -88,7 +88,7 @@
 
 (diag "MEMORY-BLOCK-SIZE")
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-block (a 'int 1)
     (is (memory-block-size a) 1
         "basic case 1")))
@@ -100,13 +100,13 @@
 
 (diag "MEMORY-BLOCK-AREF")
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-block (a 'int 1)
     (setf (memory-block-aref a 0) 1)
     (is (memory-block-aref a 0) 1
         "basic case 1")))
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-block (a 'float3 1)
     (setf (memory-block-aref a 0) (make-float3 1.0 1.0 1.0))
     (is (memory-block-aref a 0) (make-float3 1.0 1.0 1.0)
@@ -120,7 +120,7 @@
 
 (diag "SYNC-MEMORY-BLOCK")
 
-(with-cuda-context (0)
+(with-cuda (0)
   (with-memory-block (a 'int 1)
     (setf (memory-block-aref a 0) 1)
     (sync-memory-block a :host-to-device)

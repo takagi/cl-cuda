@@ -65,7 +65,7 @@
 
 (defun main (func expected)
   (let ((n (* 256 256)))
-    (with-cuda-context (0)
+    (with-cuda (0)
       (with-memory-blocks ((a 'float n))
         (init a n)
         (sync-memory-block a :host-to-device)
