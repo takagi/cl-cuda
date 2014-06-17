@@ -208,7 +208,8 @@
 
 ;; use name begining with '%' to avoid package locking
 (defstruct (%function (:constructor %make-function)
-                      (:conc-name function-))
+                      (:conc-name function-)
+                      (:predicate function-p))
   (name :name :read-only t)
   (return-type :return-type :read-only t)
   (arguments :arguments :read-only t)
@@ -228,9 +229,6 @@
                   :return-type return-type
                   :arguments arguments
                   :body body))
-
-(defun function-p (object)
-  (%function-p object))
 
 (defun function-c-name (function)
   (c-identifier (function-name function) t))
