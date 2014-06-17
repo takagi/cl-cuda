@@ -15,7 +15,7 @@
   :version "0.1"
   :author "Masayuki Takagi"
   :license "LLGPL"
-  :depends-on (:cffi :alexandria :anaphora :external-program :osicat
+  :depends-on (:cffi :alexandria :external-program :osicat
                :cl-pattern :split-sequence :cl-reexport :cl-ppcre)
   :components ((:module "src"
                 :serial t
