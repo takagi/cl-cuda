@@ -23,6 +23,8 @@
   (with-timer (timer)
     ;; start timer
     (start-timer timer)
+    ;; sleep
+    (sleep 1)
     ;; stop and shnchronize timer
     (stop-timer timer)
     (synchronize-timer timer)

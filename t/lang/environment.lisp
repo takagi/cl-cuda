@@ -33,6 +33,20 @@
   (is (variable-environment-variable-type var-env 'x) 'int
       "basic case 5"))
 
+(let ((var-env (variable-environment-add-variable 'x 'float
+                 (variable-environment-add-variable 'x 'int
+                   (empty-variable-environment)))))
+  (is (variable-environment-variable-type var-env 'x) 'float
+      "basic case 6"))
+
+(let ((var-env (variable-environment-add-symbol-macro 'x '1.0
+                 (variable-environment-add-variable 'x 'int
+                   (empty-variable-environment)))))
+  (is (variable-environment-variable-exists-p var-env 'x) nil
+      "basic case 7"))
+  (is (variable-environment-symbol-macro-exists-p var-env 'x) nil
+      "basic case 8"))
+
 
 ;;;
 ;;; test Variable environment - Symbol macro

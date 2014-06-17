@@ -37,12 +37,12 @@
 
 
 ;;;
-;;; test TYPE-OF-MACRO function
+;;; test TYPE-OF-MACRO function (not implemented)
 ;;;
 
 
 ;;;
-;;; test TYPE-OF-SYMBOL-MACRO function
+;;; test TYPE-OF-SYMBOL-MACRO function (not implemented)
 ;;;
 
 
@@ -152,7 +152,7 @@
 
 
 ;;;
-;;; test TYPE-OF-ARITHMETIC function
+;;; test TYPE-OF-ARITHMETIC function (not implemented)
 ;;;
 
 

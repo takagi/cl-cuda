@@ -29,12 +29,12 @@
 
 
 ;;;
-;;; test COMPILE-STATEMENT function
+;;; test COMPILE-STATEMENT function (not implemented)
 ;;;
 
 
 ;;;
-;;; test COMPILE-MACRO function
+;;; test COMPILE-MACRO function (not implemented)
 ;;;
 
 
@@ -57,8 +57,7 @@
 
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
-  (let ((lisp-code '(if t (progn
-                            (return 0))))
+  (let ((lisp-code '(if t (return 0)))
         (c-code (unlines "if (true) {"
                          "  return 0;"
                          "}")))
@@ -255,17 +254,17 @@
 
 
 ;;;
-;;; test COMPILE-PROGN function
+;;; test COMPILE-PROGN function (not implemented)
 ;;;
 
 
 ;;;
-;;; test COMPILE-RETURN function
+;;; test COMPILE-RETURN function (not implemented)
 ;;;
 
 
 ;;;
-;;; test COMPILE-FUNCTION function
+;;; test COMPILE-FUNCTION function (not implemented)
 ;;;
 
 

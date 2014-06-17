@@ -186,7 +186,13 @@
     (is (memory-block-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=
         "basic case 18")))
 
-;; test kernel macro
+
+;;;
+;;; test DEFKERNELMACRO macro
+;;;
+
+(diag "DEFKERNELMACRO")
+
 (defkernelmacro when (test &body forms)
   `(if ,test
        (progn ,@forms)))
@@ -199,7 +205,13 @@
   (is (test-when :grid-dim '(1 1 1) :block-dim '(1 1 1))
       nil "basic case 19"))
 
-;; test kernel symbol macro
+
+;;;
+;;; test DEFKERNEL-SYMBOL-MACRO macro
+;;;
+
+(diag "DEFKERNEL-SYMBOL-MACRO")
+
 (defkernel-symbol-macro x 1)
 
 (defkernel test-symbol-macro (void ((ret int*)))
