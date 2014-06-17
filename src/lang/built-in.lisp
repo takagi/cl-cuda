@@ -11,6 +11,7 @@
            :rsqrt
            :atomic-add
            :pointer
+           :syncthreads
            :double-to-int-rn
            :dot
            :curand-init-xorwow
@@ -121,6 +122,8 @@
     float4 (((float float float float) float4 nil "make_float4"))
     double3 (((double double double) double3 nil "make_double3"))
     double4 (((double double double double) double4 nil "make_double4"))
+    ;; Synchronization functions
+    syncthreads ((() void nil "__syncthreads"))
     ;; type casting intrinsics
     double-to-int-rn (((double) int nil "__double2int_rn"))
     ;; linear algebraic operators

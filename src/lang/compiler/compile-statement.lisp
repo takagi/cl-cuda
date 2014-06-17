@@ -34,7 +34,6 @@
     ((set-p form) (compile-set form var-env func-env))
     ((progn-p form) (compile-progn form var-env func-env))
     ((return-p form) (compile-return form var-env func-env))
-    ((syncthreads-p form) (compile-syncthreads form))
     ((function-p form) (compile-function form var-env func-env))
     (t (error "The value ~S is an invalid statement." form))))
 
@@ -285,15 +284,6 @@
         (let ((expr1 (compile-expression expr var-env func-env)))
           (format nil "return ~A;~%" expr1))
         (format nil "return;~%"))))
-
-
-;;;
-;;; Syncthreads statement
-;;;
-
-(defun compile-syncthreads (form)
-  (declare (ignore form))
-  (format nil "__syncthreads();~%"))
 
 
 ;;;

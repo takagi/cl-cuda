@@ -78,13 +78,13 @@
                           :block-idx-x :block-idx-y :block-idx-z
                           :thread-idx-x :thread-idx-y :thread-idx-z
                           :with-shared-memory
-                          :set
-                          :syncthreads))
+                          :set))
 
 (reexport-from :cl-cuda.lang.built-in
                :include '(:rsqrt
                           :atomic-add
                           :pointer
+                          :syncthreads
                           :double-to-int-rn
                           :dot
                           :curand-init-xorwow

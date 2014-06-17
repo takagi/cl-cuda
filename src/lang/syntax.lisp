@@ -107,9 +107,6 @@
            ;; Return statement
            :return-p
            :return-expr
-           ;; Syncthreads statement
-           :syncthreads
-           :syncthreads-p
            ;; Argument
            :argument
            :argument-p
@@ -611,16 +608,6 @@
     (('return expr) expr)
     (('return . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
-
-
-;;;
-;;; Syncthreads statement
-;;;
-
-(defun syncthreads-p (object)
-  (cl-pattern:match object
-    (('syncthreads) t)
-    (_ nil)))
 
 
 ;;;

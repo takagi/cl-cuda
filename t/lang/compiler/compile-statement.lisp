@@ -22,7 +22,6 @@
                 :compile-set
                 :compile-progn
                 :compile-return
-                :compile-syncthreads
                 :compile-function))
 (in-package :cl-cuda-test.lang.compiler.compile-statement)
 
@@ -263,16 +262,6 @@
 ;;;
 ;;; test COMPILE-RETURN function
 ;;;
-
-
-;;;
-;;; test COMPILE-SYNCTHREADS function
-;;;
-
-(diag "test COMPILE-SYNCTHREADS")
-
-(is (compile-syncthreads '(syncthreads)) (unlines "__syncthreads();")
-    "basic case 1")
 
 
 ;;;
