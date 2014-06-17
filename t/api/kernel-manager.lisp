@@ -326,9 +326,14 @@
 (let ((mgr (make-kernel-manager)))
   (kernel-manager-define-macro mgr 'foo '(x) '(`(return ,x)))
   (kernel-manager-define-macro mgr 'bar '(x) '(`(foo ,x)))
+  (kernel-manager-define-symbol-macro mgr 'a 1.0)
+  (kernel-manager-define-symbol-macro mgr 'b 'a)
   (is-values (expand-macro-1 '(foo 1) mgr) '((return 1) t))
   (is-values (expand-macro-1 '(bar 1) mgr) '((foo 1) t))
   (is-values (expand-macro-1 '(baz 1) mgr) '((baz 1) nil))
+  (is-values (expand-macro-1 'a mgr) '(1.0 t))
+  (is-values (expand-macro-1 'b mgr) '(a t))
+  (is-values (expand-macro-1 'c mgr) '(c nil))
   (is-error (expand-macro-1 '(foo) mgr) error))
 
 
@@ -341,9 +346,14 @@
 (let ((mgr (make-kernel-manager)))
   (kernel-manager-define-macro mgr 'foo '(x) '(`(return ,x)))
   (kernel-manager-define-macro mgr 'bar '(x) '(`(foo ,x)))
+  (kernel-manager-define-symbol-macro mgr 'a 1.0)
+  (kernel-manager-define-symbol-macro mgr 'b 'a)
   (is-values (expand-macro '(foo 1) mgr) '((return 1) t))
   (is-values (expand-macro '(bar 1) mgr) '((return 1) t))
   (is-values (expand-macro '(baz 1) mgr) '((baz 1) nil))
+  (is-values (expand-macro 'a mgr) '(1.0 t))
+  (is-values (expand-macro 'b mgr) '(1.0 t))
+  (is-values (expand-macro 'c mgr) '(c nil))
   (is-error (expand-macro '(foo) mgr) error))
 
 

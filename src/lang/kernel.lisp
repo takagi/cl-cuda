@@ -8,7 +8,8 @@
   (:use :cl
         :cl-cuda.lang.util
         :cl-cuda.lang.data
-        :cl-cuda.lang.type)
+        :cl-cuda.lang.type
+        :cl-cuda.lang.syntax)
   (:export ;; Kernel
            :make-kernel
            :kernel-function-names
@@ -38,12 +39,7 @@
            :kernel-symbol-macro-exists-p
            :kernel-symbol-macro-name
            :kernel-symbol-macro-expansion)
-  (:import-from :cl-cuda.lang.syntax
-                :macro-operator
-                :macro-operands
-                :argument-p
-                :argument-var
-                :argument-type)
+  (:shadow :macro-p))
   (:import-from :alexandria
                 :with-gensyms))
 (in-package :cl-cuda.lang.kernel)
@@ -156,14 +152,20 @@
   (macro-expander (%lookup-macro kernel name)))
 
 (defun expand-macro-1 (form kernel)
-  (if (cl-cuda.lang.syntax:macro-p form)
-      (let ((operator (macro-operator form))
-            (operands (macro-operands form)))
-        (if (kernel-macro-exists-p kernel operator)
-            (let ((expander (kernel-macro-expander kernel operator)))
-              (values (funcall expander operands) t))
-            (values form nil)))
-      (values form nil)))
+  (cond
+    ((cl-cuda.lang.syntax:macro-p form)
+     (let ((operator (macro-operator form))
+           (operands (macro-operands form)))
+       (if (kernel-macro-exists-p kernel operator)
+           (let ((expander (kernel-macro-expander kernel operator)))
+             (values (funcall expander operands) t))
+           (values form nil))))
+    ((cl-cuda.lang.syntax:symbol-macro-p form)
+     (if (kernel-symbol-macro-exists-p kernel form)
+         (let ((expansion (kernel-symbol-macro-expansion kernel form)))
+           (values expansion t))
+         (values form nil)))
+    (error "The value ~S is an invalid form." form)))
 
 (defun expand-macro (form kernel)
   (labels ((aux (form expanded-p)

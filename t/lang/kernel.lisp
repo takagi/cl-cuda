@@ -221,9 +221,14 @@
 (let ((kernel (make-kernel)))
   (kernel-define-macro kernel 'foo '(x) '(`(return ,x)))
   (kernel-define-macro kernel 'bar '(x) '(`(foo ,x)))
+  (kernel-define-symbol-macro kernel 'a 1.0)
+  (kernel-define-symbol-macro kernel 'b 'a)
   (is-values (expand-macro-1 '(foo 1) kernel) '((return 1) t))
   (is-values (expand-macro-1 '(bar 1) kernel) '((foo 1) t))
   (is-values (expand-macro-1 '(baz 1) kernel) '((baz 1) nil))
+  (is-values (expand-macro-1 'a kernel) '(1.0 t))
+  (is-values (expand-macro-1 'b kernel) '(a t))
+  (is-values (expand-macro-1 'c kernel) '(c nil))
   (is-error (expand-macro-1 '(foo)) error))
 
 
@@ -236,9 +241,14 @@
 (let ((kernel (make-kernel)))
   (kernel-define-macro kernel 'foo '(x) '(`(return ,x)))
   (kernel-define-macro kernel 'bar '(x) '(`(foo ,x)))
+  (kernel-define-symbol-macro kernel 'a 1.0)
+  (kernel-define-symbol-macro kernel 'b 'a)
   (is-values (expand-macro '(foo 1) kernel) '((return 1) t))
   (is-values (expand-macro '(bar 1) kernel) '((return 1) t))
   (is-values (expand-macro '(baz 1) kernel) '((baz 1) nil))
+  (is-values (expand-macro 'a kernel) '(1.0 t))
+  (is-values (expand-macro 'b kernel) '(1.0 t))
+  (is-values (expand-macro 'c kernel) '(c nil))
   (is-error (expand-macro '(foo)) error))
 
 

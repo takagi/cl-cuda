@@ -229,14 +229,24 @@
 (defkernelmacro bar (x)
   `(foo ,x))
 
+(defkernel-symbol-macro a 1.0)
+
+(defkernel-symbol-macro b a)
+
 (is-values (expand-macro-1 '(foo 1)) '((return 1) t))
 (is-values (expand-macro-1 '(bar 1)) '((foo 1) t))
 (is-values (expand-macro-1 '(baz 1)) '((baz 1) nil))
+(is-values (expand-macro-1 'a) '(1.0 t))
+(is-values (expand-macro-1 'b) '(a t))
+(is-values (expand-macro-1 'c) '(c nil))
 (is-error (expand-macro-1 '(foo)) error)
 
 (is-values (expand-macro '(foo 1)) '((return 1) t))
 (is-values (expand-macro '(bar 1)) '((return 1) t))
 (is-values (expand-macro '(baz 1)) '((baz 1) nil))
+(is-values (expand-macro 'a) '(1.0 t))
+(is-values (expand-macro 'b) '(1.0 t))
+(is-values (expand-macro 'c) '(c nil))
 (is-error (expand-macro '(foo)) error)
 
 
