@@ -79,7 +79,7 @@
            ;; Do statement
            :do-p
            :do-bindings
-           :do-end-tests
+           :do-end-test
            :do-statements
            ;; Do statement - binding
            :do-binding-p
@@ -458,12 +458,9 @@
     (('do . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
 
-(defun do-end-tests (form)
+(defun do-end-test (form)
   (cl-pattern:match form
-    (('do _ end-tests . _)
-     (if (listp end-tests)
-         end-tests
-         (error "The statement ~S is malformed." form)))
+    (('do _ (end-test) . _) end-test)
     (('do . _) (error "The statement ~S is malformed." form))
     (_ (error "The value ~S is an invalid statement." form))))
 

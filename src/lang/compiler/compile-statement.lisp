@@ -165,11 +165,9 @@
                (format nil "~A ~A = ~A" type1 var1 init1)))))
     (format nil "~{~A~^, ~}" (mapcar #'aux bindings))))
 
-(defun compile-do-test-part (end-tests var-env func-env)
-  (flet ((aux (end-test)
-           (let ((end-test1 (compile-expression end-test var-env func-env)))
-             (format nil "! ~A" end-test1))))
-    (format nil "~{~A~^, ~}" (mapcar #'aux end-tests))))
+(defun compile-do-test-part (end-test var-env func-env)
+  (let ((end-test1 (compile-expression end-test var-env func-env)))
+    (format nil "! ~A" end-test1)))
 
 (defun compile-do-step-part (bindings var-env func-env)
   (flet ((aux (binding)
@@ -185,11 +183,11 @@
 
 (defun compile-do (form var-env func-env)
   (let ((bindings (do-bindings form))
-        (end-tests (do-end-tests form))
+        (end-test (do-end-test form))
         (statements (do-statements form)))
     (let ((var-env1 (var-env-add-do-bindings var-env func-env bindings)))
       (let ((init-part (compile-do-init-part bindings var-env func-env))
-            (test-part (compile-do-test-part end-tests var-env1 func-env))
+            (test-part (compile-do-test-part end-test var-env1 func-env))
             (step-part (compile-do-step-part bindings var-env1 func-env))
             (statements1 (compile-do-statements statements var-env1
                                                            func-env)))

@@ -191,7 +191,7 @@
   (is (do-bindings code) '((a 0 (+ a 1))
                            (b 0 (+ b 1)))
       "basic case 2")
-  (is (do-end-tests code) '((> a 15))
+  (is (do-end-test code) '(> a 15)
       "basic case 3")
   (is (do-statements code) '((return))
       "basic case 4"))
