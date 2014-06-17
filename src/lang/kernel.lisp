@@ -39,7 +39,7 @@
            :kernel-symbol-macro-exists-p
            :kernel-symbol-macro-name
            :kernel-symbol-macro-expansion)
-  (:shadow :macro-p))
+  (:shadow :macro-p)
   (:import-from :alexandria
                 :with-gensyms))
 (in-package :cl-cuda.lang.kernel)
