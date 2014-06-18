@@ -186,6 +186,20 @@
     (is (memory-block-aref x 0) (make-float3 1.0 1.0 1.0) :test #'float3-=
         "basic case 18")))
 
+;; test launching with passing a raw device-ptr
+(defkernel test-device-ptr (void ((x int*))
+  (set (aref x 0) 1))
+
+(with-cuda (0)
+  (with-host-memory (h 'int 1)
+    (with-device-memory (d 'int 1)
+      (setf (cffi:mem-aref h 0) 0)
+      (memcpy-host-to-device device-ptr host-ptr 'int 1)
+      (test-device-ptr d :grid-dim '(1 1 1) :block-dim '(1 1 1))
+      (memcpy-device-to-host host-ptr device-ptr 'int 1)
+      (is (memory-block-aref h 0) 1
+          "basic case 19"))))
+
 
 ;;;
 ;;; test DEFKERNELMACRO macro
