@@ -17,3 +17,5 @@
 (reexport-from :cl-cuda.api.defkernel)
 (reexport-from :cl-cuda.api.macro)
 (reexport-from :cl-cuda.api.timer)
+
+;; reexport no symbols from cl-cuda.api.kernel-manager package

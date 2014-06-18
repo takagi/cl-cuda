@@ -9,6 +9,7 @@
         :cl-reexport))
 (in-package :cl-cuda.lang)
 
+;; reexport symbols of data structures cl-cuda provides
 (reexport-from :cl-cuda.lang.data
                :include '(;; Float3
                           :float3
@@ -45,6 +46,7 @@
                           :double4-p
                           :double4-=))
 
+;; reexport symbols of cl-cuda types
 (reexport-from :cl-cuda.lang.type
                :include '(:void
                           :bool
@@ -67,6 +69,8 @@
                           :curand-state-xorwow*
                           :cffi-type))
 
+;; reexport symbols of cl-cuda syntax except the ones exported
+;; from COMMON-LISP package
 (reexport-from :cl-cuda.lang.syntax
                :include '(:grid-dim-x :grid-dim-y :grid-dim-z
                           :block-dim-x :block-dim-y :block-dim-z
@@ -75,6 +79,8 @@
                           :with-shared-memory
                           :set))
 
+;; reexport symbols of cl-cuda built-in functions except the ones
+;; exported from COMMON-LISP package
 (reexport-from :cl-cuda.lang.built-in
                :include '(:rsqrt
                           :atomic-add
