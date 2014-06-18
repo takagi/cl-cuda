@@ -4,7 +4,7 @@ Cl-cuda is a library to use NVIDIA CUDA in Common Lisp programs. It provides not
 
 Kernel functions defined with the language can be launched as almost same as ordinal Common Lisp functions except that they must be launched in a CUDA context and followed with grid and block sizes. They are compiled and loaded lazily and automatically when they are to be launched at first. This process is as following. First, they are compiled into a CUDA C code (.cu file) by cl-cuda. The compiled CUDA C code, then, is compiled into a CUDA kernel module (.ptx file) by NVCC - NVIDIA CUDA Compiler Driver. The obtained kernel module is automatically loaded via CUDA driver API and finally the kernel functions are launched with properly constructed arguments to be passed to CUDA device. Since this process is autonomously managed by the kernel manager, users do not need to handle it for themselves. About the kernel manager, see [Kernel manager](https://github.com/takagi/cl-cuda/tree/refactoring#kernel-manager) section.
 
-Memory management is also one of the most important things in GPU programming. Cl-cuda provides memory-block data structure which abstract host memory and device memory. With memory-block, users do not need to manage host memory and device memory individually for themselves. It lightens their burden on memory management, prevents bugs and keeps code simple. Besides memory-block that provides abstraction on host and device memory, cl-cuda also offers low level interfaces to handle CFFI pointers and CUDA device pointers directly. With these primitive interfaces, users can choose to gain more flexible memory control than using memory-block if needed.
+Memory management is also one of the most important things in GPU programming. Cl-cuda provides memory block data structure which abstract host memory and device memory. With memory block, users do not need to manage host memory and device memory individually for themselves. It lightens their burden on memory management, prevents bugs and keeps code simple. Besides memory block that provides abstraction on host and device memory, cl-cuda also offers low level interfaces to handle CFFI pointers and CUDA device pointers directly. With these primitive interfaces, users can choose to gain more flexible memory control than using memory block if needed.
 
 Cl-cuda is verified on several environments. For detail, see [Verification environments](https://github.com/takagi/cl-cuda/tree/refactoring#verification-environments) section.
 
@@ -102,104 +102,74 @@ Further information:
 
 ## API
 
-### [Function] init-cuda-context
+Explain some API frequently used here.
 
-    init-cuda-context dev-id &key (interop nil)
+### [Macro] with-cuda
 
-Initializes the CUDA driver API, creates a new CUDA context and associates it with the calling thread. The `dev-id` parameter specifies a device number to get handle for. If the `interop` parameter is `nil`, an usual CUDA context is created. Otherwise, a CUDA context is created for OpenGL interoperability.
+    WITH-CUDA (dev-id) &body body
 
-If initialization or context creation will fail, `init-cuda-context` will be cancelled with calling `release-cuda-context`.
-
-### [Function] release-cuda-context
-
-    release-cuda-context
-
-Unloads a kernel module, destroys a CUDA context and releases all related resources. If a kernel module is not loaded, `release-cuda-context` raises no error, just does nothing. Similarly, if a CUDA context is not created, it just does nothing about it.
-
-### [Macro] with-cuda-context
-
-    with-cuda-context (dev-id &key (interop nil)) &body body
-
-Keeps a CUDA context during `body`. The `dev-id` and `interop` parameters are passed to `init-cuda-context` function which appears in its expansion form.
+Initializes CUDA and keeps a CUDA context during `body`. `dev-id` are passed to `get-cuda-device` function and the device handler returned is passed to `create-cuda-context` function to create a CUDA context in the expanded form. The results of `get-cuda-device` and `create-cuda-context` functions are bound to `*cuda-device*` and `*cuda-context*` special variables respectively. The kernel manager unloads before `with-cuda` exits.
 
 ### [Function] synchronize-context
 
-    synchronize-context
+    SYNCHRONIZE-CONTEXT
 
-Blocks until the device has completed all preceding requested tasks.
+Blocks until a CUDA context has completed all preceding requested tasks.
 
 ### [Function] alloc-memory-block
 
-    alloc-memory-block type n &key (interop nil) => memory block
+    ALLOC-MEMORY-BLOCK type size
 
-Allocates a memory block to hold `n` elements of type `type` and returns it. Actually, linear memory areas are allocated on both device and host memory respectively, and a memory block holds pointers to the areas to abstract them.
-
-If the `interop` parameter is nil, linear memory areas are allocated to be used for an usual CUDA context. Otherwise, they are allocated to be used for an CUDA context under OpenGL interoperability.
+Allocates a memory block to hold `size` elements of type `type` and returns it. Actually, linear memory areas are allocated on both host and device memory and the memory block holds pointers to them.
 
 ### [Function] free-memory-block
 
-    free-memory-block block
+    FREE-MEMORY-BLOCK memory-block
 
-Frees `block` previously allocated by `alloc-memory-block`. Freeing a given memory block twice does nothing.
+Frees `memory-block` previously allocated by `alloc-memory-block`. Freeing a memory block twice should cause an error.
 
 ### [Macro] with-memory-block, with-memory-blocks
 
-    with-memory-block (var type size &key (interop nil)) &body body
-    
-    with-memory-blocks (bindings) &body body
-    bindings ::= {(var type size &key (interop nil))}*
+    WITH-MEMORY-BLOCK (var type size) &body body
+    WITH-MEMORY-BLOCKS ({(var type size)}*) &body body
 
-Bind `var` to a memory block allocated using `alloc-memory-block` applied to given `type`, `size` and `interop` parameters during `body`. `with-memory-blocks` is a plural form of `with-memory-block`.
+Binds `var` to a memory block allocated using `alloc-memory-block` applied to given `type` and `size` during `body`. The memory block is freed using `free-memory-block` when `with-memory-block` exits. `with-memory-blocks` is a plural form of `with-memory-block`.
 
-### [Accessor] mem-aref
+### [Function] sync-memory-block
 
-    mem-aref block index => value
+    SYNC-MEMORY-BLOCK memory-block direction
 
-Accesses the memory block `block` element specified by the `index`. Since the accessed memory area via `mem-aref` is that on host memory, use `memcpy-host-to-device` and `memcpy-device-to-host` functions to synchronize stored data on host and device memory areas.
+Copies stored data between host memory and device memory for `memory-block`. `direction` is either `:host-to-device` or `:device-to-host` which specifies the direction of copying.
 
-### [Function] memcpy-host-to-device
+### [Accessor] memory-block-aref
 
-    memcpy-host-to-device &rest blocks
+    MEMORY-BLOCK-AREF memory-block index
 
-Copies from host memory to device memory for given memory blocks `blocks` which abstract the memory areas.
-
-### [Function] memcpy-device-to-host
-
-    memcpy-device-to-host &rest blocks
-
-Copies from device memory to host memory for given memory blocks `blocks` which abstract the memory areas.
-
-### [Special Variable] \*nvcc-options\*
-
-Specifies additional command-line options to be pass to the NVIDIA CUDA Compiler which cl-cuda calls internally.
-
-Default: `(list "-arch=sm_11")`
-
-    (setf *nvcc-options* (list "-arch=sm_20 --verbose"))
+Accesses `memory-block`'s element specified by `index`. Note that the accessed memory area is that on host memory. Use `sync-memory-block` to synchronize stored data between host memory and device memory.
 
 ### [Special Variable] \*tmp-path\*
 
-Specifies the temporary directory in which cl-cuda generates files such as .cu file and .ptx file to compile kernel module.
-
-Default: `"/tmp/"`
+Specifies the temporary directory in which cl-cuda generates files such as `.cu` file and `.ptx` file. The default is `"/tmp/"`.
 
     (setf *tmp-path* "/path/to/tmp/")
 
+### [Special Variable] \*nvcc-options\*
+
+Specifies additional command-line options to be passed to `nvcc` comand which cl-cuda calls internally. The default is `(list "-arch=sm_11")`.
+
+    (setf *nvcc-options* (list "-arch=sm_20 --verbose"))
+
 ### [Special Variable] \*nvcc-binary\*
 
-Specifies the path to the NVIDIA CUDA Compiler so that cl-cuda can call it internally.
-
-Default: `nvcc`
+Specifies the path to `nvcc` command so that cl-cuda can call internally. The default is just `nvcc`.
 
     (setf *nvcc-binary* "/path/to/nvcc")
 
 ### [Special Variable] \*show-messages\*
 
-Specifies whether to let cl-cuda show operational messages or not.
+Specifies whether to let cl-cuda show operational messages or not. The default is `t`.
 
-Default: `t`
-
-    (setf *show-messages* t)
+    (setf *show-messages* nil)
 
 ## Kernel Description Language
 
