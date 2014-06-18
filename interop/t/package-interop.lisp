@@ -4,7 +4,7 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-test
+(defpackage cl-cuda-interop-test
   (:use :cl
         :cl-cuda
         :cl-test-more))

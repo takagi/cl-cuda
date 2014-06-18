@@ -8,7 +8,7 @@
   Timestamp: <% @var timestamp %>
 |#
 
-(in-package :cl-cuda)
+(in-package :cl-cuda.driver-api)
 
 (defparameter +error-strings+
   '(<% @loop error-strings %><% @var num %> <% @var str %>

@@ -29,7 +29,7 @@
     `(:num ,num :str ,str)))
 
 (defun output-template (out)
-  (let ((path (asdf:system-relative-pathname :cl-cuda #P"misc/cl-cuda-error-string.template"))
+  (let ((path (asdf:system-relative-pathname :cl-cuda #P"misc/get-error-string.template"))
         (timestamp (local-time:format-timestring nil (local-time:now)
                                                  :format '(:short-month ". " :day " " :year)))
         (error-strings (mapcar #'list->plist (read-error-strings))))
@@ -38,7 +38,7 @@
                                                   :error-strings ,error-strings)))))
 
 (defun convert-error-string ()
-  (let ((path (asdf:system-relative-pathname :cl-cuda #P"src/cl-cuda-error-string.lisp")))
+  (let ((path (asdf:system-relative-pathname :cl-cuda #P"src/driver-api/get-error-string.lisp")))
     (with-open-file (out path :direction :output :if-exists :supersede)
       (unless out
         (error "cannot open file: ~A" path))

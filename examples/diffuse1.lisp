@@ -5,10 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-examples.diffuse1
-  (:use :cl
-        :cl-cuda)
-  (:shadow :start-timer
-           :stop-timer)
+  (:use :cl :cl-cuda)
   (:export :main))
 (in-package :cl-cuda-examples.diffuse1)
 
@@ -22,7 +19,7 @@
   (the fixnum (+ (the fixnum (* nx jy)) jx)))
 
 (defun image-value (f i j nx fmax fmin)
-  (let ((fc (mem-aref f (index nx i j))))
+  (let ((fc (memory-block-aref f (index nx i j))))
     (truncate (* 256.0
                  (/ (- fc fmin) (- fmax fmin))))))
 
@@ -31,7 +28,6 @@
     (concatenate 'string dir (format nil "~4,'0D.pgm" n))))
 
 (defun output-pnm (dir i nout nx ny f)
-  (memcpy-device-to-host f)
   (let ((image (make-instance 'imago:grayscale-image
                               :width nx :height ny)))
     (dotimes (i nx)
@@ -41,27 +37,14 @@
   (values))
 
 
-;;; timer functions
-
-(defun start-timer ()
-  (cl-stopwatch:stopwatch-reset :diffuse)
-  (cl-stopwatch:stopwatch-start :diffuse))
-
-(defun stop-timer ()
-  (cl-stopwatch:stopwatch-stop :diffuse))
-
-(defun elapsed-time ()
-  (cl-stopwatch:stopwatch-read :diffuse))
-
-
 ;;; print functions
 
-(defun print-elapsed-time ()
-  (let ((time (* (elapsed-time) 1.0e-3)))
+(defun print-elapsed-time (elapsed-time)
+  (let ((time (* elapsed-time 1.0e-3)))
     (format t "Elapsed Time = ~,3F [sec]~%" time)))
 
-(defun print-performance (flo)
-  (let ((time (* (elapsed-time) 1.0e-3)))
+(defun print-performance (flo elapsed-time)
+  (let ((time (* elapsed-time 1.0e-3)))
     (format t "Performance = ~,2F [MFlops]~%" (* (/ flo time) 1.0e-6))))
 
 (defun print-time (cnt time)
@@ -76,9 +59,9 @@
   (let* ((jx (+ thread-idx-x 1))
          (jy (+ thread-idx-y 1))
          (j (+ (* nx (+ (* block-dim-y block-idx-y) thread-idx-y))
-              (* block-dim-x block-idx-x)
-              thread-idx-x))
-        (fcc (aref f j)))
+               (* block-dim-x block-idx-x)
+               thread-idx-x))
+         (fcc (aref f j)))
     (with-shared-memory ((fs float (+ 16 2) (+ 16 2)))
       (set (aref fs jy jx) fcc)
       (if (= thread-idx-x 0)
@@ -111,10 +94,10 @@
         (let ((j (index nx jx jy))
               (x (- (* dx (+ (float jx 1.0) 0.5)) 0.5))
               (y (- (* dy (+ (float jy 1.0) 0.5)) 0.5)))
-          (setf (mem-aref f j)
+          (setf (memory-block-aref f j)
                 (exp (* (- alpha)
                         (+ (* x x) (* y y)))))))))
-  (memcpy-host-to-device f))
+  (sync-memory-block f :host-to-device))
 
 (defvar +block-dim-x+ 16)
 (defvar +block-dim-y+ 16)
@@ -145,22 +128,25 @@
          (dir (namestring (truename "./")))
          (time 0)
          (flo 0))
-    (with-cuda-context (dev-id)
-      (with-memory-blocks ((f 'float (* nx ny))
-                           (fn 'float (* nx ny)))
-        (initialize-device-memory nx ny dx dy f)
-        (start-timer)
-        (dotimes (i 20000)
-          (when (= (mod i 100) 0)
-            (print-time i time))
-          ;(when (= (mod i nout) 0)
-          ;  (output-pnm dir i nout nx ny f))
-          (incf flo (diffusion2d nx ny f fn kappa dt dx dy))
-          (incf time dt)
-          (swap f fn))
-        (print-time 20000 time)
-        ;(output-pnm dir 20000 nout nx ny f)
-        (print-elapsed-time)
-        (print-performance flo)
-        (stop-timer))))
+    (with-cuda (dev-id)
+      (with-timer (timer)
+        (with-memory-blocks ((f 'float (* nx ny))
+                             (fn 'float (* nx ny)))
+          (initialize-device-memory nx ny dx dy f)
+          (start-timer timer)
+          (dotimes (i 20000)
+            (when (= (mod i 100) 0)
+              (print-time i time))
+            ;(when (= (mod i nout) 0)
+            ;  (output-pnm dir i nout nx ny f))
+            (incf flo (diffusion2d nx ny f fn kappa dt dx dy))
+            (incf time dt)
+            (swap f fn))
+          (print-time 20000 time)
+          ;(output-pnm dir 20000 nout nx ny f)
+          (stop-timer timer)
+          (synchronize-timer timer)
+          (let ((elapsed-time (elapsed-time timer)))
+            (print-elapsed-time elapsed-time)
+            (print-performance flo elapsed-time))))))
   (values))
