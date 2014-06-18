@@ -53,7 +53,7 @@ Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 * NVIDIA CUDA-enabled GPU
 * CUDA Toolkit, CUDA Drivers and CUDA SDK need to be installed
 
-## Verification environment
+## Verification environments
 
 #### Environment 1
 * Mac OS X 10.6.8 (MacBookPro)
