@@ -25,22 +25,23 @@ For the whole code, please see examples/vector-add.lisp.
             (n 1024)
             (threads-per-block 256)
             (blocks-per-grid (/ n threads-per-block)))
-        (with-cuda-context (dev-id)
+        (with-cuda (dev-id)
           (with-memory-blocks ((a 'float n)
                                (b 'float n)
                                (c 'float n))
             (random-init a n)
             (random-init b n)
-            (memcpy-host-to-device a b)
+            (sync-memory-block a :host-to-device)
+            (sync-memory-block b :host-to-device)
             (vec-add-kernel a b c n
                             :grid-dim  (list blocks-per-grid 1 1)
                             :block-dim (list threads-per-block 1 1))
-            (memcpy-device-to-host c)
+            (sync-memory-block c :device-to-host)
             (verify-result a b c n)))))
 
 ## Installation
 
-Since cl-cuda is not available in Quicklisp distribution yet, please use Quicklisp's local-projects feature.
+Since cl-cuda is not available in Quicklisp distribution, please use Quicklisp's local-projects feature.
 
     $ cd ~/quicklisp/local-projects
     $ git clone git://github.com/takagi/cl-cuda.git
@@ -51,7 +52,6 @@ Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
 * NVIDIA CUDA-enabled GPU
 * CUDA Toolkit, CUDA Drivers and CUDA SDK need to be installed
-* SBCL Common Lisp compiler, because cl-cuda uses some sbcl extensions to run nvcc compiler externally. I will fix it later to make it possible to be used on other Common Lisp implementations. For now, if you want to use cl-cuda on those implementations other than SBCL, you can rewrite the related part of src/cl-cuda.lisp to suit your environment. It is only a few lines.
 
 ## Verification environment
 
@@ -78,8 +78,6 @@ Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 * All tests pass, all examples work
 
 #### Environment4 (Thanks to wvxvw)
-
-Basic information:
 * Fedra18 x86_64
 * GeForce GTX 560M
 * CUDA 5.5
@@ -89,7 +87,7 @@ Basic information:
 Further information: 
 * `(setf *nvcc-options* (list "-arch=sm_20" "-m32"))` needed
 * using video drivers from `rpmfusion` instead of the ones in `cuda` package
-* for [details](https://github.com/takagi/cl-cuda/issues/1#issuecomment-22813518)
+* see https://github.com/takagi/cl-cuda/issues/1#issuecomment-22813518
 
 #### Environment5 (Thanks to Atabey Kaygun)
 * Linux 3.11-2-686-pae SMP Debian 3.11.8-1 (2013-11-13) i686 GNU/Linux
@@ -262,7 +260,7 @@ Compiled:
 
     for ( int a = 0, int b = 0; ! (a > 15); a = a + 1, b = b + 1 )
     {
-      do_some_statement ();
+      do_some_statement();
     }
 
 ### WITH-SHARED-MEMORY statement
@@ -301,8 +299,8 @@ Example:
 
 Compiled:
 
-    do_some_statements ();
-    do_more_statements ();
+    do_some_statements();
+    do_more_statements();
 
 ### RETURN statement
 
@@ -318,20 +316,6 @@ Compiled:
 
     return 0;
 
-### SYNCTHREADS statement
-
-Syntax:
-
-    SYNCTHREADS
-
-Example:
-
-    (syncthreads)
-
-Compiled:
-
-    __syncthreads ();
-
 ## Author
 
 * Masayuki Takagi (kamonama@gmail.com)
@@ -340,7 +324,6 @@ Compiled:
 
 Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
 
-# License
+## License
 
 Licensed under the LLGPL License.
-
