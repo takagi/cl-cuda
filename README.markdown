@@ -102,7 +102,7 @@ Further information:
 
 ## API
 
-Explain some API frequently used here.
+Explain some API commonly used here.
 
 ### [Macro] with-cuda
 
