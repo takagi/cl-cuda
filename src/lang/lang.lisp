@@ -64,7 +64,8 @@
                           :float4*
                           :double3*
                           :double4*
-                          :curand-state-xorwow*))
+                          :curand-state-xorwow*
+                          :cffi-type))
 
 (reexport-from :cl-cuda.lang.syntax
                :include '(:grid-dim-x :grid-dim-y :grid-dim-z
