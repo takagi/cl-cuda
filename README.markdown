@@ -12,9 +12,9 @@ Cl-cuda is verified on several environments. For detail, see [Verification envir
 
 Following is a part of vector addition example using cl-cuda based on CUDA SDK's "vectorAdd" sample.
 
-You can define `vec-add-kernel` kernel function using `defkernel` macro with which you can define a kernel function in Common Lisp-like syntax and CUDA C semantics. Here `aref` is to refer values stored in an array variable. `set` is to store a value into an array variable. `block-dim-x`, `block-idx-x` and `thread-idx-x` have their counterparts in CUDA C's built-in variables and are used to specify the array index to be operated in each CUDA thread.
+You can define `vec-add-kernel` kernel function using `defkernel` macro with which you can define a kernel function in Common Lisp-like syntax and CUDA C semantics. Here `aref` is to refer values stored in an array. `set` is to store values into an array. `block-dim-x`, `block-idx-x` and `thread-idx-x` have their counterparts in CUDA C's built-in variables and are used to specify the array index to be operated in each CUDA thread.
 
-Once the kernel function is defined, you can launch it as if it is an ordinal Common Lisp function except that it requires to be in a CUDA context and followed by `:gird-dim` and `:block-dim` keyword parameters which specify the dimensions of grid and block. To keep a CUDA context, we use `with-cuda` macro which has responsibility on initializing CUDA and managing a CUDA context. `with-memory-blocks` manages memory blocks which abstract host memory and device memory areas and `sync-memory-block` copies data stored in a memroy block between host and device.
+Once the kernel function is defined, you can launch it as if it is an ordinal Common Lisp function except that it requires to be in a CUDA context and followed by `:gird-dim` and `:block-dim` keyword parameters which specify the dimensions of grid and block. To keep a CUDA context, you can use `with-cuda` macro which has responsibility on initializing CUDA and managing a CUDA context. `with-memory-blocks` manages memory blocks which abstract host memory area and device memory area, then `sync-memory-block` copies data stored in a memory block between host and device.
 
 For the whole code, please see [examples/vector-add.lisp](https://github.com/takagi/cl-cuda/blob/master/examples/vector-add.lisp).
 
