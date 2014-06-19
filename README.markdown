@@ -296,7 +296,32 @@ Compiled:
 
 ## Kernel manager
 
-not described yet.
+The kernel manager is a module which manages defining kernel functions, compiling them into a CUDA kernel module, loading it and unloading it. I show you its work as a finite state machine here.
+
+To begin with, the kernel manager has four states.
+
+    I   initial state
+    II  compiled state
+    III module-loaded state
+    IV  function-loaded state
+
+The initial state is its entry point. The compiled state is a state where kernel functions defined with the kernel descrpition language have compiled into a CUDA kernel module (.ptx file). The obtained kernel module has been loaded in the module-loaded state. In the function-loaded state, each kernel function in the kernel module has been loaded.
+
+Following illustrates the kernel manager's state transfer.
+
+    　    compile-module        load-module            load-function
+    　  =================>    =================>     =================>
+    　I                    II                    III                    IV
+    　  <=================    <=================
+    　    define-function     <========================================
+    　    define-macro          unload
+    　    define-symbol-macro
+
+`kernel-manager-compile-module` function compiles defined kernel functions into a CUDA kernel module. `kernel-manager-load-module` function loads the obtained kernel module. `kernel-manager-load-function` function loads each kernel function in the kernel module.
+
+In the module-loaded and function-loaded states, `kernel-manager-unload` function unloads the kernel module and turn the kernel manager's state back to the compiled state. `kernel-manager-define-function`, `kernel-manager-define-macro` and `kernel-manager-define-symbol-macro` functions, which are wrapped as `defkernel`, `defkernelmacro` and `defkernel-symbol-macro` macros respectively, change back its state into the initial state and make it require compilation again.
+
+The kernel manager is stored in `*kernel-manager*` special variable when cl-cuda is loaded and keeps alive during the Common Lisp process. Usually, you do not need to manage it explicitly.
 
 ## Author
 
