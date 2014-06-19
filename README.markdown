@@ -54,10 +54,14 @@ Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
 ## Requirements
 
+Cl-cuda requires following:
+
 * NVIDIA CUDA-enabled GPU
 * CUDA Toolkit, CUDA Drivers and CUDA SDK need to be installed
 
 ## Verification environments
+
+Cl-cuda is verified to work in following environments:
 
 #### Environment 1
 * Mac OS X 10.6.8 (MacBookPro)
@@ -291,6 +295,8 @@ Compiled:
     return 0;
 
 ## Kernel manager
+
+not described yet.
 
 ## Author
 
