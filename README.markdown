@@ -294,6 +294,33 @@ Compiled:
 
     return 0;
 
+## Architecture
+
+The following figure illustrates cl-cuda's overall architecture.
+
+                       +---------------------------------+-----------+-----------+
+                       | defkernel                       | memory    | context   |
+           cl-cuda.api +---------------------------------+           |           |
+                       | kernel-manager                  |           |           |
+                       +---------------------------------+-----------+-----^-----+
+                       +----------------------------+----------------------------+
+          cl-cuda.lang | KDL                        | KDL Compiler               |
+                       +----------------------------+----------------------------+
+                       +---------------------------------------------------------+
+    cl-cuda.driver-api | driver-api                                              |
+                       +---------------------------------------------------------+
+                       +---------------------------------------------------------+
+                  CUDA | CUDA driver API                                         |
+                       +---------------------------------------------------------+
+
+Cl-cuda consists of three sub packages: `api`, `lang` and `driver-api`.
+
+`driver-api` subpackage is a FFI binding to CUDA driver API. `api` subpackage invokes CUDA driver API via this binding internally.
+
+`lang` subpackage provides the kernel description language. It provides the language's syntax, type, built-in functions and the compiler to CUDA C. `api` subpackage calls this compiler.
+
+`api` subpackage provides API for cl-cuda users. It further consists of `context`, `memory`, `kernel-manager` and `defkernel` subpackages. `context` subpackage has responsibility on initializing CUDA and managing CUDA contexts. `memory` subpackage offers memory management, providing high level API for memory block data structure and low level API for handling host memory and device memory directly. `kernel-manager` subpackage manages the entire process from compiling the kernel description language to loading/unloading obtained kernel module autonomously. Since it is wrapped by `defkernel` subpackage which provides the interface to define kernel functions, cl-cuda's users usually do not need to use it for themselves.
+
 ## Kernel manager
 
 The kernel manager is a module which manages defining kernel functions, compiling them into a CUDA kernel module, loading it and unloading it. I show you its work as a finite state machine here.
