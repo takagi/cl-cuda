@@ -2,11 +2,11 @@
 
 Cl-cuda is a library to use NVIDIA CUDA in Common Lisp programs. It provides not only FFI binding to CUDA driver API but the kernel description language with which users can define CUDA kernel functions. The kernel description language also provides facilities to define kernel macros and kernel symbol macros in addition to kernel functions. Cl-cuda's kernel macro and kernel symbol macro facilities offer powerful abstraction that CUDA C itself does not have and they provide enormous advantage in resource-limited GPU programming.
 
-Kernel functions defined with the language can be launched as almost same as ordinal Common Lisp functions except that they must be launched in a CUDA context and followed with grid and block sizes. They are compiled and loaded lazily and automatically when they are to be launched for the first time. This process is as following. First, they are compiled into a CUDA C code (.cu file) by cl-cuda. The compiled CUDA C code, then, is compiled into a CUDA kernel module (.ptx file) by NVCC - NVIDIA CUDA Compiler Driver. The obtained kernel module is automatically loaded via CUDA driver API and finally the kernel functions are launched with properly constructed arguments to be passed to CUDA device. Since this process is autonomously managed by the kernel manager, users do not need to handle it for themselves. About the kernel manager, see Kernel manager section.
+Kernel functions defined with the language can be launched as almost same as ordinal Common Lisp functions except that they must be launched in a CUDA context and followed with grid and block sizes. They are compiled and loaded lazily and automatically when they are to be launched for the first time. This process is as following. First, they are compiled into a CUDA C code (.cu file) by cl-cuda. The compiled CUDA C code, then, is compiled into a CUDA kernel module (.ptx file) by NVCC - NVIDIA CUDA Compiler Driver. The obtained kernel module is automatically loaded via CUDA driver API and finally the kernel functions are launched with properly constructed arguments to be passed to CUDA device. Since this process is autonomously managed by the kernel manager, users do not need to handle it for themselves. About the kernel manager, see [Kernel manager](https://github.com/takagi/cl-cuda/blob/master/README.markdown#kernel-manager) section.
 
 Memory management is also one of the most important things in GPU programming. Cl-cuda provides memory block data structure which abstract host memory and device memory. With memory block, users do not need to manage host memory and device memory individually for themselves. It lightens their burden on memory management, prevents bugs and keeps code simple. Besides memory block that provides abstraction on host and device memory, cl-cuda also offers low level interfaces to handle CFFI pointers and CUDA device pointers directly. With these primitive interfaces, users can choose to gain more flexible memory control than using memory block if needed.
 
-Cl-cuda is verified on several environments. For detail, see Verification environments section.
+Cl-cuda is verified on several environments. For detail, see [Verification environments](https://github.com/takagi/cl-cuda/blob/master/README.markdown#verification-environments) section.
 
 ## Example
 
@@ -16,7 +16,7 @@ You can define `vec-add-kernel` kernel function using `defkernel` macro with whi
 
 Once the kernel function is defined, you can launch it as if it is an ordinal Common Lisp function except that it requires to be in a CUDA context and followed by `:gird-dim` and `:block-dim` keyword parameters which specify the dimensions of grid and block. To keep a CUDA context, you can use `with-cuda` macro which has responsibility on initializing CUDA and managing a CUDA context. `with-memory-blocks` manages memory blocks which abstract host memory area and device memory area, then `sync-memory-block` copies data stored in a memory block between host and device.
 
-For the whole code, please see [examples/vector-add.lisp](https://github.com/takagi/cl-cuda/blob/master/examples/vector-add.lisp).
+For the whole code, please see [examples/vector-add.lisp](https://github.com/takagi/cl-cuda/tree/master/examples/vector-add.lisp).
 
     (defkernel vec-add-kernel (void ((a float*) (b float*) (c float*) (n int)))
       (let ((i (+ (* block-dim-x block-idx-x) thread-idx-x)))
@@ -91,11 +91,11 @@ Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 Further information: 
 * `(setf *nvcc-options* (list "-arch=sm_20" "-m32"))` needed
 * using video drivers from `rpmfusion` instead of the ones in `cuda` package
-* see https://github.com/takagi/cl-cuda/issues/1#issuecomment-22813518
+* see issue [#1](https://github.com/takagi/cl-cuda/issues/1#issuecomment-22813518)
 
 #### Environment5 (Thanks to Atabey Kaygun)
 * Linux 3.11-2-686-pae SMP Debian 3.11.8-1 (2013-11-13) i686 GNU/Linux
-* NVIDIA Corporation GK106 [GeForce GTX 660] (rev a1)
+* NVIDIA Corporation GK106 GeForce GTX 660
 * CUDA 5.5
 * SBCL 1.1.12
 * All tests pass, all examples work
