@@ -302,9 +302,9 @@ The following figure illustrates cl-cuda's overall architecture.
                        | defkernel                       | memory    | context   |
            cl-cuda.api +---------------------------------+           |           |
                        | kernel-manager                  |           |           |
-                       +---------------------------------+-----------+-----^-----+
+                       +---------------------------------+-----------+-----------+
                        +----------------------------+----------------------------+
-          cl-cuda.lang | KDL                        | KDL Compiler               |
+          cl-cuda.lang | Kernel description lang.   | the Compiler               |
                        +----------------------------+----------------------------+
                        +---------------------------------------------------------+
     cl-cuda.driver-api | driver-api                                              |
