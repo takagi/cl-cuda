@@ -45,7 +45,7 @@ For the whole code, please see [examples/vector-add.lisp](https://github.com/tak
 
 ## Installation
 
-Since cl-cuda is not available in Quicklisp distribution, please use Quicklisp's local-projects feature.
+Since cl-cuda is not available in Quicklisp distribution because of its testing policy (see [#514](https://github.com/quicklisp/quicklisp-projects/issues/514) in quicklisp-projects), please use its local-projects feature.
 
     $ cd ~/quicklisp/local-projects
     $ git clone git://github.com/takagi/cl-cuda.git
