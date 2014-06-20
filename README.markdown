@@ -177,13 +177,13 @@ Specifies whether to let cl-cuda show operational messages or not. The default i
 
 ## Kernel Description Language
 
-### DEFKERNEL macro
-
-### launching kernel functions
-
 ### Types
 
+not documented yet.
+
 ### IF statement
+
+`if` allows the execution of a form to be dependent on a single `test-form`. First `test-form` is evaluated. If the result is `true`, then `then-form` is selected; otherwise `else-form` is selected. Whichever form is selected is then evaluated. If `else-form` is not provided, does nothing when `else-form` is selected.
 
 Syntax:
 
@@ -205,6 +205,8 @@ Compiled:
 
 ### LET statement
 
+`let` declares new variable bindings and set corresponding `init-form`s to them and execute a series of `statement`s that use these bindings. `let` performs the bindings in parallel. For sequentially, use `let*` kernel macro instead.
+
 Syntax:
 
     LET ({(var init-form)}*) statement*
@@ -221,7 +223,28 @@ Compiled:
       return i;
     }
 
+### SYMBOL-MACROLET statement
+
+`symbol-macrolet` establishes symbol expansion rules in the variable environment and execute a series of `statement`s that use these rules. In cl-cuda's compilation process, the symbol macros found in a form are replaces by corresponding `expansion`s.
+
+Syntax:
+
+    SYMBOL-MACROLET ({(symbol expansion)}*) statement*
+
+Example:
+
+    (symbol-macrolet ((x 1.0))
+      (return x))
+
+Compiled:
+
+    {
+      return 1.0;
+    }
+
 ### DO statement
+
+`do` iterates over a group of `statement`s while `test-form` holds. `do` accepts an arbitrary number of iteration `var`s and their initial values are supplied by `init-form`s. `step-form`s supply how the `var`s should be updated on succeeding iterations through the loop.
 
 Syntax:
 
@@ -243,6 +266,8 @@ Compiled:
 
 ### WITH-SHARED-MEMORY statement
 
+`with-shared-memory` declares new variable bindings on shared memory by adding `__shared__` variable specifiers. It allows to declare array variables if dimensions are provided. A series of `statement`s are executed with these bindings.
+
 Syntax:
 
     WITH-SHARED-MEMORY ({(var type size*)}*) statement*
@@ -263,7 +288,27 @@ Compiled:
 
 ### SET statement
 
+`set` provides simple variable assignment. It accepts one of variable, structure and array references as `reference`.
+
+Syntax:
+
+    SET reference expression
+
+Example:
+
+    (set x 1.0)
+    (set (float4-x y 1.0)
+    (set (aref z 0) 1.0)
+
+Compiled:
+
+    x = 1.0;
+    y.x = 1.0;
+    z[0] = 1.0;
+
 ### PROGN statement
+
+`progn` evaluates `statement`s, in the order in which they are given.
 
 Syntax:
 
@@ -281,6 +326,8 @@ Compiled:
     do_more_statements();
 
 ### RETURN statement
+
+`return` returns control, with `return-form` if supplied, from a kernel function.
 
 Syntax:
 
