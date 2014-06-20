@@ -183,11 +183,9 @@ not documented yet.
 
 ### IF statement
 
-`if` allows the execution of a form to be dependent on a single `test-form`. First `test-form` is evaluated. If the result is `true`, then `then-form` is selected; otherwise `else-form` is selected. Whichever form is selected is then evaluated. If `else-form` is not provided, does nothing when `else-form` is selected.
-
-Syntax:
-
     IF test-form then-form [else-form]
+
+`if` allows the execution of a form to be dependent on a single `test-form`. First `test-form` is evaluated. If the result is `true`, then `then-form` is selected; otherwise `else-form` is selected. Whichever form is selected is then evaluated. If `else-form` is not provided, does nothing when `else-form` is selected.
 
 Example:
 
@@ -205,11 +203,9 @@ Compiled:
 
 ### LET statement
 
-`let` declares new variable bindings and set corresponding `init-form`s to them and execute a series of `statement`s that use these bindings. `let` performs the bindings in parallel. For sequentially, use `let*` kernel macro instead.
-
-Syntax:
-
     LET ({(var init-form)}*) statement*
+
+`let` declares new variable bindings and set corresponding `init-form`s to them and execute a series of `statement`s that use these bindings. `let` performs the bindings in parallel. For sequentially, use `let*` kernel macro instead.
 
 Example:
 
@@ -225,11 +221,9 @@ Compiled:
 
 ### SYMBOL-MACROLET statement
 
-`symbol-macrolet` establishes symbol expansion rules in the variable environment and execute a series of `statement`s that use these rules. In cl-cuda's compilation process, the symbol macros found in a form are replaces by corresponding `expansion`s.
-
-Syntax:
-
     SYMBOL-MACROLET ({(symbol expansion)}*) statement*
+
+`symbol-macrolet` establishes symbol expansion rules in the variable environment and execute a series of `statement`s that use these rules. In cl-cuda's compilation process, the symbol macros found in a form are replaces by corresponding `expansion`s.
 
 Example:
 
@@ -244,11 +238,9 @@ Compiled:
 
 ### DO statement
 
-`do` iterates over a group of `statement`s while `test-form` holds. `do` accepts an arbitrary number of iteration `var`s and their initial values are supplied by `init-form`s. `step-form`s supply how the `var`s should be updated on succeeding iterations through the loop.
-
-Syntax:
-
     DO ({(var init-form step-form)}*) (test-form) statement*
+
+`do` iterates over a group of `statement`s while `test-form` holds. `do` accepts an arbitrary number of iteration `var`s and their initial values are supplied by `init-form`s. `step-form`s supply how the `var`s should be updated on succeeding iterations through the loop.
 
 Example:
 
@@ -266,11 +258,9 @@ Compiled:
 
 ### WITH-SHARED-MEMORY statement
 
-`with-shared-memory` declares new variable bindings on shared memory by adding `__shared__` variable specifiers. It allows to declare array variables if dimensions are provided. A series of `statement`s are executed with these bindings.
-
-Syntax:
-
     WITH-SHARED-MEMORY ({(var type size*)}*) statement*
+
+`with-shared-memory` declares new variable bindings on shared memory by adding `__shared__` variable specifiers. It allows to declare array variables if dimensions are provided. A series of `statement`s are executed with these bindings.
 
 Example:
 
@@ -288,11 +278,9 @@ Compiled:
 
 ### SET statement
 
-`set` provides simple variable assignment. It accepts one of variable, structure and array references as `reference`.
-
-Syntax:
-
     SET reference expression
+
+`set` provides simple variable assignment. It accepts one of variable, structure and array references as `reference`.
 
 Example:
 
@@ -308,11 +296,9 @@ Compiled:
 
 ### PROGN statement
 
-`progn` evaluates `statement`s, in the order in which they are given.
-
-Syntax:
-
     PROGN statement*
+
+`progn` evaluates `statement`s, in the order in which they are given.
 
 Example:
 
@@ -327,11 +313,9 @@ Compiled:
 
 ### RETURN statement
 
-`return` returns control, with `return-form` if supplied, from a kernel function.
-
-Syntax:
-
     RETURN [return-form]
+
+`return` returns control, with `return-form` if supplied, from a kernel function.
 
 Example:
 
