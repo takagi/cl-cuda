@@ -15,15 +15,15 @@
 ;;; Utilities
 ;;;
 
-(defkernelmacro with-valid-index ((i n) &body body)
-  `(let ((,i (+ (* block-idx-x block-dim-x) thread-idx-x)))
-     (when (< ,i ,n)
-       ,@body)))
+(defkernelmacro do-range ((var from to) &body body)
+  `(do ((,var ,from (+ ,var 1)))
+       ((> ,var ,to))
+     ,@body))
 
-(defmacro with-valid-index-cpu ((i n) &body body)
-  `(let ((,i (+ (* block-idx-x block-dim-x) thread-idx-x)))
-     (when (< ,i ,n)
-       ,@body)))
+(defmacro do-range-cpu ((var from to) &body body)
+  `(do ((,var ,from (+ ,var 1)))
+       ((> ,var ,to))
+     ,@body))
 
 (defmacro with-thread-block ((grid-dim block-dim) &body body)
   `(destructuring-bind (grid-dim-x grid-dim-y grid-dim-z) ,grid-dim
@@ -35,14 +35,6 @@
                (dotimes (thread-idx-y block-dim-y)
                  (dotimes (thread-idx-z block-dim-z)
                    ,@body)))))))))
-
-(defkernelmacro when (test &body forms)
-  `(if ,test
-       (progn ,@forms)))
-
-(defkernelmacro unless (test &body forms)
-  `(when (not ,test)
-     ,@forms))
 
 (defkernelmacro and (&rest args)
   (case (length args)
@@ -121,97 +113,150 @@
 
 
 ;;;
-;;; Neighbor map
+;;; Neighbor map cell
 ;;;
 
-(defun alloc-neighbor-map-info (box-min box-max delta capacity)
-  (assert (and (< (float4-x box-min) (float4-x box-max))
-               (< (float4-y box-min) (float4-y box-max))
-               (< (float4-z box-min) (float4-z box-max))))
-  (assert (< 0.0 delta))
-  (assert (< 0 capacity))
-  (labels ((%size (x0 x1)
-             (float (ceiling (/ (- x1 x0) delta)))))
-    (with-float4-cpu (box-min-x box-min-y box-min-z _) box-min
-    (with-float4-cpu (box-max-x box-max-y box-max-z _) box-max
-      (let ((size-x (%size box-min-x box-max-x))
-            (size-y (%size box-min-y box-max-y))
-            (size-z (%size box-min-z box-max-z))
-            (origin-x (- box-min-x delta))
-            (origin-y (- box-min-y delta))
-            (origin-z (- box-min-z delta)))
-          (let ((info (alloc-memory-block 'float 15)))
-            (setf (memory-block-aref info 0)  box-min-x
-                  (memory-block-aref info 1)  box-min-y
-                  (memory-block-aref info 2)  box-min-z
-                  (memory-block-aref info 3)  (+ box-min-x (* delta size-x))
-                  (memory-block-aref info 4)  (+ box-min-y (* delta size-y))
-                  (memory-block-aref info 5)  (+ box-min-z (* delta size-z))
-                  (memory-block-aref info 6)  origin-x
-                  (memory-block-aref info 7)  origin-y
-                  (memory-block-aref info 8)  origin-z
-                  (memory-block-aref info 9)  delta
-                  (memory-block-aref info 10) (float capacity)
-                  (memory-block-aref info 11) (+ size-x 2)
-                  (memory-block-aref info 12) (+ size-y 2)
-                  (memory-block-aref info 13) (+ size-z 2)
-                  (memory-block-aref info 14)
-                    (* (memory-block-aref info 11)   ; size-x
-                       (memory-block-aref info 12)   ; size-y
-                       (memory-block-aref info 13))) ; size-z
-            info))))))
+(defkernel cell-number-of-particles (int ((offset int) (nbr int*)))
+  (return (aref nbr offset)))
 
-(defun free-neighbor-map-info (info)
-  (free-memory-block info))
+(defun cell-number-of-particles-cpu (offset nbr)
+  (memory-block-aref nbr offset))
 
-(defun info-min-x-cpu    (info) (memory-block-aref info 0))
-(defun info-min-y-cpu    (info) (memory-block-aref info 1))
-(defun info-min-z-cpu    (info) (memory-block-aref info 2))
-(defun info-max-x-cpu    (info) (memory-block-aref info 3))
-(defun info-max-y-cpu    (info) (memory-block-aref info 4))
-(defun info-max-z-cpu    (info) (memory-block-aref info 5))
-(defun info-origin-x-cpu (info) (memory-block-aref info 6))
-(defun info-origin-y-cpu (info) (memory-block-aref info 7))
-(defun info-origin-z-cpu (info) (memory-block-aref info 8))
-(defun info-delta-cpu    (info) (memory-block-aref info 9))
-(defun info-capacity-cpu (info) (floor (memory-block-aref info 10)))
-(defun info-size-x-cpu   (info) (floor (memory-block-aref info 11)))
-(defun info-size-y-cpu   (info) (floor (memory-block-aref info 12)))
-(defun info-size-z-cpu   (info) (floor (memory-block-aref info 13)))
-(defun info-size-cpu     (info) (floor (memory-block-aref info 14)))
+(defkernel cell-nth-particle (int ((n int) (offset int) (nbr int*)))
+  (return (aref nbr (+ offset n 1))))   ; increment need because n begins with 0
 
-(defkernel info-min-x    (float ((info float*))) (return (aref info 0)))
-(defkernel info-min-y    (float ((info float*))) (return (aref info 1)))
-(defkernel info-min-z    (float ((info float*))) (return (aref info 2)))
-(defkernel info-max-x    (float ((info float*))) (return (aref info 3)))
-(defkernel info-max-y    (float ((info float*))) (return (aref info 4)))
-(defkernel info-max-z    (float ((info float*))) (return (aref info 5)))
-(defkernel info-origin-x (float ((info float*))) (return (aref info 6)))
-(defkernel info-origin-y (float ((info float*))) (return (aref info 7)))
-(defkernel info-origin-z (float ((info float*))) (return (aref info 8)))
-(defkernel info-delta    (float ((info float*))) (return (aref info 9)))
-(defkernel info-capacity (int ((info float*)))   (return (floor (aref info 10))))
-(defkernel info-size-x   (int ((info float*)))   (return (floor (aref info 11))))
-(defkernel info-size-y   (int ((info float*)))   (return (floor (aref info 12))))
-(defkernel info-size-z   (int ((info float*)))   (return (floor (aref info 13))))
-(defkernel info-size     (int ((info float*)))   (return (floor (aref info 14))))
+(defun cell-nth-particle-cpu (n offset nbr)
+  (memory-block-aref nbr (+ offset n 1)))
 
-(defun neighbor-map-info-plist (info)
-  (list :box-min-x (info-min-x-cpu info)
-        :box-min-y (info-min-y-cpu info)
-        :box-min-z (info-min-z-cpu info)
-        :box-max-x (info-max-x-cpu info)
-        :box-max-y (info-max-y-cpu info)
-        :box-max-z (info-max-z-cpu info)
-        :origin-x  (info-origin-x-cpu info)
-        :origin-y  (info-origin-y-cpu info)
-        :origin-z  (info-origin-z-cpu info)
-        :delta     (info-delta-cpu info)
-        :capacity  (info-capacity-cpu info)
-        :size-x    (info-size-x-cpu info)
-        :size-y    (info-size-y-cpu info)
-        :size-z    (info-size-z-cpu info)
-        :size      (info-size-cpu info)))
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel insert-cell (int ((p int) (offset int) (nbr int*)))
+  (let ((n (atomic-add (pointer (aref nbr offset)) 1)))
+    (set (aref nbr (+ offset n 1)) p))
+  (return 0))
+
+(defun insert-cell-cpu (p offset nbr)
+  (let ((n (memory-block-aref nbr offset)))
+    (setf (memory-block-aref nbr offset) (+ (memory-block-aref nbr offset) 1))
+    (setf (memory-block-aref nbr (+ offset n 1)) p)))
+
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel clear-cell (int ((offset int) (nbr int*)))
+  (set (aref nbr offset) 0)   ; particles in cell are not cleared for performance reason
+  (return 0))
+
+(defun clear-cell-cpu (offset nbr)
+  (setf (memory-block-aref nbr offset) 0))
+
+
+;;;
+;;; Neighbor map - in cell
+;;;
+
+(defkernel cell-offset (int ((nbr int*) (info float*) (i int) (j int) (k int)))
+  (let ((size-x (info-size-x info))
+        (size-y (info-size-y info))
+        (capacity (info-capacity info)))
+    (let ((offset-base (+ (* size-x size-y k)
+                          (* size-x j)
+                          i))
+          (capacity1 (+ capacity 1)))
+      (return (* offset-base capacity1)))))
+
+(defun cell-offset-cpu (nbr info i j k)
+  (declare (ignore nbr))
+  (let ((size-x (info-size-x-cpu info))
+        (size-y (info-size-y-cpu info))
+        (capacity (info-capacity-cpu info)))
+    (let ((offset-base (+ (* size-x size-y k)
+                          (* size-x j)
+                          i))
+          (capacity1 (+ capacity 1)))
+      (* offset-base capacity1))))
+
+(defkernel valid-cell-index (bool ((info float*) (i int) (j int) (k int)))
+  (return (and (<= 0 i) (< i (info-size-x info))
+               (<= 0 j) (< j (info-size-y info))
+               (<= 0 k) (< k (info-size-z info))
+               t)))
+
+(defun valid-cell-index-cpu (info i j k)
+  (and (<= 0 i) (< i (info-size-x-cpu info))
+       (<= 0 j) (< j (info-size-y-cpu info))
+       (<= 0 k) (< k (info-size-z-cpu info))
+       t))
+
+(defkernel number-of-particles-in-cell (int ((nbr int*) (info float*) (i int) (j int) (k int)))
+  (unless (valid-cell-index info i j k)
+    (return 0))
+  (let ((offset (cell-offset nbr info i j k)))
+    (return (cell-number-of-particles offset nbr))))
+
+(defun number-of-particles-in-cell-cpu (nbr info i j k)
+  (unless (valid-cell-index-cpu info i j k)
+    (return-from number-of-particles-in-cell-cpu 0))
+  (let ((offset (cell-offset-cpu nbr info i j k)))
+    (cell-number-of-particles-cpu offset nbr)))
+
+(defkernel nth-particle-in-cell (int ((n int) (nbr int*) (info float*) (i int) (j int) (k int)))
+  (unless (valid-cell-index info i j k)
+    (return 0))
+  (let ((offset (cell-offset nbr info i j k)))
+    (return (cell-nth-particle n offset nbr))))
+
+(defun nth-particle-in-cell-cpu (n nbr info i j k)
+  (unless (valid-cell-index-cpu info i j k)
+    (return-from nth-particle-in-cell-cpu 0))
+  (let ((offset (cell-offset-cpu nbr info i j k)))
+    (cell-nth-particle-cpu n offset nbr)))
+
+(defkernelmacro do-particles-in-cell ((p nbr info i j k) &body body)
+  (alexandria:with-gensyms (n index)
+    `(when (valid-cell-index ,info ,i ,j ,k)
+       (let ((,n (number-of-particles-in-cell ,nbr ,info ,i ,j ,k)))
+         (do-range (,index 0 (- ,n 1))
+           (let ((,p (nth-particle-in-cell ,index ,nbr ,info ,i ,j ,k)))
+             ,@body))))))
+
+(defmacro do-particles-in-cell-cpu ((p nbr info i j k) &body body)
+  (alexandria:with-gensyms (n index)
+    `(when (valid-cell-index-cpu ,info ,i ,j ,k)
+       (let ((,n (number-of-particles-in-cell-cpu ,nbr ,info ,i ,j ,k)))
+         (do-range-cpu (,index 0 (- ,n 1))
+           (let ((,p (nth-particle-in-cell-cpu ,index ,nbr ,info ,i ,j ,k)))
+             ,@body))))))
+
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel insert-particle-in-cell (int ((p int) (nbr int*) (info float*) (i int) (j int) (k int)))
+  (unless (valid-cell-index info i j k)
+    (return 0))
+  (let ((offset (cell-offset nbr info i j k)))
+    (insert-cell p offset nbr))
+  (return 0))
+
+(defun insert-particle-in-cell-cpu (p nbr info i j k)
+  (unless (valid-cell-index-cpu info i j k)
+    (return-from insert-particle-in-cell-cpu))
+  (let ((offset (cell-offset-cpu nbr info i j k)))
+    (insert-cell-cpu p offset nbr)))
+
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel clear-particles-in-cell (int ((nbr int*) (info float*) (i int) (j int) (k int)))
+  (unless (valid-cell-index info i j k)
+    (return 0))
+  (let ((offset (cell-offset nbr info i j k)))
+    (clear-cell offset nbr))
+  (return 0))
+
+(defun clear-particles-in-cell-cpu (nbr info i j k)
+  (unless (valid-cell-index-cpu info i j k)
+    (return-from clear-particles-in-cell-cpu))
+  (let ((offset (cell-offset-cpu nbr info i j k)))
+    (clear-cell-cpu offset nbr)))
+
+
+;;;
+;;; Neighbor map
+;;;
 
 (defkernel %pos-to-cell (int ((x float) (x0 float) (delta float)))
   (return (floor (/ (- x x0) delta))))
@@ -267,152 +312,6 @@
          (,k (pos-to-cell-z-cpu ,x ,info)))
      ,@body))
 
-(defun alloc-neighbor-map (info)
-  (let ((size (info-size-cpu info))
-        (capacity (info-capacity-cpu info)))
-    (alloc-memory-block 'int (* size (1+ capacity)))))
-
-(defun free-neighbor-map (nbr)
-  (free-memory-block nbr))
-
-(defkernel cell-number-of-particles (int ((offset int) (nbr int*)))
-  (return (aref nbr offset)))
-
-(defun cell-number-of-particles-cpu (offset nbr)
-  (memory-block-aref nbr offset))
-
-(defkernel cell-nth-particle (int ((n int) (offset int) (nbr int*)))
-  (return (aref nbr (+ offset n 1))))   ; increment need because n begins with 0
-
-(defun cell-nth-particle-cpu (n offset nbr)
-  (memory-block-aref nbr (+ offset n 1)))
-
-;; returns dummy integer to avoid __host__ qualifier
-(defkernel insert-cell (int ((p int) (offset int) (nbr int*)))
-  (let ((n (atomic-add (pointer (aref nbr offset)) 1)))
-    (set (aref nbr (+ offset n 1)) p))
-  (return 0))
-
-(defun insert-cell-cpu (p offset nbr)
-  (let ((n (memory-block-aref nbr offset)))
-    (setf (memory-block-aref nbr offset) (+ (memory-block-aref nbr offset) 1))
-    (setf (memory-block-aref nbr (+ offset n 1)) p)))
-
-;; returns dummy integer to avoid __host__ qualifier
-(defkernel clear-cell (int ((offset int) (nbr int*)))
-  (set (aref nbr offset) 0)   ; particles in cell are not cleared for performance reason
-  (return 0))
-
-(defun clear-cell-cpu (offset nbr)
-  (setf (memory-block-aref nbr offset) 0))
-
-(defkernel cell-offset (int ((nbr int*) (info float*) (i int) (j int) (k int)))
-  (let ((size-x (info-size-x info))
-        (size-y (info-size-y info))
-        (capacity (info-capacity info)))
-    (let ((offset-base (+ (* size-x size-y k)
-                          (* size-x j)
-                          i))
-          (capacity1 (+ capacity 1)))
-      (return (* offset-base capacity1)))))
-
-(defun cell-offset-cpu (nbr info i j k)
-  (declare (ignore nbr))
-  (let ((size-x (info-size-x-cpu info))
-        (size-y (info-size-y-cpu info))
-        (capacity (info-capacity-cpu info)))
-    (let ((offset-base (+ (* size-x size-y k)
-                          (* size-x j)
-                          i))
-          (capacity1 (+ capacity 1)))
-      (* offset-base capacity1))))
-
-(defkernel valid-cell-index (bool ((info float*) (i int) (j int) (k int)))
-  (return (and (<= 0 i) (< i (info-size-x info))
-               (<= 0 j) (< j (info-size-y info))
-               (<= 0 k) (< k (info-size-z info))
-               t)))
-
-(defun valid-cell-index-cpu (info i j k)
-  (and (<= 0 i) (< i (info-size-x-cpu info))
-       (<= 0 j) (< j (info-size-y-cpu info))
-       (<= 0 k) (< k (info-size-z-cpu info))
-       t))
-
-(defkernel number-of-particles-in-cell (int ((nbr int*) (info float*) (i int) (j int) (k int)))
-  (unless (valid-cell-index info i j k)
-    (return 0))
-  (let ((offset (cell-offset nbr info i j k)))
-    (return (cell-number-of-particles offset nbr))))
-
-(defun number-of-particles-in-cell-cpu (nbr info i j k)
-  (unless (valid-cell-index-cpu info i j k)
-    (return-from number-of-particles-in-cell-cpu 0))
-  (let ((offset (cell-offset-cpu nbr info i j k)))
-    (cell-number-of-particles-cpu offset nbr)))
-
-(defkernel nth-particle-in-cell (int ((n int) (nbr int*) (info float*) (i int) (j int) (k int)))
-  (let ((offset (cell-offset nbr info i j k)))
-    (return (cell-nth-particle n offset nbr))))
-
-(defun nth-particle-in-cell-cpu (n nbr info i j k)
-  (let ((offset (cell-offset-cpu nbr info i j k)))
-    (cell-nth-particle-cpu n offset nbr)))
-
-(defkernelmacro do-particles-in-cell ((p nbr info i j k) &body body)
-  (alexandria:with-gensyms (n index)
-    `(when (valid-cell-index ,info ,i ,j ,k)
-       (let ((,n (number-of-particles-in-cell ,nbr ,info ,i ,j ,k)))
-         (do-range (,index 0 (- ,n 1))
-           (let ((,p (nth-particle-in-cell ,index ,nbr ,info ,i ,j ,k)))
-             ,@body))))))
-
-(defmacro do-particles-in-cell-cpu ((p nbr info i j k) &body body)
-  (alexandria:with-gensyms (n index)
-    `(when (valid-cell-index-cpu ,info ,i ,j ,k)
-       (let ((,n (number-of-particles-in-cell-cpu ,nbr ,info ,i ,j ,k)))
-         (do-range-cpu (,index 0 (- ,n 1))
-           (let ((,p (nth-particle-in-cell-cpu ,index ,nbr ,info ,i ,j ,k)))
-             ,@body))))))
-
-;; returns dummy integer to avoid __host__ qualifier
-(defkernel insert-particle-in-cell (int ((p int) (nbr int*) (info float*) (i int) (j int) (k int)))
-  (unless (valid-cell-index info i j k)
-    (return 0))
-  (let ((offset (cell-offset nbr info i j k)))
-    (insert-cell p offset nbr))
-  (return 0))
-
-(defun insert-particle-in-cell-cpu (p nbr info i j k)
-  (unless (valid-cell-index-cpu info i j k)
-    (return-from insert-particle-in-cell-cpu))
-  (let ((offset (cell-offset-cpu nbr info i j k)))
-    (insert-cell-cpu p offset nbr)))
-
-;; returns dummy integer to avoid __host__ qualifier
-(defkernel clear-particles-in-cell (int ((nbr int*) (info float*) (i int) (j int) (k int)))
-  (unless (valid-cell-index info i j k)
-    (return 0))
-  (let ((offset (cell-offset nbr info i j k)))
-    (clear-cell offset nbr))
-  (return 0))
-
-(defun clear-particles-in-cell-cpu (nbr info i j k)
-  (unless (valid-cell-index-cpu info i j k)
-    (return-from clear-particles-in-cell-cpu))
-  (let ((offset (cell-offset-cpu nbr info i j k)))
-    (clear-cell-cpu offset nbr)))
-
-(defkernelmacro do-range ((var from to) &body body)
-  `(do ((,var ,from (+ ,var 1)))
-       ((> ,var ,to))
-     ,@body))
-
-(defmacro do-range-cpu ((var from to) &body body)
-  `(do ((,var ,from (+ ,var 1)))
-       ((> ,var ,to))
-     ,@body))
-
 (defkernelmacro do-neighbor-particles ((p nbr info x) &body body)
   (alexandria:with-gensyms (i0 j0 k0 i j k shared-info)
     `(with-shared-memory ((,shared-info float 15))
@@ -446,24 +345,6 @@
   (with-cell-cpu (i j k info x)
     (insert-particle-in-cell-cpu p nbr info i j k)))
 
-;; returns dummy integer to avoid __host__ qualifier
-(defkernel %update-neighbor-map (int ((i int) (pos float4*) (nbr int*) (info float*)))
-  (let ((x (aref pos i)))
-    (insert-particle-in-neighbor-map i x nbr info))
-  (return 0))
-
-(defkernel update-neighbor-map (void ((pos float4*) (nbr int*) (info float*) (n int)))
-  (with-valid-index (i n)
-    (%update-neighbor-map i pos nbr info)))
-
-(defun %update-neighbor-map-cpu (i pos nbr info)
-  (let ((x (memory-block-aref pos i)))
-    (insert-particle-in-neighbor-map-cpu i x nbr info)))
-
-(defun update-neighbor-map-cpu (pos nbr info n &key grid-dim block-dim)
-  (with-thread-block (grid-dim block-dim)
-    (with-valid-index-cpu (i n)
-      (%update-neighbor-map-cpu i pos nbr info))))
 
 (defkernel clear-neighbor-map (void ((nbr int*) (info float*)))
   (let ((i thread-idx-x)
@@ -478,17 +359,87 @@
           (k block-idx-y))
       (clear-particles-in-cell-cpu nbr info i j k))))
 
+(defun alloc-neighbor-map (box-min box-max delta capacity)
+  (assert (and (< (float4-x box-min) (float4-x box-max))
+               (< (float4-y box-min) (float4-y box-max))
+               (< (float4-z box-min) (float4-z box-max))))
+  (assert (< 0.0 delta))
+  (assert (< 0 capacity))
+  (labels ((%size (x0 x1)
+             (float (ceiling (/ (- x1 x0) delta)))))
+    (with-float4-cpu (box-min-x box-min-y box-min-z _) box-min
+    (with-float4-cpu (box-max-x box-max-y box-max-z _) box-max
+      (let* ((size-x (+ (%size box-min-x box-max-x) 2))
+             (size-y (+ (%size box-min-y box-max-y) 2))
+             (size-z (+ (%size box-min-z box-max-z) 2))
+             (size (* size-x size-y size-z))
+             (origin-x (- box-min-x delta))
+             (origin-y (- box-min-y delta))
+             (origin-z (- box-min-z delta)))
+        (let ((nbr (alloc-memory-block 'int (* size (1+ capacity))))
+              (info (alloc-memory-block 'float 15)))
+          (setf (memory-block-aref info 0)  box-min-x
+                (memory-block-aref info 1)  box-min-y
+                (memory-block-aref info 2)  box-min-z
+                (memory-block-aref info 3)  (+ box-min-x (* delta size-x))
+                (memory-block-aref info 4)  (+ box-min-y (* delta size-y))
+                (memory-block-aref info 5)  (+ box-min-z (* delta size-z))
+                (memory-block-aref info 6)  origin-x
+                (memory-block-aref info 7)  origin-y
+                (memory-block-aref info 8)  origin-z
+                (memory-block-aref info 9)  delta
+                (memory-block-aref info 10) (float capacity)
+                (memory-block-aref info 11) size-x
+                (memory-block-aref info 12) size-y
+                (memory-block-aref info 13) size-z
+                (memory-block-aref info 14) size)
+          (values nbr info)))))))
+
+(defun free-neighbor-map (nbr info)
+  (free-memory-block nbr)
+  (free-memory-block info))
+
+(defun info-min-x-cpu    (info) (memory-block-aref info 0))
+(defun info-min-y-cpu    (info) (memory-block-aref info 1))
+(defun info-min-z-cpu    (info) (memory-block-aref info 2))
+(defun info-max-x-cpu    (info) (memory-block-aref info 3))
+(defun info-max-y-cpu    (info) (memory-block-aref info 4))
+(defun info-max-z-cpu    (info) (memory-block-aref info 5))
+(defun info-origin-x-cpu (info) (memory-block-aref info 6))
+(defun info-origin-y-cpu (info) (memory-block-aref info 7))
+(defun info-origin-z-cpu (info) (memory-block-aref info 8))
+(defun info-delta-cpu    (info) (memory-block-aref info 9))
+(defun info-capacity-cpu (info) (floor (memory-block-aref info 10)))
+(defun info-size-x-cpu   (info) (floor (memory-block-aref info 11)))
+(defun info-size-y-cpu   (info) (floor (memory-block-aref info 12)))
+(defun info-size-z-cpu   (info) (floor (memory-block-aref info 13)))
+(defun info-size-cpu     (info) (floor (memory-block-aref info 14)))
+
+(defkernel info-min-x    (float ((info float*))) (return (aref info 0)))
+(defkernel info-min-y    (float ((info float*))) (return (aref info 1)))
+(defkernel info-min-z    (float ((info float*))) (return (aref info 2)))
+(defkernel info-max-x    (float ((info float*))) (return (aref info 3)))
+(defkernel info-max-y    (float ((info float*))) (return (aref info 4)))
+(defkernel info-max-z    (float ((info float*))) (return (aref info 5)))
+(defkernel info-origin-x (float ((info float*))) (return (aref info 6)))
+(defkernel info-origin-y (float ((info float*))) (return (aref info 7)))
+(defkernel info-origin-z (float ((info float*))) (return (aref info 8)))
+(defkernel info-delta    (float ((info float*))) (return (aref info 9)))
+(defkernel info-capacity (int ((info float*)))   (return (floor (aref info 10))))
+(defkernel info-size-x   (int ((info float*)))   (return (floor (aref info 11))))
+(defkernel info-size-y   (int ((info float*)))   (return (floor (aref info 12))))
+(defkernel info-size-z   (int ((info float*)))   (return (floor (aref info 13))))
+(defkernel info-size     (int ((info float*)))   (return (floor (aref info 14))))
+
 (defun sync-neighbor-map (nbr info direction)
   (sync-memory-block nbr direction)
   (sync-memory-block info direction))
 
 (defmacro with-neighbor-map ((nbr info box-min box-max delta capacity) &body body)
-  `(let* ((,info (alloc-neighbor-map-info ,box-min ,box-max ,delta ,capacity))
-          (,nbr  (alloc-neighbor-map ,info)))
-     (unwind-protect
-          (progn ,@body)
-       (free-neighbor-map ,nbr)
-       (free-neighbor-map-info ,info))))
+  `(multiple-value-bind (,nbr ,info)
+       (alloc-neighbor-map ,box-min ,box-max ,delta ,capacity)
+     (unwind-protect (progn ,@body)
+       (free-neighbor-map ,nbr ,info))))
 
 
 ;;;
@@ -542,6 +493,40 @@
 
 
 ;;;
+;;; Update neighbor map
+;;;
+
+(defkernelmacro with-valid-index ((i n) &body body)
+  `(let ((,i (+ (* block-idx-x block-dim-x) thread-idx-x)))
+     (when (< ,i ,n)
+       ,@body)))
+
+(defmacro with-valid-index-cpu ((i n) &body body)
+  `(let ((,i (+ (* block-idx-x block-dim-x) thread-idx-x)))
+     (when (< ,i ,n)
+       ,@body)))
+
+;; returns dummy integer to avoid __host__ qualifier
+(defkernel %update-neighbor-map (int ((i int) (pos float4*) (nbr int*) (info float*)))
+  (let ((x (aref pos i)))
+    (insert-particle-in-neighbor-map i x nbr info))
+  (return 0))
+
+(defkernel update-neighbor-map (void ((pos float4*) (nbr int*) (info float*) (n int)))
+  (with-valid-index (i n)
+    (%update-neighbor-map i pos nbr info)))
+
+(defun %update-neighbor-map-cpu (i pos nbr info)
+  (let ((x (memory-block-aref pos i)))
+    (insert-particle-in-neighbor-map-cpu i x nbr info)))
+
+(defun update-neighbor-map-cpu (pos nbr info n &key grid-dim block-dim)
+  (with-thread-block (grid-dim block-dim)
+    (with-valid-index-cpu (i n)
+      (%update-neighbor-map-cpu i pos nbr info))))
+
+
+;;;
 ;;; Kernel functions
 ;;;
 
@@ -578,6 +563,11 @@
     (* (/ 45.0 (* pi-cpu (pow-cpu h 6)))
        (- h r))))
 
+
+;;;
+;;; Update density
+;;;
+
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel %update-density (int ((i int) (rho float*) (x float4*) (nbr int*) (info float*)))
   (let ((xi (aref x i)))
@@ -612,6 +602,11 @@
     (with-valid-index-cpu (i n)
       (%update-density-cpu i rho x nbr info))))
 
+
+;;;
+;;; Update pressure
+;;;
+
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel %update-pressure (int ((i int) (prs float*) (rho float*)))
   (symbol-macrolet ((rhoi (aref rho i))
@@ -634,6 +629,11 @@
   (with-thread-block (grid-dim block-dim)
     (with-valid-index-cpu (i n)
       (%update-pressure-cpu i prs rho))))
+
+
+;;;
+;;; Update force
+;;;
 
 (defkernel pressure-term (float4 ((i int) (j int) (dr float4) (rho float*) (prs float*)))
   (symbol-macrolet ((rhoj (aref rho j))
@@ -706,6 +706,11 @@
   (with-thread-block (grid-dim block-dim)
     (with-valid-index-cpu (i n)
       (%update-force-cpu i f x v rho prs nbr info))))
+
+
+;;;
+;;; Boundary condition
+;;;
 
 (defkernel collision-diff (float ((x0 float) (x1 float)))
   (let ((distance (* (- x1 x0) simscale)))
@@ -806,6 +811,11 @@
     (with-valid-index-cpu (i n)
       (%boundary-condition-cpu i x v a info))))
 
+
+;;;
+;;; Update acceleration
+;;;
+
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel %update-acceleration (int ((i int) (a float4*) (f float4*) (rho float*)))
   (symbol-macrolet ((ai   (aref a i))
@@ -830,6 +840,11 @@
     (with-valid-index-cpu (i n)
       (%update-acceleration-cpu i a f rho))))
 
+
+;;;
+;;; Update velocity
+;;;
+
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel %update-velocity (int ((i int) (v float4*) (a float4*)))
   (symbol-macrolet ((vi (aref v i))
@@ -850,6 +865,11 @@
   (with-thread-block (grid-dim block-dim)
     (with-valid-index-cpu (i n)
       (%update-velocity-cpu i v a))))
+
+
+;;;
+;;; Update position
+;;;
 
 ;; returns dummy integer to avoid __host__ qualifier
 (defkernel %update-position (int ((i int) (x float4*) (v float4*)))
@@ -1050,7 +1070,8 @@
 (defun test-neighbor-map-info1 ()
   (cl-test-more:diag "test-neighbor-map-info1")
   (with-cuda (0)
-    (let ((info (alloc-neighbor-map-info test-box-min test-box-max test-delta test-capacity)))
+    (multiple-value-bind (nbr info)
+        (alloc-neighbor-map test-box-min test-box-max test-delta test-capacity)
       (unwind-protect
            (progn
              (cl-test-more:plan nil)
@@ -1067,13 +1088,14 @@
              (cl-test-more:is (info-size-z-cpu info) 7)
              (cl-test-more:is (info-size-cpu info) 343)
              (cl-test-more:finalize))
-        (free-neighbor-map-info info)))))
+        (free-neighbor-map nbr info)))))
 
 (defun test-neighbor-map-info2 ()
   (cl-test-more:diag "test-neighbor-map-info2")
   (let ((test-box-max (make-float4 9.0 9.0 9.0 0.0)))
     (with-cuda (0)
-      (let ((info (alloc-neighbor-map-info test-box-min test-box-max test-delta test-capacity)))
+      (multiple-value-bind (nbr info)
+          (alloc-neighbor-map test-box-min test-box-max test-delta test-capacity)
         (unwind-protect
              (progn
                (cl-test-more:plan nil)
@@ -1081,7 +1103,7 @@
                (cl-test-more:is (info-max-y-cpu info) 10.0)
                (cl-test-more:is (info-max-z-cpu info) 10.0)
                (cl-test-more:finalize))
-          (free-neighbor-map-info info))))))
+          (free-neighbor-map nbr info))))))
 
 (defun test-neighbor-map-info3 ()
   (cl-test-more:diag "test-neighbor-map-info3")
@@ -1091,11 +1113,11 @@
         (test-box-max3 (make-float4  10.0  10.0 -10.0 0.0)))
     (with-cuda (0)
       (cl-test-more:plan nil)
-      (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max1 test-delta test-capacity)
+      (cl-test-more:is-error (alloc-neighbor-map test-box-min test-box-max1 test-delta test-capacity)
                              simple-error)
-      (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max2 test-delta test-capacity)
+      (cl-test-more:is-error (alloc-neighbor-map test-box-min test-box-max2 test-delta test-capacity)
                              simple-error)
-      (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max3 test-delta test-capacity)
+      (cl-test-more:is-error (alloc-neighbor-map test-box-min test-box-max3 test-delta test-capacity)
                              simple-error)
       (cl-test-more:finalize))))
 
@@ -1105,9 +1127,9 @@
         (test-delta2  0.0))
     (with-cuda (0)
       (cl-test-more:plan nil)
-      (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max test-delta1 test-capacity)
+      (cl-test-more:is-error (alloc-neighbor-map test-box-min test-box-max test-delta1 test-capacity)
                              simple-error)
-      (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max test-delta2 test-capacity)
+      (cl-test-more:is-error (alloc-neighbor-map test-box-min test-box-max test-delta2 test-capacity)
                              simple-error)
       (cl-test-more:finalize))))
 
@@ -1117,9 +1139,9 @@
         (test-capacity2 0))
     (with-cuda (0)
       (cl-test-more:plan nil)
-      (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max test-delta test-capacity1)
+      (cl-test-more:is-error (alloc-neighbor-map test-box-min test-box-max test-delta test-capacity1)
                              simple-error)
-      (cl-test-more:is-error (alloc-neighbor-map-info test-box-min test-box-max test-delta test-capacity2)
+      (cl-test-more:is-error (alloc-neighbor-map test-box-min test-box-max test-delta test-capacity2)
                              simple-error)
       (cl-test-more:finalize))))
 
