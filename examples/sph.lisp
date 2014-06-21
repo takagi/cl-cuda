@@ -369,31 +369,39 @@
              (float (ceiling (/ (- x1 x0) delta)))))
     (with-float4-cpu (box-min-x box-min-y box-min-z _) box-min
     (with-float4-cpu (box-max-x box-max-y box-max-z _) box-max
-      (let* ((size-x (+ (%size box-min-x box-max-x) 2))
-             (size-y (+ (%size box-min-y box-max-y) 2))
-             (size-z (+ (%size box-min-z box-max-z) 2))
-             (size (* size-x size-y size-z))
-             (origin-x (- box-min-x delta))
-             (origin-y (- box-min-y delta))
-             (origin-z (- box-min-z delta)))
-        (let ((nbr (alloc-memory-block 'int (* size (1+ capacity))))
-              (info (alloc-memory-block 'float 15)))
-          (setf (memory-block-aref info 0)  box-min-x
-                (memory-block-aref info 1)  box-min-y
-                (memory-block-aref info 2)  box-min-z
-                (memory-block-aref info 3)  (+ box-min-x (* delta size-x))
-                (memory-block-aref info 4)  (+ box-min-y (* delta size-y))
-                (memory-block-aref info 5)  (+ box-min-z (* delta size-z))
-                (memory-block-aref info 6)  origin-x
-                (memory-block-aref info 7)  origin-y
-                (memory-block-aref info 8)  origin-z
-                (memory-block-aref info 9)  delta
-                (memory-block-aref info 10) (float capacity)
-                (memory-block-aref info 11) size-x
-                (memory-block-aref info 12) size-y
-                (memory-block-aref info 13) size-z
-                (memory-block-aref info 14) size)
-          (values nbr info)))))))
+      (let ((size-x (%size box-min-x box-max-x))
+            (size-y (%size box-min-y box-max-y))
+            (size-z (%size box-min-z box-max-z))
+            (origin-x (- box-min-x delta))
+            (origin-y (- box-min-y delta))
+            (origin-z (- box-min-z delta)))
+        (let* ((size-x-2 (+ size-x 2))
+               (size-y-2 (+ size-y 2))
+               (size-z-2 (+ size-z 2))
+               (size-2 (* size-x-2 size-y-2 size-z-2)))
+          (let (nbr info)
+            ;; alloc and initialize neighbor map info
+            (setf info (alloc-memory-block 'float 15))
+            (setf (memory-block-aref info 0)  box-min-x
+                  (memory-block-aref info 1)  box-min-y
+                  (memory-block-aref info 2)  box-min-z
+                  (memory-block-aref info 3)  (+ box-min-x (* delta size-x))
+                  (memory-block-aref info 4)  (+ box-min-y (* delta size-y))
+                  (memory-block-aref info 5)  (+ box-min-z (* delta size-z))
+                  (memory-block-aref info 6)  origin-x
+                  (memory-block-aref info 7)  origin-y
+                  (memory-block-aref info 8)  origin-z
+                  (memory-block-aref info 9)  delta
+                  (memory-block-aref info 10) (float capacity)
+                  (memory-block-aref info 11) size-x-2
+                  (memory-block-aref info 12) size-y-2
+                  (memory-block-aref info 13) size-z-2
+                  (memory-block-aref info 14) size-2)
+            ;; alloc neighbor map
+            (setf nbr (alloc-memory-block 'int (* (floor size-2)
+                                                  (1+ capacity))))
+            ;; return them
+            (values nbr info))))))))
 
 (defun free-neighbor-map (nbr info)
   (free-memory-block nbr)
@@ -489,7 +497,7 @@
 (defparameter box-max     (make-float4 20.0 50.0  10.0 0.0))
 (defparameter init-min    (make-float4  0.0  0.0 -10.0 0.0))
 (defparameter init-max    (make-float4 10.0 20.0  10.0 0.0))
-(defparameter capacity    20.0)          ; # of particles contained in one cell
+(defparameter capacity    20)          ; # of particles contained in one cell
 
 
 ;;;
