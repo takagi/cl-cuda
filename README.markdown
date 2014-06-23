@@ -1,18 +1,18 @@
 # Cl-Cuda
 
-Cl-cuda is a library to use NVIDIA CUDA in Common Lisp programs. It provides not only FFI binding to CUDA driver API but the kernel description language with which users can define CUDA kernel functions. The kernel description language also provides facilities to define kernel macros and kernel symbol macros in addition to kernel functions. Cl-cuda's kernel macro and kernel symbol macro facilities offer powerful abstraction that CUDA C itself does not have and they provide enormous advantage in resource-limited GPU programming.
+Cl-cuda is a library to use NVIDIA CUDA in Common Lisp programs. It provides not only FFI binding to CUDA driver API but the kernel description language with which users can define CUDA kernel functions in S-expression. The kernel description language also provides facilities to define kernel macros and kernel symbol macros in addition to kernel functions. Cl-cuda's kernel macro and kernel symbol macro offer powerful abstraction that CUDA C itself does not have and provide enormous advantage in resource-limited GPU programming.
 
-Kernel functions defined with the language can be launched as almost same as ordinal Common Lisp functions except that they must be launched in a CUDA context and followed with grid and block sizes. They are compiled and loaded lazily and automatically when they are to be launched for the first time. This process is as following. First, they are compiled into a CUDA C code (.cu file) by cl-cuda. The compiled CUDA C code, then, is compiled into a CUDA kernel module (.ptx file) by NVCC - NVIDIA CUDA Compiler Driver. The obtained kernel module is automatically loaded via CUDA driver API and finally the kernel functions are launched with properly constructed arguments to be passed to CUDA device. Since this process is autonomously managed by the kernel manager, users do not need to handle it for themselves. About the kernel manager, see [Kernel manager](https://github.com/takagi/cl-cuda/blob/master/README.markdown#kernel-manager) section.
+Kernel functions defined with the kernel description language can be launched as almost same as ordinal Common Lisp functions except that they must be launched in a CUDA context and followed with grid and block sizes. Kernel functions are compiled and loaded automatically and lazily when they are to be launched for the first time. This process is as following. First, they are compiled into a CUDA C code (.cu file) by cl-cuda. The compiled CUDA C code, then, is compiled into a CUDA kernel module (.ptx file) by NVCC - NVIDIA CUDA Compiler Driver. The obtained kernel module is automatically loaded via CUDA driver API and finally the kernel functions are launched with properly constructed arguments to be passed to CUDA device. Since this process is autonomously managed by the kernel manager, users do not need to handle it for themselves. About the kernel manager, see [Kernel manager](https://github.com/takagi/cl-cuda/blob/master/README.markdown#kernel-manager) section.
 
-Memory management is also one of the most important things in GPU programming. Cl-cuda provides memory block data structure which abstract host memory and device memory. With memory block, users do not need to manage host memory and device memory individually for themselves. It lightens their burden on memory management, prevents bugs and keeps code simple. Besides memory block that provides abstraction on host and device memory, cl-cuda also offers low level interfaces to handle CFFI pointers and CUDA device pointers directly. With these primitive interfaces, users can choose to gain more flexible memory control than using memory block if needed.
+Memory management is also one of the most important things in GPU programming. Cl-cuda provides memory block data structure which abstract host memory and device memory. With memory block, users do not need to manage host memory and device memory individually for themselves. It lightens their burden on memory management, prevents bugs and keeps code simple. Besides memory block that provides high level abstraction on host and device memory, cl-cuda also offers low level interfaces to handle CFFI pointers and CUDA device pointers directly. With these primitive interfaces, users can choose to gain more flexible memory control than using memory block if needed.
 
 Cl-cuda is verified on several environments. For detail, see [Verification environments](https://github.com/takagi/cl-cuda/blob/master/README.markdown#verification-environments) section.
 
 ## Example
 
-Following is a part of vector addition example using cl-cuda based on CUDA SDK's "vectorAdd" sample.
+Following code is a part of vector addition example using cl-cuda based on CUDA SDK's "vectorAdd" sample.
 
-You can define `vec-add-kernel` kernel function using `defkernel` macro with which you can define a kernel function in Common Lisp-like syntax and CUDA C semantics. Here `aref` is to refer values stored in an array. `set` is to store values into an array. `block-dim-x`, `block-idx-x` and `thread-idx-x` have their counterparts in CUDA C's built-in variables and are used to specify the array index to be operated in each CUDA thread.
+You can define `vec-add-kernel` kernel function using `defkernel` macro. In the definition, `aref` is to refer values stored in an array. `set` is to store values into an array. `block-dim-x`, `block-idx-x` and `thread-idx-x` have their counterparts in CUDA C's built-in variables and are used to specify the array index to be operated in each CUDA thread.
 
 Once the kernel function is defined, you can launch it as if it is an ordinal Common Lisp function except that it requires to be in a CUDA context and followed by `:gird-dim` and `:block-dim` keyword parameters which specify the dimensions of grid and block. To keep a CUDA context, you can use `with-cuda` macro which has responsibility on initializing CUDA and managing a CUDA context. `with-memory-blocks` manages memory blocks which abstract host memory area and device memory area, then `sync-memory-block` copies data stored in a memory block between host and device.
 
@@ -106,7 +106,7 @@ Further information:
 
 ## API
 
-Explain some API commonly used here.
+Here explain some API commonly used.
 
 ### [Macro] with-cuda
 
@@ -124,7 +124,7 @@ Blocks until a CUDA context has completed all preceding requested tasks.
 
     ALLOC-MEMORY-BLOCK type size
 
-Allocates a memory block to hold `size` elements of type `type` and returns it. Actually, linear memory areas are allocated on both host and device memory and the memory block holds pointers to them.
+Allocates a memory block to hold `size` elements of type `type` and returns it. Actually, linear memory areas are allocated on both host and device memory and a memory block holds pointers to them.
 
 ### [Function] free-memory-block
 
@@ -137,7 +137,7 @@ Frees `memory-block` previously allocated by `alloc-memory-block`. Freeing a mem
     WITH-MEMORY-BLOCK (var type size) &body body
     WITH-MEMORY-BLOCKS ({(var type size)}*) &body body
 
-Binds `var` to a memory block allocated using `alloc-memory-block` applied to given `type` and `size` during `body`. The memory block is freed using `free-memory-block` when `with-memory-block` exits. `with-memory-blocks` is a plural form of `with-memory-block`.
+Binds `var` to a memory block allocated using `alloc-memory-block` applied to the given `type` and `size` during `body`. The memory block is freed using `free-memory-block` when `with-memory-block` exits. `with-memory-blocks` is a plural form of `with-memory-block`.
 
 ### [Function] sync-memory-block
 
@@ -363,7 +363,7 @@ To begin with, the kernel manager has four states.
     III module-loaded state
     IV  function-loaded state
 
-The initial state is its entry point. The compiled state is a state where kernel functions defined with the kernel descrpition language have compiled into a CUDA kernel module (.ptx file). The obtained kernel module has been loaded in the module-loaded state. In the function-loaded state, each kernel function in the kernel module has been loaded.
+The initial state is its entry point. The compiled state is a state where kernel functions defined with the kernel descrpition language have been compiled into a CUDA kernel module (.ptx file). The obtained kernel module has been loaded in the module-loaded state. In the function-loaded state, each kernel function in the kernel module has been loaded.
 
 Following illustrates the kernel manager's state transfer.
 
@@ -377,7 +377,7 @@ Following illustrates the kernel manager's state transfer.
 
 `kernel-manager-compile-module` function compiles defined kernel functions into a CUDA kernel module. `kernel-manager-load-module` function loads the obtained kernel module. `kernel-manager-load-function` function loads each kernel function in the kernel module.
 
-In the module-loaded and function-loaded states, `kernel-manager-unload` function unloads the kernel module and turn the kernel manager's state back to the compiled state. `kernel-manager-define-function`, `kernel-manager-define-macro` and `kernel-manager-define-symbol-macro` functions, which are wrapped as `defkernel`, `defkernelmacro` and `defkernel-symbol-macro` macros respectively, change back its state into the initial state and make it require compilation again.
+In the module-loaded state and function-loaded state, `kernel-manager-unload` function unloads the kernel module and turn the kernel manager's state back to the compiled state. `kernel-manager-define-function`, `kernel-manager-define-macro` and `kernel-manager-define-symbol-macro` functions, which are wrapped as `defkernel`, `defkernelmacro` and `defkernel-symbol-macro` macros respectively, change its state back into the initial state and make it require compilation again.
 
 The kernel manager is stored in `*kernel-manager*` special variable when cl-cuda is loaded and keeps alive during the Common Lisp process. Usually, you do not need to manage it explicitly.
 
