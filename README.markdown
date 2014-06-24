@@ -344,7 +344,7 @@ The following figure illustrates cl-cuda's overall architecture.
                   CUDA | CUDA driver API                                         |
                        +---------------------------------------------------------+
 
-Cl-cuda consists of three sub packages: `api`, `lang` and `driver-api`.
+Cl-cuda consists of three subpackages: `api`, `lang` and `driver-api`.
 
 `driver-api` subpackage is a FFI binding to CUDA driver API. `api` subpackage invokes CUDA driver API via this binding internally.
 
