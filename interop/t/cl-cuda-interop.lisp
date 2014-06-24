@@ -22,24 +22,24 @@
 (defmethod glut:display ((w test-window))
 
   ;; test ALLOC-MEMORY-BLOCK/FREE-MEMORY-BLOCK with OpenGL interoperability
-  (cl-cuda-interop:with-cuda-context (0)
+  (cl-cuda-interop:with-cuda (0)
     (let (memory-block)
       (ok (setf memory-block (cl-cuda-interop:alloc-memory-block 'int 1024)))
       (cl-cuda-interop:free-memory-block memory-block)))
   
   ;; test the selectors of memory-block with OpenGL interoperability
-  (cl-cuda-interop:with-cuda-context (0)
+  (cl-cuda-interop:with-cuda (0)
     (cl-cuda-interop:with-memory-block (memory-block 'int 1024)
-      (ok (cl-cuda-interop:memory-block-host-ptr memory-block))
       (cl-cuda-interop:with-memory-block-device-ptr (device-ptr memory-block)
         (ok device-ptr))
+      (ok (cl-cuda-interop:memory-block-host-ptr memory-block))
       (ok (cl-cuda-interop:memory-block-vertex-buffer-object memory-block))
       (ok (cl-cuda-interop:memory-block-graphic-resource-ptr memory-block))
       (is (cl-cuda-interop:memory-block-type memory-block) 'int)
       (is (cl-cuda-interop:memory-block-size memory-block) 1024)))
   
   ;; test the accessor of memory-block with OpenGL interoperability
-  (cl-cuda-interop:with-cuda-context (0)
+  (cl-cuda-interop:with-cuda (0)
     ;; int array
     (cl-cuda-interop:with-memory-block (x 'int 1)
       (setf (cl-cuda-interop:memory-block-aref x 0) 1)
@@ -75,7 +75,7 @@
     (set (aref y 0) (+ (aref y 0) 1.0))
     (set (aref z 0) (+ (aref z 0) (float3 1.0 1.0 1.0))))
   
-  (cl-cuda-interop:with-cuda-context (0)
+  (cl-cuda-interop:with-cuda (0)
     (cl-cuda-interop:with-memory-blocks ((x 'int 1)
                                          (y 'float 1)
                                          (z 'float3 1))
