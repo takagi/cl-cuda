@@ -10,9 +10,9 @@
 (in-package :cl-user)
 (defpackage cl-cuda-interop-examples.nbody
   (:use :cl
-        :cl-cuda)
-  (:export :main
-           :*gpu*))
+        :cl-cuda
+        :cl-cuda-interop)
+  (:export :main))
 (in-package :cl-cuda-interop-examples.nbody)
 
 
@@ -24,104 +24,113 @@
 
 (defun make-vec3-array (n)
   (let ((size (* n 3)))
-    (make-array (list size) :element-type 'single-float :initial-element 0.0)))
+    (make-array (list size) :element-type 'single-float
+                            :initial-element 0.0)))
 
-(defun vec3-array-dimension (ary)
-  (/ (array-dimension ary 0) 3))
+(defun vec3-array-dimension (array)
+  (/ (array-dimension array 0) 3))
 
-(defun vec3-aref (ary i elm)
+(defun vec3-aref (array i elm)
   (ecase elm
-    (:x (aref ary (+ (* i 3) 0)))
-    (:y (aref ary (+ (* i 3) 1)))
-    (:z (aref ary (+ (* i 3) 2)))))
+    (:x (aref array (+ (* i 3) 0)))
+    (:y (aref array (+ (* i 3) 1)))
+    (:z (aref array (+ (* i 3) 2)))))
 
-(defun (setf vec3-aref) (val ary i elm)
+(defun (setf vec3-aref) (val array i elm)
   (ecase elm
-    (:x (setf (aref ary (+ (* i 3) 0)) val))
-    (:y (setf (aref ary (+ (* i 3) 1)) val))
-    (:z (setf (aref ary (+ (* i 3) 2)) val))))
+    (:x (setf (aref array (+ (* i 3) 0)) val))
+    (:y (setf (aref array (+ (* i 3) 1)) val))
+    (:z (setf (aref array (+ (* i 3) 2)) val))))
 
-(defmacro with-vec3-array-values (((x y z) (ary i)) &body body)
+(defmacro with-vec3-array-values (((x y z) array i) &body body)
   ;; for fast read
-  `(multiple-value-bind (,x ,y ,z) (vec3-array-values ,ary ,i)
+  `(multiple-value-bind (,x ,y ,z) (vec3-array-values ,array ,i)
      (declare (type single-float ,x ,y ,z))
      ,@body))
 
 (declaim (inline vec3-array-values))
-(defun vec3-array-values (ary i)
+(defun vec3-array-values (array i)
   (declare (optimize (speed 3) (safety 0)))
-  (declare (type vec3-array ary)
+  (declare (type vec3-array array)
            (type fixnum i))
-  (values (aref ary (the fixnum (+ (the fixnum (* i 3)) 0)))
-          (aref ary (the fixnum (+ (the fixnum (* i 3)) 1)))
-          (aref ary (the fixnum (+ (the fixnum (* i 3)) 2)))))
+  (values (aref array (the fixnum (+ (the fixnum (* i 3)) 0)))
+          (aref array (the fixnum (+ (the fixnum (* i 3)) 1)))
+          (aref array (the fixnum (+ (the fixnum (* i 3)) 2)))))
 
-(defmacro set-vec3-array ((ary i) x y z)
+(defmacro set-vec3-array ((array i) x y z)
   ;; for fast write
-  `(%set-vec3-array ,ary ,i ,x ,y ,z))
+  `(%set-vec3-array ,array ,i ,x ,y ,z))
 
 (declaim (inline %set-vec3-array))
-(defun %set-vec3-array (ary i x y z)
+(defun %set-vec3-array (array i x y z)
   (declare (optimize (speed 3) (safety 0)))
-  (declare (type vec3-array ary)
+  (declare (type vec3-array array)
            (type fixnum i))
-  (setf (aref ary (the fixnum (+ (the fixnum (* i 3)) 0))) x
-        (aref ary (the fixnum (+ (the fixnum (* i 3)) 1))) y
-        (aref ary (the fixnum (+ (the fixnum (* i 3)) 2))) z))
+  (setf (aref array (the fixnum (+ (the fixnum (* i 3)) 0))) x
+        (aref array (the fixnum (+ (the fixnum (* i 3)) 1))) y
+        (aref array (the fixnum (+ (the fixnum (* i 3)) 2))) z))
 
 
 ;;;
 ;;; Abstract array structure
 ;;;
 
-(defun alloc-array (n array-type)
-  (ecase array-type
-    (:gpu         (list :gpu         (alloc-memory-block 'float4 n)))
-    (:gpu/interop (list :gpu/interop (alloc-memory-block 'float4 n :interop t)))
-    (:cpu         (list :cpu         (make-vec3-array n)))))
+(defun alloc-array (n gpu interop)
+  (unless (not (and (null gpu) interop))
+    (error "Interoperability is available on GPU only."))
+  (cond
+    ((and gpu interop)
+     (list :gpu/interop (cl-cuda-interop:alloc-memory-block 'float4 n)))
+    (gpu (list :gpu (cl-cuda:alloc-memory-block 'float4 n)))
+    (t (list :cpu (make-vec3-array n)))))
 
-(defun free-array (ary)
-  (ecase (array-type ary)
-    (:gpu         (free-memory-block (raw-array ary)))
-    (:gpu/interop (free-memory-block (raw-array ary)))
-    (:cpu         nil)))
+(defun free-array (array)
+  (ecase (array-type array)
+    (:gpu/interop (cl-cuda-interop:free-memory-block (raw-array array)))
+    (:gpu (free-memory-block (raw-memory array)))
+    (:cpu nil)))
 
-(defun array-ref (ary i)
-  (destructuring-bind (type raw-ary) ary
+(defun array-aref (array i)
+  (let ((type (array-type array))
+        (raw-array (raw-array array)))
     (ecase type
-      ((:gpu :gpu/interop)
-            (let ((x (mem-aref raw-ary i)))
-              (values (float4-x x) (float4-y x) (float4-z x) (float4-w x))))
-      (:cpu (values (vec3-aref raw-ary i :x)
-                    (vec3-aref raw-ary i :y)
-                    (vec3-aref raw-ary i :z)
-                    1.0)))))
+      (:gpu/interop
+       (let ((x (cl-cuda-interop:memory-block-aref raw-array i)))
+         (values (float4-x x) (float4-y x) (float4-z x) (float4-w x))))
+      (:gpu
+       (let ((x (cl-cuda:memory-block-aref raw-array i)))
+         (values (flaot4-x x) (float4-y x) (float4-z x) (float4-w x))))
+      (:cpu
+       (values (vec3-aref raw-array i :x)
+               (vec3-aref raw-array i :y)
+               (vec3-aref raw-array i :z)
+               1.0)))))
 
-(defun (setf array-ref) (val ary i)
+(defun (setf array-ref) (val array i)
   (destructuring-bind (x y z w) val
-    (destructuring-bind (type raw-ary) ary
+    (let ((type (array-type array))
+          (raw-array (raw-array array)))
       (ecase type
-        ((:gpu :gpu/interop)
-              (setf (mem-aref raw-ary i) (make-float4 x y z w)))
-        (:cpu (setf (vec3-aref raw-ary i :x) x
-                    (vec3-aref raw-ary i :y) y
-                    (vec3-aref raw-ary i :z) z))))))
+        (:gpu/interop (setf (cl-cuda-interop:memory-block-aref raw-array i)
+                            (make-float4 x y z w)))
+        (:gpu (setf (cl-cuda:memory-block-aref raw-array i)
+                    (make-float4 x y z w)))
+        (:cpu (setf (vec3-aref raw-array i :x) x
+                    (vec3-aref raw-array i :y) y
+                    (vec3-aref raw-array i :z) z))))))
 
-(defun array-type (ary)
-  (car ary))
+(defun array-type (array)
+  (car array))
 
-(defun raw-array (ary)
-  (cadr ary))
+(defun raw-array (array)
+  (cadr array))
 
-(defun memcpy-array-host-to-device (ary)
-  (ecase (array-type ary)
-    ((:gpu :gpu/interop) (memcpy-host-to-device (raw-array ary)))
-    (:cpu (error "invalid array type: cpu"))))
-
-(defun memcpy-array-device-to-host (ary)
-  (ecase (array-type ary)
-    ((:gpu :gpu/interop) (memcpy-device-to-host (raw-array ary)))
-    (:cpu (error "invalid array type: cpu"))))
+(defun sync-array (array direction)
+  (let ((type (array-type array))
+        (raw-array (raw-array array)))
+    (ecase (array-type array)
+      (:gpu/interop (cl-cuda-interop:sync-memory-block raw-array direction))
+      (:gpu (cl-cuda:sync-memory-block raw-array direction)))))
 
 
 ;;;
@@ -244,18 +253,18 @@
            (type single-float delta-time damping)
            (type vec3-array new-pos old-pos vel))
   (dotimes (i total-num-bodies)
-    (with-vec3-array-values ((x1 y1 z1) (old-pos i))
+    (with-vec3-array-values ((x1 y1 z1) old-pos i)
       (dotimes (j total-num-bodies)
-        (with-vec3-array-values ((x2 y2 z2) (old-pos j))
+        (with-vec3-array-values ((x2 y2 z2) old-pos j)
           (when (/= i j)
             (multiple-value-bind (ax ay az) (body-body-interaction-cpu x1 y1 z1 x2 y2 z2)
               (declare (type single-float ax ay az))
               (let ((k (* delta-time damping)))
-                (with-vec3-array-values ((vx vy vz) (vel i))
+                (with-vec3-array-values ((vx vy vz) vel i)
                   (set-vec3-array (vel i) (+ vx (* ax k))
                                           (+ vy (* ay k))
                                           (+ vz (* az k)))))))))
-      (with-vec3-array-values ((vx vy vz) (vel i))
+      (with-vec3-array-values ((vx vy vz) vel i)
         (set-vec3-array (new-pos i) (+ x1 (* vx delta-time))
                                     (+ y1 (* vy delta-time))
                                     (+ z1 (* vz delta-time)))))))
@@ -304,9 +313,9 @@
     ;; swap buffers
     (glut:swap-buffers)
     ;; display frame rate
-    (measure-frame-rate counter)
-    (display-frame-rate (nbody-demo-num-bodies nbody-demo)
-                        (get-frame-rate counter))))
+    (measure-framerate counter)
+    (display-framerate (nbody-demo-num-bodies nbody-demo)
+                       (get-framerate counter))))
 
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
@@ -337,7 +346,7 @@
 (let ((fps-count 0)
       (fps-limit 5)
       (template "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"))
-  (defun display-frame-rate (num-bodies fps)
+  (defun display-framerate (num-bodies fps)
     (incf fps-count)
     (when (>= fps-count fps-limit)
       (multiple-value-bind (interactions-per-second gflops)
@@ -349,39 +358,36 @@
 
 
 ;;;
-;;; Frame rate counter
+;;; Framerate counter
 ;;;
 
-(defstruct (frame-rate-counter :conc-name)
-  timer
+(defstruct (framerate-counter (:constructor %make-framerate-counter))
+  (timer :timer :read-only t)
   (fps-count 0)
   (fps-limit 5)
   (fps       0))
 
-(defmacro with-frame-rate-counter ((var) &body body)
-  `(let (,var)
-     (unwind-protect
-          (progn (setf ,var (init-frame-rate-counter))
-                 ,@body)
-       (release-frame-rate-counter ,var))))
+(defun init-framerate-counter ()
+  (let ((timer (create-timer)))
+    (start-timer timer)
+    (%make-framerate-counter :timer timer)))
 
-(defun init-frame-rate-counter ()
-  (let ((counter (make-frame-rate-counter)))
-    (setf (timer counter) (create-timer))
-    (start-timer (timer counter))
-    counter))
+(defun release-framerate-counter (counter)
+  (destroy-timer (framerate-counter-timer counter)))
 
-(defun release-frame-rate-counter (counter)
-  (destroy-timer (timer counter)))
+(defmacro with-framerate-counter ((var) &body body)
+  `(let ((,var (init-framerate-counter)))
+     (unwind-protect (progn ,@body)
+       (release-framerate-counter ,var))))
 
-(defun get-frame-rate (counter)
-  (fps counter))
+(defun get-framerate (counter)
+  (framerate-counter-fps counter))
 
-(defun measure-frame-rate (counter)
-  (symbol-macrolet ((timer     (timer counter))
-                    (fps-count (fps-count counter))
-                    (fps-limit (fps-limit counter))
-                    (fps       (fps counter)))
+(defun measure-framerate (counter)
+  (symbol-macrolet ((timer (framerate-counter-timer counter))
+                    (fps-count (framerate-counter-fps-count counter))
+                    (fps-limit (framerate-counter-fps-limit counter))
+                    (fps (framerate-counter-fps counter)))
     (incf fps-count)
     (when (>= fps-count fps-limit)
       (let ((milliseconds (/ (get-elapsed-time timer) fps-count)))
@@ -394,83 +400,61 @@
 ;;; NBody Demo
 ;;;
 
-(defun unlines (&rest string-list)
-  "Concatenates a list of strings and puts newlines between the elements."
-  (format nil "~{~A~%~}" string-list))
-
-(defparameter +vertex-shader+
-  (unlines "void main()                                                            "
-           "{                                                                      "
-           "    float pointSize = 500.0 * gl_Point.size;                           "
-           "    vec4 vert = gl_Vertex;                                             "
-           "    vert.w = 1.0;                                                      "
-           "    vec3 pos_eye = vec3 (gl_ModelViewMatrix * vert);                   "
-           "    gl_PointSize = max(1.0, pointSize / (1.0 - pos_eye.z));            "
-           "    gl_TexCoord[0] = gl_MultiTexCoord0;                                "
-           ;"    gl_TexCoord[1] = gl_MultiTexCoord1;                                "
-           "    gl_Position = ftransform();                                        "
-           "    gl_FrontColor = gl_Color;                                          "
-           "    gl_FrontSecondaryColor = gl_SecondaryColor;                        "
-           "}                                                                      "))
-
-(defparameter +pixel-shader+
-  (unlines "uniform sampler2D splatTexture;                                        "
-           "void main()                                                            "
-           "{                                                                      "
-           "    vec4 color2 = gl_SecondaryColor;                                   "
-           "    vec4 color = (0.6 + 0.4 * gl_Color) * texture2D(splatTexture, gl_TexCoord[0].st);"
-           "    gl_FragColor =                                                     "
-           "         color * color2;" ;mix(vec4(0.1, 0.0, 0.0, color.w), color2, color.w);"
-           "}                                                                      "))
-
-(defstruct (nbody-demo :conc-name)
+(defstruct (nbody-demo (:constructor %make-nbody-demo))
   system renderer)
 
-(defmacro with-nbody-demo ((var num-bodies &key (gpu t) (interop nil)) &body body)
-  `(let (,var)
-     (unwind-protect
-        (progn
-          (setf ,var (init-nbody-demo ,num-bodies :gpu ,gpu :interop ,interop))
-          ,@body)
-       (release-nbody-demo ,var))))
-
 (defun init-nbody-demo (num-bodies &key (gpu t) (interop nil))
-  (let ((demo (make-nbody-demo)))
-    (setf (system   demo) (init-body-system num-bodies :gpu gpu :interop interop)
-          (renderer demo) (init-particle-renderer))
-    demo))
+  (let ((system (init-body-system num-bodies :gpu gpu :interop interop))
+        (renderer (init-particle-renderer)))
+    ;; Reset body system
+    (reset-body-system system)
+    ;; Synchronize memory form host to device
+    (when (body-system-gpu system)
+      (sync-body-system system :host-to-device))
+    ;; Make NBody demo
+    (%make-nbody-demo :system system :renderer renderer)))
 
 (defun release-nbody-demo (demo)
-  (let ((renderer (renderer demo))
-        (system   (system demo)))
-    (release-particle-renderer renderer)
-    (release-body-system system)))
+  (release-particle-renderer (nbody-demo-renderer demo))
+  (release-nbody-system (nbody-demo-system demo)))
+
+(defmacro with-nbody-demo ((var num-bodies &key (gpu t) (interop nil))
+                           &body body)
+  `(let ((,var (init-nbody-demo ,num-bodies :gpu ,gpu :interop ,interop)))
+     (unwind-protect (progn ,@body)
+       (release-nbody-demo ,var))))
 
 (defun update-nbody-demo (demo)
-  (update-body-system (system demo)))
+  (update-body-system (nbody-demo-system demo)))
 
 (defun display-nbody-demo (demo)
-  (let ((renderer   (renderer demo))
-        (system     (system   demo)))
-    (let ((pos        (old-pos system))
-          (num-bodies (num-bodies system)))
+  (let ((system (nbody-demo-system demo))
+        (renderer (nbody-demo-renderer demo)))
+    (let ((pos (body-system-old-pos system))
+          (num-bodies (body-system-num-bodies system)))
       (display-particle-renderer renderer pos num-bodies :particle-sprites))))
 
 (defun nbody-demo-num-bodies (demo)
-  (num-bodies (system demo)))
+  (body-system-num-bodies (nbody-demo-system demo)))
 
 
 ;;;
 ;;; Body System
 ;;;
 
-(defstruct (body-system :conc-name)
+(defstruct (body-system (:constructor %make-body-system))
   ;; CUDA device ID
-  (dev-id         0     :read-only t)
-  ;; memory blocks
-  new-pos old-pos vel
-  ;; simulation parameters
-  (num-bodies     0)
+  (dev-id :dev-id :read-only t)
+  ;; Memory blocks
+  (new-pos :new-pos)                    ; Not read-only to flip
+  (old-pos :old-pos)
+  (vel :vel :read-only t)
+  ;; Flags
+  (gpu :gpu :read-only t)
+  (interop :interop :read-only t)
+  ;; Number of bodies
+  (num-bodies :num-bodies :read-only t)
+  ;; Simulation parameters
   (delta-time     0.016 :read-only t)
   (damping        1.0   :read-only t)
   (p              256   :read-only t)
@@ -478,101 +462,122 @@
   (velocity-scale 2.64  :read-only t))
 
 (defun init-body-system (num-bodies &key (gpu t) (interop nil))
-  (when (and (null gpu) interop)
-    (error "Interoperability is available only on GPU"))
-  (let ((system (make-body-system)))
-    (setf (num-bodies system) num-bodies)
-    (init-cuda-context 0 :interop t)
-    (init-memory-blocks system gpu interop)
-    (reset-body-system system)
-    (when gpu
-      (memcpy-array-host-to-device (old-pos system))
-      (memcpy-array-host-to-device (vel system)))
-    system))
-
-(defun lookup-array-type (gpu interop)
-  (if gpu
-      (if interop
-          :gpu/interop
-          :gpu)
-      (if interop
-          (error "Interoperability is available only on GPU")
-          :cpu)))
-
-(defun init-memory-blocks (system gpu interop)
-  (symbol-macrolet ((new-pos    (new-pos system))
-                    (old-pos    (old-pos system))
-                    (vel        (vel system))
-                    (num-bodies (num-bodies system)))
-    (let ((array-type (lookup-array-type gpu interop)))
-      (setf new-pos (alloc-array num-bodies array-type)
-            old-pos (alloc-array num-bodies array-type)
-            vel     (alloc-array num-bodies array-type)))))
+  (unless (not (and (null gpu) interop))
+    (error "Interoperability is available on GPU only."))
+  (let ((dev-id 0))
+    ;; Initialize CUDA context
+    (if interop
+        (cl-cuda-interop:init-cuda-context dev-id)
+        (cl-cuda:init-cuda-context dev-id))
+    ;; Make body system
+    (let ((new-pos (alloc-array num-bodies gpu interop))
+          (old-pos (alloc-array num-bodies gpu interop))
+          (vel (alloc-array num-bodies gpu interop)))
+      (make-body-system :dev-id dev-id
+                        :new-pos new-pos
+                        :old-pos old-pos
+                        :vel vel
+                        :gpu gpu
+                        :interop interop
+                        :num-bodies num-bodies))))
 
 (defun release-body-system (system)
-  (release-memory-blocks system)
+  (free-array (body-system-new-pos system))
+  (free-array (body-system-old-pos system))
+  (free-array (body-system-vel system))
   (release-cuda-context))
 
-(defun release-memory-blocks (system)
-  (free-array (vel     system))
-  (free-array (old-pos system))
-  (free-array (new-pos system)))
-
 (defun reset-body-system (system)
-  (let ((old-pos        (old-pos system))
-        (vel            (vel system))
-        (cluster-scale  (cluster-scale system))
-        (velocity-scale (velocity-scale system))
-        (num-bodies     (num-bodies system)))
+  (let ((old-pos (body-system-old-pos system))
+        (vel (body-system-vel system))
+        (cluster-scale (body-system-cluster-scale system))
+        (velocity-scale (body-system-velocity-scale system))
+        (num-bodies (body-system-num-bodies system)))
     (randomize-bodies old-pos vel cluster-scale velocity-scale num-bodies)))
 
+(defun sync-body-system (system)
+  (sync-array (body-system-new-pos system) :host-to-device)
+  (sync-array (body-system-old-pos system) :host-to-device)
+  (sync-array (body-system-vel system) :host-to-device))
+
 (defun update-body-system (system)
-  (symbol-macrolet ((new-pos    (new-pos system))
-                    (old-pos    (old-pos system)))
-    (let ((vel        (vel system))
-          (delta-time (delta-time system))
-          (damping    (damping system))
-          (num-bodies (num-bodies system))
-          (p          (p system)))
-      (ecase (array-type new-pos)
-        ((:gpu :gpu/interop)
-         (integrate-nbody-system-gpu new-pos old-pos vel delta-time damping num-bodies p))
-        (:cpu
-         (integrate-nbody-system-cpu new-pos old-pos vel delta-time damping num-bodies)))
-      (rotatef new-pos old-pos))))
+  ;; Integrate NBody system
+  (let ((new-pos (body-system-new-pos system))
+        (old-pos (body-system-old-pos system))
+        (vel (body-system-vel system))
+        (delta-time (body-system-delta-time system))
+        (damping (body-system-damping system))
+        (num-bodies (body-system-num-bodies system)))
+    (if (body-system-gpu system)
+        (integrate-nbody-system-gpu new-pos old-pos vel
+                                    delta-time damping num-bodies p)
+        (integrate-nbody-system-cpu new-pos old-pos vel
+                                    delta-time damping num-bodies)))
+  ;; Flip position arrays
+  (symbol-macrolet ((new-pos (body-system-new-pos system))
+                    (old-pos (body-system-old-pos system)))
+    (rotatef new-pos old-pos)))
 
 
 ;;;
 ;;; Particle renderer
 ;;;
 
-(defstruct (particle-renderer :conc-name)
+(defparameter +vertex-shader+
+  (cl-cuda.lang.util:unlines
+    "void main()                                                            "
+    "{                                                                      "
+    "    float pointSize = 500.0 * gl_Point.size;                           "
+    "    vec4 vert = gl_Vertex;                                             "
+    "    vert.w = 1.0;                                                      "
+    "    vec3 pos_eye = vec3 (gl_ModelViewMatrix * vert);                   "
+    "    gl_PointSize = max(1.0, pointSize / (1.0 - pos_eye.z));            "
+    "    gl_TexCoord[0] = gl_MultiTexCoord0;                                "
+    ;"    gl_TexCoord[1] = gl_MultiTexCoord1;                                "
+    "    gl_Position = ftransform();                                        "
+    "    gl_FrontColor = gl_Color;                                          "
+    "    gl_FrontSecondaryColor = gl_SecondaryColor;                        "
+    "}                                                                      "))
+
+(defparameter +pixel-shader+
+  (cl-cuda.lang.util:unlines
+     "uniform sampler2D splatTexture;                                        "
+     "void main()                                                            "
+     "{                                                                      "
+     "    vec4 color2 = gl_SecondaryColor;                                   "
+     "    vec4 color = (0.6 + 0.4 * gl_Color) * texture2D(splatTexture, gl_TexCoord[0].st);"
+     "    gl_FragColor =                                                     "
+     "         color * color2;" ;mix(vec4(0.1, 0.0, 0.0, color.w), color2, color.w);"
+     "}                                                                      "))
+
+(defstruct (particle-renderer (:constructor %make-particle-renderer))
   ;; for rendering
   (point-size  1.0                :read-only t)
   (sprite-size 2.0                :read-only t)
   (base-color  #(1.0 0.6 0.3 1.0) :read-only t)
-  ;; for shaders
+  ;; for shader
   program vertex-shader pixel-shader
   ;; for texture
   texture texture-data)
 
 (defun init-particle-renderer ()
-  (let ((renderer (make-particle-renderer)))
-    (init-shaders renderer)
+  (let ((renderer (%make-particle-renderer)))
+    (init-shader renderer)
     (create-texture renderer 32)
     renderer))
 
-(defun init-shaders (renderer)
-  (symbol-macrolet ((program       (program       renderer))
-                    (vertex-shader (vertex-shader renderer))
-                    (pixel-shader  (pixel-shader  renderer)))
+(defun init-shader (renderer)
+  (symbol-macrolet
+      ((program (particle-renderer-program renderer))
+       (vertex-shader (particle-renderer-vertex-shader renderer))
+       (pixel-shader (particle-renderer-pixel-shader renderer)))
     ;; create shader objects
     (setf vertex-shader (gl:create-shader :vertex-shader)
-          pixel-shader  (gl:create-shader :fragment-shader))
+          pixel-shader (gl:create-shader :fragment-shader))
     ;; set shader source codes
     (gl:shader-source vertex-shader +vertex-shader+)
-    (gl:shader-source pixel-shader  +pixel-shader+)
-    ;; compile source codes
+    (gl:shader-source pixel-shader +pixel-shader+)
+    ;; compile shader source codes
     (gl:compile-shader vertex-shader)
     (gl:compile-shader pixel-shader)
     ;; create an empty program object
@@ -584,10 +589,12 @@
     (gl:link-program program)))
 
 (defun create-texture (renderer resolution)
-  (symbol-macrolet ((texture-data (texture-data renderer))
-                    (texture      (texture      renderer)))
-    ;; prepare texture ata
-    (setf texture-data (cffi:foreign-alloc :unsigned-char :count (* 4 resolution resolution)))
+  (symbol-macrolet ((texture-data (particle-renderer-texture-data renderer))
+                    (texture (particle-renderer-texture renderer)))
+    ;; prepare texture data
+    (setf texture-data (cffi:foreign-alloc :unsigned-char
+                                           :count (* 4 resolution
+                                                       resolution)))
     (create-gaussian-map texture-data resolution)
     ;; generate texture
     (setf texture (first (gl:gen-textures 1)))
@@ -600,21 +607,21 @@
 
 (defun release-particle-renderer (renderer)
   (destroy-texture renderer)
-  (release-shaders renderer))
+  (release-shader renderer))
 
-(defun release-shaders (renderer)
+(defun release-shader (renderer)
   (declare (ignorable renderer))
   (values))
 
 (defun destroy-texture (renderer)
-  (cffi:foreign-free (texture-data renderer)))
+  (cffi:foreign-free (particle-renderer-texture-data renderer)))
 
 (defun display-particle-renderer (renderer pos num-bodies mode)
-  (let ((point-size  (point-size  renderer))
-        (sprite-size (sprite-size renderer))
-        (program     (program     renderer))
-        (texture     (texture     renderer))
-        (base-color  (base-color  renderer)))
+  (let ((point-size  (particle-renderer-point-size  renderer))
+        (sprite-size (particle-renderer-sprite-size renderer))
+        (program     (particle-renderer-program     renderer))
+        (texture     (particle-renderer-texture     renderer))
+        (base-color  (particle-renderer-base-color  renderer)))
     (ecase mode
       (:particle-points
         (gl:color 1.0 1.0 1.0)
@@ -650,7 +657,7 @@
 (defun draw-points (pos num-bodies)
   (ecase (array-type pos)
     (:cpu (draw-points-host pos num-bodies))
-    (:gpu (memcpy-array-device-to-host pos)
+    (:gpu (sync-array pos :device-to-host)
           (draw-points-host pos num-bodies))
     (:gpu/interop
           (draw-points-interop pos num-bodies))))
@@ -786,11 +793,7 @@
         (window (make-instance 'nbody-window)))
     (glut:display-window window) ; GLUT window must be created before initializing nbody-demo
     (with-nbody-demo (demo 2048 :gpu gpu :interop interop)
-      (with-frame-rate-counter (counter)
+      (with-framerate-counter (counter)
         (setf (slot-value window 'nbody-demo) demo
               (slot-value window 'counter)    counter)
         (glut:main-loop)))))
-
-
-(defun not-implemented ()
-  (error "not implemented."))
