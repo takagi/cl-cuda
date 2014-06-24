@@ -16,6 +16,5 @@
   :components ((:module "interop/t"
                 :serial t
                 :components
-                ((:file "package-interop")
-                 (:file "test-cl-cuda-interop"))))
+                ((:file "cl-cuda-interop"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
