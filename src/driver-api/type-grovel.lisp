@@ -16,7 +16,7 @@
 
 
 ;;;
-;;; Data types
+;;; Types
 ;;;
 
 (ctype cu-result "CUresult")
