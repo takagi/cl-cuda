@@ -15,7 +15,7 @@
            :device-compute-capability
            ;; CUDA context
            :create-cuda-context
-           :destory-cuda-context
+           :destroy-cuda-context
            :synchronize-context
            ;; WITH-CUDA macro
            :*cuda-device*
