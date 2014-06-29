@@ -16,6 +16,7 @@
            :alloc-host-memory
            :free-host-memory
            :with-host-memory
+           :host-memory-aref
            ;; Memcpy
            :memcpy-host-to-device
            :memcpy-device-to-host
