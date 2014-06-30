@@ -26,7 +26,7 @@
                   ((:file "package")
                    (:file "get-error-string")
                    (:file "cffi-grovel")
-                   (:file "load")
+                   (:file "library")
                    (cffi-grovel:grovel-file "type-grovel")
                    (cffi-grovel:grovel-file "enum-grovel")
                    (:file "function")))
