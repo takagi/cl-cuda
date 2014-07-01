@@ -61,13 +61,7 @@
             (make-float4 1.0 1.0 1.0 1.0))
       (is (cl-cuda-interop:memory-block-aref x 0)
           (make-float4 1.0 1.0 1.0 1.0)
-          :test #'float4-=))
-    ;; exceptional cases
-    (cl-cuda-interop:with-memory-block (x 'int 1)
-      (is-error (cl-cuda-interop:memory-block-aref x -1) simple-error)
-      (is-error (setf (cl-cuda-interop:memory-block-aref x -1) 0) simple-error)
-      (is-error (cl-cuda-interop:memory-block-aref x 1) simple-error)
-      (is-error (setf (cl-cuda-interop:memory-block-aref x 1) 0) simple-error)))
+          :test #'float4-=)))
   
   ;; test SET statement on memory-block with OpenGL interoperability
   (defkernel test-memcpy (void ((x int*) (y float*) (z float3*)))

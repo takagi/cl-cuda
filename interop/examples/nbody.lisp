@@ -10,7 +10,6 @@
 (in-package :cl-user)
 (defpackage cl-cuda-interop-examples.nbody
   (:use :cl
-        :cl-cuda
         :cl-cuda-interop)
   (:export :main))
 (in-package :cl-cuda-interop-examples.nbody)
@@ -87,10 +86,10 @@
 (defun free-array (array)
   (ecase (array-type array)
     (:gpu/interop (cl-cuda-interop:free-memory-block (raw-array array)))
-    (:gpu (free-memory-block (raw-memory array)))
+    (:gpu (cl-cuda:free-memory-block (raw-array array)))
     (:cpu nil)))
 
-(defun array-aref (array i)
+(defun array-ref (array i)
   (let ((type (array-type array))
         (raw-array (raw-array array)))
     (ecase type
@@ -99,7 +98,7 @@
          (values (float4-x x) (float4-y x) (float4-z x) (float4-w x))))
       (:gpu
        (let ((x (cl-cuda:memory-block-aref raw-array i)))
-         (values (flaot4-x x) (float4-y x) (float4-z x) (float4-w x))))
+         (values (float4-x x) (float4-y x) (float4-z x) (float4-w x))))
       (:cpu
        (values (vec3-aref raw-array i :x)
                (vec3-aref raw-array i :y)
@@ -126,9 +125,9 @@
   (cadr array))
 
 (defun sync-array (array direction)
-  (let ((type (array-type array))
+  (let ((array-type (array-type array))
         (raw-array (raw-array array)))
-    (ecase (array-type array)
+    (ecase array-type
       (:gpu/interop (cl-cuda-interop:sync-memory-block raw-array direction))
       (:gpu (cl-cuda:sync-memory-block raw-array direction)))))
 
@@ -146,7 +145,7 @@
                       (* (float3-y r) (float3-y r))
                       (* (float3-z r) (float3-z r))
                       softening-squared))
-         (inv-dist (rsqrtf dist-sqr))
+         (inv-dist (rsqrt dist-sqr))
          (inv-dist-cube (* inv-dist inv-dist inv-dist))
          (s (* (float4-w bj) inv-dist-cube)))
     (set (float3-x ai) (+ (float3-x ai) (* (float3-x r) s)))
@@ -390,8 +389,11 @@
                     (fps (framerate-counter-fps counter)))
     (incf fps-count)
     (when (>= fps-count fps-limit)
-      (let ((milliseconds (/ (get-elapsed-time timer) fps-count)))
-        (setf fps       (/ 1.0 (/ milliseconds 1000.0))
+      (stop-timer timer)
+      (synchronize-timer timer)
+      (let ((milliseconds (/ (elapsed-time timer) fps-count)))
+        (start-timer timer)
+        (setf fps (/ 1.0 (/ milliseconds 1000.0))
               fps-count 0
               fps-limit (max fps 1.0))))))
 
@@ -416,7 +418,7 @@
 
 (defun release-nbody-demo (demo)
   (release-particle-renderer (nbody-demo-renderer demo))
-  (release-nbody-system (nbody-demo-system demo)))
+  (release-body-system (nbody-demo-system demo)))
 
 (defmacro with-nbody-demo ((var num-bodies &key (gpu t) (interop nil))
                            &body body)
@@ -443,8 +445,9 @@
 ;;;
 
 (defstruct (body-system (:constructor %make-body-system))
-  ;; CUDA device ID
+  ;; CUDA info
   (dev-id :dev-id :read-only t)
+  (context :context :read-only t)
   ;; Memory blocks
   (new-pos :new-pos)                    ; Not read-only to flip
   (old-pos :old-pos)
@@ -457,7 +460,7 @@
   ;; Simulation parameters
   (delta-time     0.016 :read-only t)
   (damping        1.0   :read-only t)
-  (p              256   :read-only t)
+  (block-dim      256   :read-only t)
   (cluster-scale  1.56  :read-only t)
   (velocity-scale 2.64  :read-only t))
 
@@ -465,27 +468,30 @@
   (unless (not (and (null gpu) interop))
     (error "Interoperability is available on GPU only."))
   (let ((dev-id 0))
+    ;; Initialize CUDA
+    (init-cuda)
     ;; Initialize CUDA context
-    (if interop
-        (cl-cuda-interop:init-cuda-context dev-id)
-        (cl-cuda:init-cuda-context dev-id))
-    ;; Make body system
-    (let ((new-pos (alloc-array num-bodies gpu interop))
-          (old-pos (alloc-array num-bodies gpu interop))
-          (vel (alloc-array num-bodies gpu interop)))
-      (make-body-system :dev-id dev-id
-                        :new-pos new-pos
-                        :old-pos old-pos
-                        :vel vel
-                        :gpu gpu
-                        :interop interop
-                        :num-bodies num-bodies))))
+    (let ((context (if interop
+                       (cl-cuda-interop:create-cuda-context dev-id)
+                       (cl-cuda:create-cuda-context dev-id))))
+      ;; Make body system
+      (let ((new-pos (alloc-array num-bodies gpu interop))
+            (old-pos (alloc-array num-bodies gpu interop))
+            (vel (alloc-array num-bodies gpu interop)))
+        (%make-body-system :dev-id dev-id
+                           :context context
+                           :new-pos new-pos
+                           :old-pos old-pos
+                           :vel vel
+                           :gpu gpu
+                           :interop interop
+                           :num-bodies num-bodies)))))
 
 (defun release-body-system (system)
   (free-array (body-system-new-pos system))
   (free-array (body-system-old-pos system))
   (free-array (body-system-vel system))
-  (release-cuda-context))
+  (destroy-cuda-context (body-system-context system)))
 
 (defun reset-body-system (system)
   (let ((old-pos (body-system-old-pos system))
@@ -495,10 +501,10 @@
         (num-bodies (body-system-num-bodies system)))
     (randomize-bodies old-pos vel cluster-scale velocity-scale num-bodies)))
 
-(defun sync-body-system (system)
-  (sync-array (body-system-new-pos system) :host-to-device)
-  (sync-array (body-system-old-pos system) :host-to-device)
-  (sync-array (body-system-vel system) :host-to-device))
+(defun sync-body-system (system direction)
+  (sync-array (body-system-new-pos system) direction)
+  (sync-array (body-system-old-pos system) direction)
+  (sync-array (body-system-vel system) direction))
 
 (defun update-body-system (system)
   ;; Integrate NBody system
@@ -507,7 +513,8 @@
         (vel (body-system-vel system))
         (delta-time (body-system-delta-time system))
         (damping (body-system-damping system))
-        (num-bodies (body-system-num-bodies system)))
+        (num-bodies (body-system-num-bodies system))
+        (p (body-system-block-dim system)))
     (if (body-system-gpu system)
         (integrate-nbody-system-gpu new-pos old-pos vel
                                     delta-time damping num-bodies p)

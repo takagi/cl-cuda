@@ -19,7 +19,21 @@
   :components ((:module "interop/src"
                 :serial t
                 :components
-                ()))
+                ((:module "driver-api"
+                  :serial t
+                  :components
+                  ((:file "package")
+                   (cffi-grovel:grovel-file "type-grovel")
+                   (cffi-grovel:grovel-file "enum-grovel")
+                   (:file "function")))
+                 (:module "api"
+                  :serial t
+                  :components
+                  ((:file "memory")
+                   (:file "context")
+                   (:file "defkernel")
+                   (:file "api")))
+                 (:file "cl-cuda-interop"))))
   :description ""
   :long-description
   #.(with-open-file (stream (merge-pathnames
