@@ -312,9 +312,8 @@
     ;; swap buffers
     (glut:swap-buffers)
     ;; display frame rate
-    (measure-framerate counter)
-    (display-framerate (nbody-demo-num-bodies nbody-demo)
-                       (get-framerate counter))))
+    (measure-framerate-counter counter)
+    (display-framerate counter (nbody-demo-num-bodies nbody-demo))))
 
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
@@ -335,25 +334,25 @@
 
 (defvar *flops-per-interaction* 20)
 
-(defun compute-perf-stats (num-bodies fps iterations)
-  (let* ((interactions-per-second (/ (* num-bodies num-bodies iterations)
-                                     (/ 1.0 fps)
-                                     1.0e9))
-         (gflops                  (* interactions-per-second *flops-per-interaction*)))
+(defun compute-pref-stats (counter num-bodies interactions)
+  (let* ((interactions-per-second
+           (/ (* num-bodies num-bodies interactions)
+              (/ 1.0 fps)
+              1.0e9))
+         (gflops (* interactions-per-second *flops-per-interaction*)))
     (values interactions-per-second gflops)))
 
-(let ((fps-count 0)
-      (fps-limit 5)
-      (template "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"))
-  (defun display-framerate (num-bodies fps)
-    (incf fps-count)
-    (when (>= fps-count fps-limit)
-      (multiple-value-bind (interactions-per-second gflops)
-          (compute-perf-stats num-bodies fps 1)
-        (format t template num-bodies fps interactions-per-second gflops)
-        (glut:set-window-title (format nil template num-bodies fps interactions-per-second gflops)))
-      (setf fps-count 0
-            fps-limit (max fps 1.0)))))
+(let ((previous 0.0))
+  (defun display-framerate (counter num-bodies)
+    (let ((fps (fps-counter-fps counter)))
+      (when (/= fps previous)
+        (setf previous fps)
+        (multiple-value-bind (interactions-per-second gflops)
+            (compute-pref-stats counter num-bodies 1)
+          (let ((msg (format nil "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"
+                           num-bodies fps interactions-per-second gflops)))
+            (format t msg)
+            (glut:set-window-title msg)))))))
 
 
 ;;;
@@ -364,7 +363,7 @@
   (timer :timer :read-only t)
   (fps-count 0)
   (fps-limit 5)
-  (fps       0))
+  (fps 0.0))
 
 (defun init-framerate-counter ()
   (let ((timer (create-timer)))
@@ -379,23 +378,24 @@
      (unwind-protect (progn ,@body)
        (release-framerate-counter ,var))))
 
-(defun get-framerate (counter)
-  (framerate-counter-fps counter))
-
-(defun measure-framerate (counter)
+(defun measure-framerate-counter (counter)
   (symbol-macrolet ((timer (framerate-counter-timer counter))
+                    (fps (framerate-counter-fps counter))
                     (fps-count (framerate-counter-fps-count counter))
-                    (fps-limit (framerate-counter-fps-limit counter))
-                    (fps (framerate-counter-fps counter)))
+                    (fps-limit (framerate-counter-fps-limit counter)))
+    ;; increment fps-count
     (incf fps-count)
+    ;; compute fps for certain period
     (when (>= fps-count fps-limit)
-      (stop-timer timer)
-      (synchronize-timer timer)
-      (let ((milliseconds (/ (elapsed-time timer) fps-count)))
-        (start-timer timer)
-        (setf fps (/ 1.0 (/ milliseconds 1000.0))
-              fps-count 0
-              fps-limit (max fps 1.0))))))
+      (let* ((elapsed-time (progn
+                             (stop-timer timer)
+                             (synchronize-timer timer)
+                             (prog1 (elapsed-time timer)
+                               (start-timer timer))))
+             (milliseconds (/ elapsed-time fps-count)))
+        (setf fps (/ 1.0 (/ milliseconds 1000.0))))
+      (setf fps-limit (max fps 1.0))
+      (setf fps-count 0))))
 
 
 ;;;
