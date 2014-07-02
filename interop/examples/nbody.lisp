@@ -278,8 +278,7 @@
 ;;;
 
 (defclass nbody-window (glut:window)
-  ((nbody-demo :initarg :nbody-demo)
-   (counter    :initarg :counter))
+  ((nbody-demo :initarg :nbody-demo))
   (:default-initargs :width 640 :height 480 :pos-x 100 :pos-y 100
                      :mode '(:double :rgb) :title "nbody"))
 
@@ -296,7 +295,7 @@
 ;  nil)
 
 (defmethod glut:display ((w nbody-window))
-  (with-slots (nbody-demo counter) w
+  (with-slots (nbody-demo) w
     ;; update simulation
     (update-nbody-demo nbody-demo)
     ;; clear buffers
@@ -312,8 +311,9 @@
     ;; swap buffers
     (glut:swap-buffers)
     ;; display frame rate
-    (measure-framerate-counter counter)
-    (display-framerate counter (nbody-demo-num-bodies nbody-demo))))
+    (nbody-demo-measure-framerate nbody-demo)
+    (display-framerate (nbody-demo-fps nbody-demo)
+                       (nbody-demo-num-bodies nbody-demo))))
 
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
@@ -334,7 +334,7 @@
 
 (defvar *flops-per-interaction* 20)
 
-(defun compute-pref-stats (counter num-bodies interactions)
+(defun compute-pref-stats (fps num-bodies interactions)
   (let* ((interactions-per-second
            (/ (* num-bodies num-bodies interactions)
               (/ 1.0 fps)
@@ -343,20 +343,21 @@
     (values interactions-per-second gflops)))
 
 (let ((previous 0.0))
-  (defun display-framerate (counter num-bodies)
-    (let ((fps (fps-counter-fps counter)))
-      (when (/= fps previous)
-        (setf previous fps)
-        (multiple-value-bind (interactions-per-second gflops)
-            (compute-pref-stats counter num-bodies 1)
-          (let ((msg (format nil "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"
+  (defun display-framerate (fps num-bodies)
+    (when (/= fps previous)
+      (setf previous fps)
+      (multiple-value-bind (interactions-per-second gflops)
+          (compute-pref-stats fps num-bodies 1)
+        (let ((msg (format nil "CUDA N-Body (~A bodies): ~,1F fps | ~,1F BIPS | ~,1F GFLOP/s | single precision~%"
                            num-bodies fps interactions-per-second gflops)))
-            (format t msg)
-            (glut:set-window-title msg)))))))
+          (format t msg)
+          (glut:set-window-title msg))))))
 
 
 ;;;
 ;;; Framerate counter
+;;; * note that since a framerate counter uses CUDA event, it depends on
+;;;   CUDA context
 ;;;
 
 (defstruct (framerate-counter (:constructor %make-framerate-counter))
@@ -372,11 +373,6 @@
 
 (defun release-framerate-counter (counter)
   (destroy-timer (framerate-counter-timer counter)))
-
-(defmacro with-framerate-counter ((var) &body body)
-  `(let ((,var (init-framerate-counter)))
-     (unwind-protect (progn ,@body)
-       (release-framerate-counter ,var))))
 
 (defun measure-framerate-counter (counter)
   (symbol-macrolet ((timer (framerate-counter-timer counter))
@@ -436,8 +432,14 @@
           (num-bodies (body-system-num-bodies system)))
       (display-particle-renderer renderer pos num-bodies :particle-sprites))))
 
+(defun nbody-demo-measure-framerate (demo)
+  (body-system-measure-framerate (nbody-demo-system demo)))
+
 (defun nbody-demo-num-bodies (demo)
   (body-system-num-bodies (nbody-demo-system demo)))
+
+(defun nbody-demo-fps (demo)
+  (body-system-fps (nbody-demo-system demo)))
 
 
 ;;;
@@ -452,6 +454,8 @@
   (new-pos :new-pos)                    ; Not read-only to flip
   (old-pos :old-pos)
   (vel :vel :read-only t)
+  ;; Framerate counter
+  (framerate-counter :framerate-counter :read-only t)
   ;; Flags
   (gpu :gpu :read-only t)
   (interop :interop :read-only t)
@@ -478,16 +482,20 @@
       (let ((new-pos (alloc-array num-bodies gpu interop))
             (old-pos (alloc-array num-bodies gpu interop))
             (vel (alloc-array num-bodies gpu interop)))
-        (%make-body-system :dev-id dev-id
-                           :context context
-                           :new-pos new-pos
-                           :old-pos old-pos
-                           :vel vel
-                           :gpu gpu
-                           :interop interop
-                           :num-bodies num-bodies)))))
+        ;; Make framerate counter
+        (let ((counter (init-framerate-counter)))
+          (%make-body-system :dev-id dev-id
+                             :context context
+                             :new-pos new-pos
+                             :old-pos old-pos
+                             :vel vel
+                             :framerate-counter counter
+                             :gpu gpu
+                             :interop interop
+                             :num-bodies num-bodies))))))
 
 (defun release-body-system (system)
+  (release-framerate-counter (body-system-framerate-counter system))
   (free-array (body-system-new-pos system))
   (free-array (body-system-old-pos system))
   (free-array (body-system-vel system))
@@ -499,7 +507,8 @@
         (cluster-scale (body-system-cluster-scale system))
         (velocity-scale (body-system-velocity-scale system))
         (num-bodies (body-system-num-bodies system)))
-    (randomize-bodies old-pos vel cluster-scale velocity-scale num-bodies)))
+    (randomize-bodies old-pos vel
+                      cluster-scale velocity-scale num-bodies)))
 
 (defun sync-body-system (system direction)
   (sync-array (body-system-new-pos system) direction)
@@ -524,6 +533,12 @@
   (symbol-macrolet ((new-pos (body-system-new-pos system))
                     (old-pos (body-system-old-pos system)))
     (rotatef new-pos old-pos)))
+
+(defun body-system-measure-framerate (system)
+  (measure-framerate-counter (body-system-framerate-counter system)))
+
+(defun body-system-fps (system)
+  (frame-rate-counter-fps (body-system-framerate-counter system)))
 
 
 ;;;
@@ -800,7 +815,5 @@
         (window (make-instance 'nbody-window)))
     (glut:display-window window) ; GLUT window must be created before initializing nbody-demo
     (with-nbody-demo (demo 2048 :gpu gpu :interop interop)
-      (with-framerate-counter (counter)
-        (setf (slot-value window 'nbody-demo) demo
-              (slot-value window 'counter)    counter)
-        (glut:main-loop)))))
+      (setf (slot-value window 'nbody-demo) demo)
+      (glut:main-loop))))
