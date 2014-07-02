@@ -43,14 +43,20 @@
         (cffi-type (argument-cffi-type argument)))
     (if (array-type-p type)
         `(setf (cffi:mem-ref ,var-ptr ',cffi-type)
-               (memory-block-init-device-ptr ,var))
+               (cond
+                 ((cl-cuda-interop:memory-block-p ,var)
+                  (cl-cuda-interop:memory-block-init-device-ptr ,var))
+                 ((cl-cuda:memory-block-p ,var)
+                  (cl-cuda:memory-block-device-ptr ,var))
+                 (t ,var)))
         `(setf (cffi:mem-ref ,var-ptr ',cffi-type) ,var))))
 
 (defun release-foreign-object-form (argument)
   (let ((var (argument-var argument))
         (type (argument-type argument)))
     (if (array-type-p type)
-        `(memory-block-release-device-ptr ,var)
+        `(when (cl-cuda-interop:memory-block-p ,var)
+           (memory-block-release-device-ptr ,var))
         nil)))
 
 (defmacro with-launching-arguments ((var arguments) &body body)
