@@ -44,8 +44,8 @@
     (if (array-type-p type)
         `(setf (cffi:mem-ref ,var-ptr ',cffi-type)
                (cond
-                 ((cl-cuda-interop:memory-block-p ,var)
-                  (cl-cuda-interop:memory-block-init-device-ptr ,var))
+                 ((memory-block-p ,var)
+                  (memory-block-init-device-ptr ,var))
                  ((cl-cuda:memory-block-p ,var)
                   (cl-cuda:memory-block-device-ptr ,var))
                  (t ,var)))
@@ -55,7 +55,7 @@
   (let ((var (argument-var argument))
         (type (argument-type argument)))
     (if (array-type-p type)
-        `(when (cl-cuda-interop:memory-block-p ,var)
+        `(when (memory-block-p ,var)
            (memory-block-release-device-ptr ,var))
         nil)))
 

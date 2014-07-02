@@ -530,13 +530,13 @@
                     (old-pos (body-system-old-pos system)))
     (rotatef new-pos old-pos))
   ;; Measure framerate
-  (body-system-measure-framerate))
+  (body-system-measure-framerate system))
 
 (defun body-system-measure-framerate (system)
   (measure-framerate-counter (body-system-framerate-counter system)))
 
 (defun body-system-fps (system)
-  (frame-rate-counter-fps (body-system-framerate-counter system)))
+  (framerate-counter-fps (body-system-framerate-counter system)))
 
 
 ;;;
