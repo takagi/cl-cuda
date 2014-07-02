@@ -311,7 +311,6 @@
     ;; swap buffers
     (glut:swap-buffers)
     ;; display frame rate
-    (nbody-demo-measure-framerate nbody-demo)
     (display-framerate (nbody-demo-fps nbody-demo)
                        (nbody-demo-num-bodies nbody-demo))))
 
@@ -432,9 +431,6 @@
           (num-bodies (body-system-num-bodies system)))
       (display-particle-renderer renderer pos num-bodies :particle-sprites))))
 
-(defun nbody-demo-measure-framerate (demo)
-  (body-system-measure-framerate (nbody-demo-system demo)))
-
 (defun nbody-demo-num-bodies (demo)
   (body-system-num-bodies (nbody-demo-system demo)))
 
@@ -532,7 +528,9 @@
   ;; Flip position arrays
   (symbol-macrolet ((new-pos (body-system-new-pos system))
                     (old-pos (body-system-old-pos system)))
-    (rotatef new-pos old-pos)))
+    (rotatef new-pos old-pos))
+  ;; Measure framerate
+  (body-system-measure-framerate))
 
 (defun body-system-measure-framerate (system)
   (measure-framerate-counter (body-system-framerate-counter system)))
