@@ -34,14 +34,17 @@
 ;;; WITH-CUDA macro
 ;;;
 
-(defmacro with-cuda ((dev-id) &body body)
+(defmacro with-cuda ((dev-id &key (interop t)) &body body)
   `(progn
      ;; initialize CUDA
      (init-cuda)
      (let* (;; get CUDA device
             (*cuda-device* (get-cuda-device ,dev-id))
             ;; create CUDA context
-            (*cuda-context* (create-cuda-context *cuda-device*)))
+            (*cuda-context*
+              (if ,interop
+                  (create-cuda-context *cuda-device*)
+                  (cl-cuda:create-cuda-context *cuda-device*))))
        (unwind-protect (progn ,@body)
          ;; unload kernel manager
          (kernel-manager-unload *kernel-manager*)
