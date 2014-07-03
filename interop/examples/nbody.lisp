@@ -278,7 +278,8 @@
 ;;;
 
 (defclass nbody-window (glut:window)
-  ((nbody-demo :initarg :nbody-demo))
+  ((nbody-demo :initarg :nbody-demo)
+   (counter :initarg :counter))
   (:default-initargs :width 640 :height 480 :pos-x 100 :pos-y 100
                      :mode '(:double :rgb) :title "nbody"))
 
@@ -295,7 +296,7 @@
 ;  nil)
 
 (defmethod glut:display ((w nbody-window))
-  (with-slots (nbody-demo) w
+  (with-slots (nbody-demo counter) w
     ;; update simulation
     (update-nbody-demo nbody-demo)
     ;; clear buffers
@@ -310,9 +311,11 @@
     (display-nbody-demo nbody-demo)
     ;; swap buffers
     (glut:swap-buffers)
-    ;; display frame rate
-    (display-framerate (nbody-demo-fps nbody-demo)
-                       (nbody-demo-num-bodies nbody-demo))))
+    ;; measure and display frame rate
+    (measure-framerate-counter counter)
+    (let ((fps (framerate-counter-fps counter))
+          (num-bodies (nbody-demo-num-bodies nbody-demo)))
+      (display-framerate fps num-bodies))))
 
 (defmethod glut:reshape ((w nbody-window) width height)
   ;; configure on projection mode
@@ -372,6 +375,11 @@
 
 (defun release-framerate-counter (counter)
   (destroy-timer (framerate-counter-timer counter)))
+
+(defmacro with-framerate-counter ((var) &body body)
+  `(let ((,var (init-framerate-counter)))
+     (unwind-protect (progn ,@body)
+       (release-framerate-counter ,var))))
 
 (defun measure-framerate-counter (counter)
   (symbol-macrolet ((timer (framerate-counter-timer counter))
@@ -434,24 +442,16 @@
 (defun nbody-demo-num-bodies (demo)
   (body-system-num-bodies (nbody-demo-system demo)))
 
-(defun nbody-demo-fps (demo)
-  (body-system-fps (nbody-demo-system demo)))
-
 
 ;;;
 ;;; Body System
 ;;;
 
 (defstruct (body-system (:constructor %make-body-system))
-  ;; CUDA info
-  (dev-id :dev-id :read-only t)
-  (context :context :read-only t)
   ;; Memory blocks
   (new-pos :new-pos)                    ; Not read-only to flip
   (old-pos :old-pos)
   (vel :vel :read-only t)
-  ;; Framerate counter
-  (framerate-counter :framerate-counter :read-only t)
   ;; Flags
   (gpu :gpu :read-only t)
   (interop :interop :read-only t)
@@ -467,35 +467,21 @@
 (defun init-body-system (num-bodies &key (gpu t) (interop nil))
   (unless (not (and (null gpu) interop))
     (error "Interoperability is available on GPU only."))
-  (let ((dev-id 0))
-    ;; Initialize CUDA
-    (init-cuda)
-    ;; Initialize CUDA context
-    (let ((context (if interop
-                       (cl-cuda-interop:create-cuda-context dev-id)
-                       (cl-cuda:create-cuda-context dev-id))))
-      ;; Make body system
-      (let ((new-pos (alloc-array num-bodies gpu interop))
-            (old-pos (alloc-array num-bodies gpu interop))
-            (vel (alloc-array num-bodies gpu interop)))
-        ;; Make framerate counter
-        (let ((counter (init-framerate-counter)))
-          (%make-body-system :dev-id dev-id
-                             :context context
-                             :new-pos new-pos
-                             :old-pos old-pos
-                             :vel vel
-                             :framerate-counter counter
-                             :gpu gpu
-                             :interop interop
-                             :num-bodies num-bodies))))))
+  ;; Allocate array
+  (let ((new-pos (alloc-array num-bodies gpu interop))
+        (old-pos (alloc-array num-bodies gpu interop))
+        (vel (alloc-array num-bodies gpu interop)))
+    (%make-body-system :new-pos new-pos
+                       :old-pos old-pos
+                       :vel vel
+                       :gpu gpu
+                       :interop interop
+                       :num-bodies num-bodies)))
 
 (defun release-body-system (system)
-  (release-framerate-counter (body-system-framerate-counter system))
   (free-array (body-system-new-pos system))
   (free-array (body-system-old-pos system))
-  (free-array (body-system-vel system))
-  (destroy-cuda-context (body-system-context system)))
+  (free-array (body-system-vel system)))
 
 (defun reset-body-system (system)
   (let ((old-pos (body-system-old-pos system))
@@ -528,15 +514,7 @@
   ;; Flip position arrays
   (symbol-macrolet ((new-pos (body-system-new-pos system))
                     (old-pos (body-system-old-pos system)))
-    (rotatef new-pos old-pos))
-  ;; Measure framerate
-  (body-system-measure-framerate system))
-
-(defun body-system-measure-framerate (system)
-  (measure-framerate-counter (body-system-framerate-counter system)))
-
-(defun body-system-fps (system)
-  (framerate-counter-fps (body-system-framerate-counter system)))
+    (rotatef new-pos old-pos)))
 
 
 ;;;
@@ -809,9 +787,13 @@
 |#
 
 (defun main (&key (gpu t) (interop nil))
-  (let ((glut:*run-main-loop-after-display* nil)
+  (let ((dev-id 0)
+        (glut:*run-main-loop-after-display* nil)
         (window (make-instance 'nbody-window)))
-    (glut:display-window window) ; GLUT window must be created before initializing nbody-demo
-    (with-nbody-demo (demo 2048 :gpu gpu :interop interop)
-      (setf (slot-value window 'nbody-demo) demo)
-      (glut:main-loop))))
+    (glut:display-window window) ; GLUT window must be created before initializing CUDA
+    (with-cuda (dev-id :interop interop)
+      (with-framerate-counter (counter)
+        (with-nbody-demo (demo 2048 :gpu gpu :interop interop)
+          (setf (slot-value window 'nbody-demo) demo
+                (slot-value window 'counter) counter)
+          (glut:main-loop))))))
