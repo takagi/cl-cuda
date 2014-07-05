@@ -13,10 +13,7 @@
   :license "LLGPL"
   :depends-on (:cl-cuda
                :cl-test-more
-               :imago
-               :cl-stopwatch
-               :cl-glu
-               :cl-glut)
+               :imago)
   :components ((:module "examples"
                 :components
                 ((:file "diffuse0")
