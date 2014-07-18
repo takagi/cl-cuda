@@ -36,8 +36,8 @@
            :cuda-type
            ;; Scalar type
            :scalar-type-p
-           ;; Vector type
-           :vector-type-p
+           ;; Structure type
+           :structure-type-p
            ;; Structure accessor
            :structure-accessor-p
            :structure-from-accessor
