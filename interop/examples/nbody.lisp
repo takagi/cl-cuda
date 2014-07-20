@@ -791,9 +791,10 @@
         (glut:*run-main-loop-after-display* nil)
         (window (make-instance 'nbody-window)))
     (glut:display-window window) ; GLUT window must be created before initializing CUDA
-    (with-cuda (dev-id :interop interop)
-      (with-framerate-counter (counter)
-        (with-nbody-demo (demo 2048 :gpu gpu :interop interop)
-          (setf (slot-value window 'nbody-demo) demo
-                (slot-value window 'counter) counter)
-          (glut:main-loop))))))
+    (let ((cl-cuda-interop:*show-messages* nil))
+      (with-cuda (dev-id :interop interop)
+        (with-framerate-counter (counter)
+          (with-nbody-demo (demo 2048 :gpu gpu :interop interop)
+            (setf (slot-value window 'nbody-demo) demo
+                  (slot-value window 'counter) counter)
+            (glut:main-loop)))))))
