@@ -925,21 +925,24 @@
 
 (defparameter *file-name-template* "result~8,'0d.pov")
 
-(defparameter *header* (concatenate 'string
-                                    "#include \"colors.inc\"~%"
-                                    "camera {~%"
-                                    "  location <10, 30, -40>~%"
-                                    "  look_at <10, 10, 0>~%"
-                                    "}~%"
-                                    "light_source { <0, 30, -30> color White }~%"))
+(defparameter *header* "#include \"colors.inc\"
 
-(defparameter *sphere-template* (concatenate 'string
-                                             "sphere {~%"
-                                             "  <~F,~F,~F>,0.5~%"
-                                             "  texture {~%"
-                                             "    pigment { color Yellow }~%"
-                                             "  }~%"
-                                             "}~%"))
+camera {
+  location <10, 30, -40>
+  look_at <10, 10, 0>
+}
+light_source { <0, 30, -30> color White }
+
+")
+
+(defparameter *sphere-template* "sphere {
+  <~F,~F,~F>,0.5
+  texture {
+    pigment { color Yellow }
+  }
+}
+
+")
 
 (defun file-name (i)
   (format nil *file-name-template* i))
