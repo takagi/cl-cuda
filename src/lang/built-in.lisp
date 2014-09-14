@@ -17,6 +17,8 @@
            :curand-init-xorwow
            :curand-uniform-float-xorwow
            :curand-uniform-double-xorwow
+           :curand-normal-float-xorwow
+           :curand-normal-double-xorwow
            ;; Interfaces
            :built-in-function-return-type
            :built-in-function-infix-p
@@ -151,7 +153,11 @@
     curand-uniform-float-xorwow (((curand-state-xorwow*) float nil
                                   "curand_uniform_float_xorwow"))
     curand-uniform-double-xorwow (((curand-state-xorwow*) double nil
-                                   "curand_uniform_double_xorwow"))))
+                                   "curand_uniform_double_xorwow"))
+    curand-normal-float-xorwow (((curand-state-xorwow*) float nil
+                                 "curand_normal_float_xorwow"))
+    curand-normal-double-xorwow (((curand-state-xorwow*) double nil
+                                  "curand_normal_double_xorwow"))))
 
 (defun inferred-function-candidates (name)
   (or (getf +built-in-functions+ name)
