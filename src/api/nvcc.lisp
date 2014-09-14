@@ -62,12 +62,12 @@
   (with-open-file (out cu-path :direction :output :if-exists :supersede)
     (princ cuda-code out)))
 
+(defvar *nvcc-binary* "nvcc"
+  "Set this to an absolute path if your lisp doesn't search PATH.")
+
 (defun print-nvcc-command (cu-path ptx-path)
   (let ((options (get-nvcc-options cu-path ptx-path)))
     (format t "~A~{ ~A~}~%" *nvcc-binary* options)))
-
-(defvar *nvcc-binary* "nvcc"
-  "Set this to an absolute path if your lisp doesn't search PATH.")
 
 (defun run-nvcc-command (cu-path ptx-path)
   (let ((options (get-nvcc-options cu-path ptx-path)))
