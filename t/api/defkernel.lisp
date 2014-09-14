@@ -244,6 +244,23 @@
 
 
 ;;;
+;;; test MOD
+;;;
+(defkernel test-mod (void ((x int*)))
+  (set (aref x 0) (mod (aref x 0) 5)))
+
+(with-cuda (0)
+  (with-memory-blocks ((x 'int 1))
+    (setf (memory-block-aref x 0) 7)
+    (sync-memory-block x :host-to-device)
+    (is (test-mod x :grid-dim '(1 1 1) :block-dim '(1 1 1))
+        nil "basic case 22")
+    (sync-memory-block x :device-to-host)
+    (is (memory-block-aref x 0) 2
+        "basic case 23")))
+
+
+;;;
 ;;; test EXPAND-MACRO function
 ;;;
 

@@ -78,6 +78,7 @@
        ((double  double)  double  t   "/")
        ((double3 double)  double3 nil "double3_scale_inverted")
        ((double4 double)  double4 nil "double4_scale_inverted"))
+    mod (((int    int)    int    t   "%"))
     ;; relational operators
     =    (((int   int)   bool t "==")
           ((float float) bool t "==")
