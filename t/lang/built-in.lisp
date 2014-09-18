@@ -28,6 +28,8 @@
 (is (built-in-function-return-type '- '(int int)) 'int
     "basic case 3")
 
+(is (built-in-function-return-type 'mod '(int int)) 'int
+    "basic case 4")
 
 ;;;
 ;;; test BUILT-IN-FUNCTION-INFIX-P function
@@ -44,6 +46,8 @@
 (is (built-in-function-infix-p '- '(int int)) t
     "basic case 3")
 
+(is (built-in-function-infix-p 'mod '(int int)) t
+    "basic case 4")
 
 ;;;
 ;;; test BUILT-IN-FUNCTION-C-NAME function
@@ -59,6 +63,9 @@
 
 (is (built-in-function-c-name '- '(int int)) "-"
     "basic case 3")
+
+(is (built-in-function-c-name 'mod '(int int)) "%"
+    "basic case 4")
 
 
 (finalize)

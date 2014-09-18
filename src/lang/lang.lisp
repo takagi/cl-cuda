@@ -90,4 +90,6 @@
                           :dot
                           :curand-init-xorwow
                           :curand-uniform-float-xorwow
-                          :curand-uniform-double-xorwow))
+                          :curand-uniform-double-xorwow
+                          :curand-normal-float-xorwow
+                          :curand-normal-double-xorwow))
