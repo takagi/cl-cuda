@@ -381,6 +381,14 @@ In the module-loaded state and function-loaded state, `kernel-manager-unload` fu
 
 The kernel manager is stored in `*kernel-manager*` special variable when cl-cuda is loaded and keeps alive during the Common Lisp process. Usually, you do not need to manage it explicitly.
 
+## Donation
+
+I would appreciate your precious donation.
+
+Since PayPal donation button is out of service in Japan because of legal approval, please donate an [Amazon gift card](https://www.amazon.com/gp/product/B004LLIKVU/gcrnsts?ie=UTF8) ($5, $10, $30, $100 or any) to the author's e-mail (kamonama@gmail.com).
+
+Thanks.
+
 ## Author
 
 * Masayuki Takagi (kamonama@gmail.com)
