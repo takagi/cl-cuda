@@ -19,25 +19,21 @@
 (defclass cuda-grovel-file (cffi-grovel:grovel-file) ())
 
 (defmethod asdf:perform :around ((op cffi-grovel::process-op) (c cuda-grovel-file))
-  ;; Clear *SDK-NOT-FOUND* flag.
-  (let ((s (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API")))
-    (setf (symbol-value s) nil))
-  ;; Call the next method and set the flag if failed.
-  (handler-case (call-next-method op c)
-    (error (e)
-      (let ((s (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API")))
-        (setf (symbol-value s) t)))))
+  ;; Process a grovel file only when CUDA SDK is found.
+  (let ((sdk-not-found (symbol-value (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API"))))
+    (unless sdk-not-found
+      (call-next-method))))
 
 (defmethod asdf:perform :around ((op asdf:compile-op) (c cuda-grovel-file))
-  ;; Call the next method if *SDK-NOT-FOUND* flag is nil.
-  (let ((s (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API")))
-    (unless (symbol-value s)
+  ;; Compile a grovel file only when CUDA SDK is found.
+  (let ((sdk-not-found (symbol-value (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API"))))
+    (unless sdk-not-found
       (call-next-method))))
 
 (defmethod asdf:perform :around ((op asdf:load-op) (c cuda-grovel-file))
-  ;; Call the next method if *SDK-NOT-FOUND* flag is nil.
-  (let ((s (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API")))
-    (unless (symbol-value s)
+  ;; Load a grovel file only when CUDA SDK is found.
+  (let ((sdk-not-found (symbol-value (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API"))))
+    (unless sdk-not-found
       (call-next-method))))
 
 
