@@ -17,6 +17,8 @@
            :curand-init-xorwow
            :curand-uniform-float-xorwow
            :curand-uniform-double-xorwow
+           :curand-normal-float-xorwow
+           :curand-normal-double-xorwow
            ;; Interfaces
            :built-in-function-return-type
            :built-in-function-infix-p
@@ -76,6 +78,7 @@
        ((double  double)  double  t   "/")
        ((double3 double)  double3 nil "double3_scale_inverted")
        ((double4 double)  double4 nil "double4_scale_inverted"))
+    mod (((int    int)    int    t   "%"))
     ;; relational operators
     =    (((int   int)   bool t "==")
           ((float float) bool t "==")
@@ -104,6 +107,18 @@
           ((double) double nil "log"))
     expt   (((float float) float nil "powf")
             ((double double) double nil "pow"))
+    sin  (((float) float nil "sinf")
+          ((double) double nil "sin"))
+    cos  (((float) float nil "cosf")
+          ((double) double nil "cos"))
+    tan  (((float) float nil "tanf")
+          ((double) double nil "tan"))
+    sinh  (((float) float nil "sinhf")
+           ((double) double nil "sinh"))
+    cosh  (((float) float nil "coshf")
+           ((double) double nil "cosh"))
+    tanh  (((float) float nil "tanhf")
+           ((double) double nil "tanh"))
     rsqrt (((float) float nil "rsqrtf")
            ((double) double nil "rsqrt"))
     sqrt   (((float) float nil "sqrtf")
@@ -139,7 +154,11 @@
     curand-uniform-float-xorwow (((curand-state-xorwow*) float nil
                                   "curand_uniform_float_xorwow"))
     curand-uniform-double-xorwow (((curand-state-xorwow*) double nil
-                                   "curand_uniform_double_xorwow"))))
+                                   "curand_uniform_double_xorwow"))
+    curand-normal-float-xorwow (((curand-state-xorwow*) float nil
+                                 "curand_normal_float_xorwow"))
+    curand-normal-double-xorwow (((curand-state-xorwow*) double nil
+                                  "curand_normal_double_xorwow"))))
 
 (defun inferred-function-candidates (name)
   (or (getf +built-in-functions+ name)

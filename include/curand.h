@@ -24,4 +24,14 @@ __device__ double curand_uniform_double_xorwow ( curandStateXORWOW_t *state )
     return curand_uniform_double ( state );
 }
 
+__device__ float curand_normal_float_xorwow ( curandStateXORWOW_t *state )
+{
+    return curand_normal ( state );
+}
+
+__device__ double curand_normal_double_xorwow ( curandStateXORWOW_t *state )
+{
+    return curand_normal_double ( state );
+}
+
 #endif // CL_CUDA_CURAND_H_
