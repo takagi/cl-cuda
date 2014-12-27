@@ -175,6 +175,12 @@ Specifies whether to let cl-cuda show operational messages or not. The default i
 
     (setf *show-messages* nil)
 
+### [Special Variable] \*sdk-not-found\*
+
+Readonly. The value is `nil` if cl-cuda found CUDA SDK when its build, otherwise `t`.
+
+    *sdk-not-found*    ; => nil
+
 ## Kernel Description Language
 
 ### Types

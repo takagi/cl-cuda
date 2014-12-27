@@ -11,6 +11,40 @@
   (:use :cl :asdf))
 (in-package :cl-cuda-asd)
 
+
+;;;
+;;; Cuda-grovel-file ASDF component
+;;;
+
+(defclass cuda-grovel-file (cffi-grovel:grovel-file) ())
+
+(defmethod asdf:perform :around ((op cffi-grovel::process-op) (c cuda-grovel-file))
+  ;; Clear *SDK-NOT-FOUND* flag.
+  (let ((s (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API")))
+    (setf (symbol-value s) nil))
+  ;; Call the next method and set the flag if failed.
+  (handler-case (call-next-method op c)
+    (error (e)
+      (let ((s (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API")))
+        (setf (symbol-value s) t)))))
+
+(defmethod asdf:perform :around ((op asdf:compile-op) (c cuda-grovel-file))
+  ;; Call the next method if *SDK-NOT-FOUND* flag is nil.
+  (let ((s (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API")))
+    (unless (symbol-value s)
+      (call-next-method))))
+
+(defmethod asdf:perform :around ((op asdf:load-op) (c cuda-grovel-file))
+  ;; Call the next method if *SDK-NOT-FOUND* flag is nil.
+  (let ((s (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API")))
+    (unless (symbol-value s)
+      (call-next-method))))
+
+
+;;;
+;;; Cl-cuda system definition
+;;;
+
 (defsystem cl-cuda
   :version "0.1"
   :author "Masayuki Takagi"
@@ -26,9 +60,11 @@
                   ((:file "package")
                    (:file "get-error-string")
                    (:file "cffi-grovel")
+                   (:file "sdk-not-found")
                    (:file "library")
-                   (cffi-grovel:grovel-file "type-grovel")
-                   (cffi-grovel:grovel-file "enum-grovel")
+                   (:file "type")
+                   (cuda-grovel-file "type-grovel")
+                   (:file "enum")
                    (:file "function")))
                  (:module "lang"
                   :serial t

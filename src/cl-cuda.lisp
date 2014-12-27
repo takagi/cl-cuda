@@ -9,6 +9,7 @@
 (in-package :cl-cuda)
 
 (reexport-from :cl-cuda.driver-api
-               :include '(:*show-messages*))
+               :include '(:*show-messages*
+                          :*sdk-not-found*))
 (reexport-from :cl-cuda.lang)
 (reexport-from :cl-cuda.api)

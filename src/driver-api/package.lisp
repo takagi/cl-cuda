@@ -43,7 +43,9 @@
            :cu-event-elapsed-time
            :cu-event-record
            :cu-event-synchronize
-           ;; Messages
-           :*show-messages*)
+           ;; Variables
+           :*show-messages*
+           :*sdk-not-found*)
   (:import-from :alexandria
-                :format-symbol))
+                :format-symbol
+                :symbolicate))
