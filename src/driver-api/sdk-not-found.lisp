@@ -7,3 +7,6 @@
 (in-package cl-cuda.driver-api)
 
 (defvar *sdk-not-found* nil)
+
+(define-condition sdk-not-found-error (simple-error) ()
+  (:report "CUDA SDK not found."))

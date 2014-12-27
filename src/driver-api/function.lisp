@@ -20,7 +20,7 @@
              (check-cuda-error ',name (,%name ,@argument-vars)))
            (cffi:defcfun (,%name ,c-name) ,return-type ,@arguments))
         `(defun ,name ,argument-vars
-           (error "CUDA SDK not found.")))))
+           (error 'sdk-not-found-error)))))
 
 
 ;;;
