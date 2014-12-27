@@ -387,6 +387,18 @@ In the module-loaded state and function-loaded state, `kernel-manager-unload` fu
 
 The kernel manager is stored in `*kernel-manager*` special variable when cl-cuda is loaded and keeps alive during the Common Lisp process. Usually, you do not need to manage it explicitly.
 
+## How cl-cuda works when CUDA SDK is not installed
+
+This section is for cl-cuda users who develop an application or a library which has alternative sub system other than cl-cuda and may run on environments CUDA SDK is not installed.
+
+**Compile and load time**
+Cl-cuda is compiled and loaded without causing any conditions on environments CUDA SDK is not installed. Since cl-cuda API 's symbols are interned, user programs can use them normally.
+
+**Run time**
+At the time cl-cuda's API is called, an error that tells CUDA SDK is not found should occur. With `*sdk-not-found*` special variable, user programs can get if cl-cuda has found CUDA SDK or not.
+
+How cl-cuda determines CUDA SDK is installed or not is that if it has successfully loaded `libuda` dynamic library with `cffi:user-foreign-library` function.
+
 ## Author
 
 * Masayuki Takagi (kamonama@gmail.com)
