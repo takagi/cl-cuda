@@ -64,7 +64,7 @@
   (let ((host-ptr (alloc-host-memory type size))
         (vbo (first (gl:gen-buffers 1)))
         (gres-ptr (cffi:foreign-alloc 'cu-graphics-resource
-                                      :initial-element 0)))
+                                      :initial-element (cffi:null-pointer))))
     ;; create and initialize a buffer object's data store
     (gl:bind-buffer :array-buffer vbo)
     (let ((array (gl:alloc-gl-array (bare-cffi-type type) size)))
@@ -106,13 +106,13 @@
                                 (size-ptr :unsigned-int))
       (cu-graphics-resource-set-map-flags gres
                                           cu-graphics-map-resource-flags-none)
-      (cu-graphics-map-resources 1 gres-ptr 0)
+      (cu-graphics-map-resources 1 gres-ptr (cffi:null-pointer))
       (cu-graphics-resource-get-mapped-pointer device-ptr size-ptr gres)
       (cffi:mem-ref device-ptr 'cu-device-ptr))))
 
 (defun memory-block-release-device-ptr (memory-block)
   (let ((gres-ptr (memory-block-graphic-resource-ptr memory-block)))
-    (cu-graphics-unmap-resources 1 gres-ptr 0)))
+    (cu-graphics-unmap-resources 1 gres-ptr (cffi:null-pointer))))
 
 (defmacro with-memory-block-device-ptr ((device-ptr memory-block) &body body)
   `(let ((,device-ptr (memory-block-init-device-ptr ,memory-block)))

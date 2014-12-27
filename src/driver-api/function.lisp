@@ -14,10 +14,13 @@
 (defmacro defcufun ((name c-name) return-type &rest arguments)
   (let ((%name (format-symbol (symbol-package name) "%~A" name))
         (argument-vars (mapcar #'car arguments)))
-    `(progn
-       (defun ,name ,argument-vars
-         (check-cuda-error ',name (,%name ,@argument-vars)))
-       (cffi:defcfun (,%name ,c-name) ,return-type ,@arguments))))
+    (if (not *sdk-not-found*)
+        `(progn
+           (defun ,name ,argument-vars
+             (check-cuda-error ',name (,%name ,@argument-vars)))
+           (cffi:defcfun (,%name ,c-name) ,return-type ,@arguments))
+        `(defun ,name ,argument-vars
+           (error 'sdk-not-found-error)))))
 
 
 ;;;
