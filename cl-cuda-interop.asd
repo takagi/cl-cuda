@@ -34,7 +34,7 @@
                    (:file "defkernel")
                    (:file "api")))
                  (:file "cl-cuda-interop"))))
-  :description ""
+  :description "Cl-cuda with OpenGL interoperability."
   :long-description
   #.(with-open-file (stream (merge-pathnames
                              #p"README.markdown"

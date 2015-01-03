@@ -91,7 +91,7 @@
                    (:file "timer")
                    (:file "api")))
                  (:file "cl-cuda"))))
-  :description ""
+  :description "Cl-cuda is a library to use NVIDIA CUDA in Common Lisp programs."
   :long-description
   #.(with-open-file (stream (merge-pathnames
                              #p"README.markdown"
