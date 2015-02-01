@@ -33,7 +33,9 @@
            :cu-mem-alloc
            :cu-mem-free
            :cu-memcpy-host-to-device
+           :cu-memcpy-host-to-device-async
            :cu-memcpy-device-to-host
+           :cu-memcpy-device-to-host-async
            :cu-module-load
            :cu-module-unload
            :cu-module-get-function
@@ -43,6 +45,11 @@
            :cu-event-elapsed-time
            :cu-event-record
            :cu-event-synchronize
+           :cu-stream-create
+           :cu-stream-destroy
+           :cu-stream-query
+           :cu-stream-synchronize
+           :cu-stream-wait-event
            ;; Variables
            :*show-messages*
            :*sdk-not-found*)

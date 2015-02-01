@@ -36,3 +36,7 @@
   (:cu-event-blocking-sync  #X1)
   (:cu-event-disable-timing #X2)
   (:cu-event-interprocess   #X4))
+
+(defcuenum cu-stream-flags-enum
+  (:cu-stream-default       #X0)
+  (:cu-stream-non-blocking  #X1))

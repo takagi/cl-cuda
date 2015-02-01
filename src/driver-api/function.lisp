@@ -80,11 +80,25 @@
   (src-host :pointer)
   (byte-count size-t))
 
+;; cuMemcpyHtoDAsync
+(defcufun (cu-memcpy-host-to-device-async "cuMemcpyHtoDAsync_v2") cu-result
+  (dst-device cu-device-ptr)
+  (src-host :pointer)
+  (byte-count size-t)
+  (hstream cu-stream))
+
 ;; cuMemcpyDtoH
 (defcufun (cu-memcpy-device-to-host "cuMemcpyDtoH_v2") cu-result
   (dst-host :pointer)
   (src-device cu-device-ptr)
   (byte-count size-t))
+
+;; cuMemcpyDtoHAsync
+(defcufun (cu-memcpy-device-to-host-async "cuMemcpyDtoHAsync_v2") cu-result
+  (dst-host :pointer)
+  (src-device cu-device-ptr)
+  (byte-count size-t)
+  (hstream cu-stream))
 
 ;; cuModuleLoad
 (defcufun (cu-module-load "cuModuleLoad") cu-result
@@ -139,6 +153,28 @@
 (defcufun (cu-event-synchronize "cuEventSynchronize") cu-result
   (hevent cu-event))
 
+;; cuStreamCreate
+(defcufun (cu-stream-create "cuStreamCreate") cu-result
+  (phstream (:pointer cu-stream))
+  (flags :unsigned-int))
+
+;; cuStreamDestroy
+(defcufun (cu-stream-destroy "cuStreamDestroy") cu-result
+  (hstream cu-stream))
+
+;; cuStreamQuery
+(defcufun (cu-stream-query "cuStreamQuery") cu-result
+  (hstream cu-stream))
+
+;; cuStreamSynchronize
+(defcufun (cu-stream-synchronize "cuStreamSynchronize") cu-result
+  (hstream cu-stream))
+
+;; cuStreamWaitEvent
+(defcufun (cu-stream-wait-event "cuStreamWaitEvent") cu-result
+  (hstream cu-stream)
+  (hevent cu-event)
+  (flags :unsigned-int))
 
 ;;;
 ;;; CHECK-CUDA-ERROR function
