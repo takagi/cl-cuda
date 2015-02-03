@@ -32,6 +32,8 @@
            :cu-ctx-synchronize
            :cu-mem-alloc
            :cu-mem-free
+           :cu-mem-host-register
+           :cu-mem-host-unregister
            :cu-memcpy-host-to-device
            :cu-memcpy-host-to-device-async
            :cu-memcpy-device-to-host

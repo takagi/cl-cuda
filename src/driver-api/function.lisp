@@ -74,6 +74,16 @@
 (defcufun (cu-mem-free "cuMemFree_v2") cu-result
   (dptr cu-device-ptr))
 
+;; cuMemHostRegister
+(defcufun (cu-mem-host-register "cuMemHostRegister") cu-result
+  (p :pointer)
+  (byte-size size-t)
+  (flags :unsigned-int))
+
+;; cuMemHostUnregister
+(defcufun (cu-mem-host-unregister "cuMemHostUnregister") cu-result
+  (p :pointer))
+
 ;; cuMemcpyHtoD
 (defcufun (cu-memcpy-host-to-device "cuMemcpyHtoD_v2") cu-result
   (dst-device cu-device-ptr)
