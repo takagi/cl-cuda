@@ -20,7 +20,8 @@
            ;; WITH-CUDA macro
            :*cuda-device*
            :*cuda-context*
-           :with-cuda))
+           :with-cuda
+           :*cuda-stream*))
 (in-package :cl-cuda.api.context)
 
 
@@ -86,3 +87,5 @@
          (kernel-manager-unload *kernel-manager*)
          ;; destroy CUDA context
          (destroy-cuda-context *cuda-context*)))))
+
+(defvar *cuda-stream* (cffi:null-pointer))

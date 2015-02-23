@@ -36,3 +36,11 @@
   (:cu-event-blocking-sync  #X1)
   (:cu-event-disable-timing #X2)
   (:cu-event-interprocess   #X4))
+
+(defcuenum cu-stream-flags-enum
+  (:cu-stream-default       #X0)
+  (:cu-stream-non-blocking  #X1))
+
+(defcuenum cu-mem-host-register-flags-enum
+  (:cu-mem-host-register-portable  #X1)
+  (:cu-mem-host-register-devicemap #X2))

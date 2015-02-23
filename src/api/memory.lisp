@@ -111,9 +111,17 @@
   (let ((size (cffi-type-size type)))
     (cu-memcpy-host-to-device device-ptr host-ptr (* n size))))
 
+(defun memcpy-host-to-device-async (device-ptr host-ptr type n stream)
+  (let ((size (cffi-type-size type)))
+    (cu-memcpy-host-to-device-async device-ptr host-ptr (* n size) stream)))
+
 (defun memcpy-device-to-host (host-ptr device-ptr type n)
   (let ((size (cffi-type-size type)))
     (cu-memcpy-device-to-host host-ptr device-ptr (* n size))))
+
+(defun memcpy-device-to-host-async (host-ptr device-ptr type n stream)
+  (let ((size (cffi-type-size type)))
+    (cu-memcpy-device-to-host-async host-ptr device-ptr (* n size) stream)))
 
 
 ;;;
