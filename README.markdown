@@ -399,14 +399,6 @@ At the time cl-cuda's API is called, an error that tells CUDA SDK is not found s
 
 How cl-cuda determines CUDA SDK is installed or not is that if it has successfully loaded `libuda` dynamic library with `cffi:user-foreign-library` function.
 
-## Donation
-
-I would appreciate your precious donation.
-
-Since PayPal donation button is out of service in Japan because of legal approval, please donate an [Amazon gift card](https://www.amazon.com/gp/product/B004LLIKVU/gcrnsts?ie=UTF8) ($5, $10, $30, $100 or any) to the author's e-mail (kamonama@gmail.com).
-
-Thanks.
-
 ## Author
 
 * Masayuki Takagi (kamonama@gmail.com)
