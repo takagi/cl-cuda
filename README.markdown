@@ -399,6 +399,28 @@ At the time cl-cuda's API is called, an error that tells CUDA SDK is not found s
 
 How cl-cuda determines CUDA SDK is installed or not is that if it has successfully loaded `libuda` dynamic library with `cffi:user-foreign-library` function.
 
+## Streams
+
+The low level interface works with multiple streams. With the async stuff it's possible to overlap copy and computation with two streams. Cl-cuda provides `*cuda-stream*` special variable, to which bound stream is used in kernel function calls.
+
+The following is for working with streams in [mgl-mat](https://github.com/melisgl/mgl-mat):
+
+    (defmacro with-cuda-stream ((stream) &body body)
+      (alexandria:with-gensyms (stream-pointer)
+        `(cffi:with-foreign-objects
+             ((,stream-pointer 'cl-cuda.driver-api:cu-stream))
+           (cl-cuda.driver-api:cu-stream-create ,stream-pointer 0)
+           (let ((,stream (cffi:mem-ref ,stream-pointer
+                                        'cl-cuda.driver-api:cu-stream)))
+             (unwind-protect
+                  (locally ,@body)
+               (cl-cuda.driver-api:cu-stream-destroy ,stream))))))
+
+then, call a kernel function with binding a stream to `*cuda-stream*`:
+
+    (with-cuda-stream (*cuda-stream*)
+      (call-kernel-function))
+
 ## Author
 
 * Masayuki Takagi (kamonama@gmail.com)
