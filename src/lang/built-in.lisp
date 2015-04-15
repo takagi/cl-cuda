@@ -9,6 +9,8 @@
         :cl-cuda.lang.type)
   (:export ;; Built-in functions
            :rsqrt
+           :__exp
+           :__divide
            :atomic-add
            :pointer
            :syncthreads
@@ -125,6 +127,14 @@
             ((double) double nil "sqrt"))
     floor  (((float) int   nil "floorf")
             ((double) int   nil "floor"))
+    ;; mathematical intrinsics
+    ;;
+    ;; If there is no double version, then fall back on a correct but
+    ;; slow implementation.
+    __exp    (((float) float nil "__expf")
+              ((double) double nil "exp"))
+    __divide (((float float) float nil "__fdividef")
+              ((double double) double t "/"))
     ;; atomic functions
     atomic-add (((int* int) int nil "atomicAdd"))
     ;; address-of operator
