@@ -83,6 +83,8 @@
 ;; exported from COMMON-LISP package
 (reexport-from :cl-cuda.lang.built-in
                :include '(:rsqrt
+                          :__exp
+                          :__divide
                           :atomic-add
                           :pointer
                           :syncthreads
