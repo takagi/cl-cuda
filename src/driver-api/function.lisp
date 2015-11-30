@@ -7,17 +7,32 @@
 (in-package :cl-cuda.driver-api)
 
 
+;;; Some foreign code assumes that floating points traps are disabled
+;;; and trigger FLOATING-POINT-INVALID-OPERATION if not.
+(defmacro without-fp-traps (() &body body)
+  #+sbcl
+  `(sb-int:with-float-traps-masked (:invalid :divide-by-zero)
+     ,@body)
+  #-sbcl
+  `(locally ,@body))
+
+
 ;;;
 ;;; DEFCUFUN macro
 ;;;
 
-(defmacro defcufun ((name c-name) return-type &rest arguments)
+(defmacro defcufun ((name c-name &key disable-fp-traps) return-type
+                    &rest arguments)
   (let ((%name (format-symbol (symbol-package name) "%~A" name))
         (argument-vars (mapcar #'car arguments)))
     (if (not *sdk-not-found*)
         `(progn
            (defun ,name ,argument-vars
-             (check-cuda-error ',name (,%name ,@argument-vars)))
+             (check-cuda-error ',name
+                               ,(if disable-fp-traps
+                                    `(without-fp-traps ()
+                                       (,%name ,@argument-vars))
+                                    `(,%name ,@argument-vars))))
            (cffi:defcfun (,%name ,c-name) ,return-type ,@arguments))
         `(defun ,name ,argument-vars
            (error 'sdk-not-found-error)))))
@@ -111,7 +126,7 @@
   (hstream cu-stream))
 
 ;; cuModuleLoad
-(defcufun (cu-module-load "cuModuleLoad") cu-result
+(defcufun (cu-module-load "cuModuleLoad" :disable-fp-traps t) cu-result
   (module (:pointer cu-module))
   (fname :string))
 
