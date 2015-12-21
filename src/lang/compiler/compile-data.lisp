@@ -63,4 +63,4 @@
 (defun compile-double (expr)
   (unless (cl-cuda-double-p expr)
     (error "The value ~S is an invalid expression." expr))
-  (format nil "(double)~S" (float expr 0.0)))
+  (format nil "(double)~F" (float expr 0d0)))
