@@ -50,19 +50,7 @@ Since cl-cuda is not available in Quicklisp distribution because of its testing 
     $ cd ~/quicklisp/local-projects
     $ git clone git://github.com/takagi/cl-cuda.git
 
-Then, `(ql:quickload :cl-cuda)` from `REPL` to load it.
-
-### Environment variable
-
-Before using cl-cuda, please confirm that environment variables are properly set so that cl-cuda can find CUDA SDK. The reference is defined in `src/driver-api/library.lisp`:
-
-    (cffi:define-foreign-library libcuda
-      (:darwin (:framework "CUDA"))
-      (:unix (:or "libcuda.so" "libcuda64.so")))
-
-So, for example on OSX, you should export `DYLD_LIBRARY_PATH` in your `.bash_profile` like this:
-
-    export DYLD_LIBRARY_PATH=/Developer/NVIDIA/CUDA-7.5/lib
+Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
 ## Requirements
 
