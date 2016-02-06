@@ -33,9 +33,7 @@
   (asdf:system-relative-pathname :cl-cuda #P"include"))
 
 (defvar *nvcc-options*
-  ;; compute capability 1.3 is needed for double floats, but 2.0 for
-  ;; good performance
-  (list "-arch=sm_11"))
+  (list "-arch=sm_20"))
 
 (defun get-nvcc-options (cu-path ptx-path)
   (let ((include-path (get-include-path)))

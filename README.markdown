@@ -159,7 +159,7 @@ Specifies the temporary directory in which cl-cuda generates files such as `.cu`
 
 ### [Special Variable] \*nvcc-options\*
 
-Specifies additional command-line options to be passed to `nvcc` comand which cl-cuda calls internally. The default is `(list "-arch=sm_11")`.
+Specifies additional command-line options to be passed to `nvcc` comand which cl-cuda calls internally. The default is `(list "-arch=sm_20")`.
 
     (setf *nvcc-options* (list "-arch=sm_20 --verbose"))
 
