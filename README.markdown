@@ -175,12 +175,6 @@ Specifies whether to let cl-cuda show operational messages or not. The default i
 
     (setf *show-messages* nil)
 
-### [Special Variable] \*sdk-not-found\*
-
-Readonly. The value is `nil` if cl-cuda found CUDA SDK when its build, otherwise `t`.
-
-    *sdk-not-found*    ; => nil
-
 ## Kernel Description Language
 
 ### Types
@@ -386,18 +380,6 @@ Following illustrates the kernel manager's state transfer.
 In the module-loaded state and function-loaded state, `kernel-manager-unload` function unloads the kernel module and turn the kernel manager's state back to the compiled state. `kernel-manager-define-function`, `kernel-manager-define-macro` and `kernel-manager-define-symbol-macro` functions, which are wrapped as `defkernel`, `defkernelmacro` and `defkernel-symbol-macro` macros respectively, change its state back into the initial state and make it require compilation again.
 
 The kernel manager is stored in `*kernel-manager*` special variable when cl-cuda is loaded and keeps alive during the Common Lisp process. Usually, you do not need to manage it explicitly.
-
-## How cl-cuda works when CUDA SDK is not installed
-
-This section is for cl-cuda users who develop an application or a library which has alternative sub system other than cl-cuda and may run on environments CUDA SDK is not installed.
-
-**Compile and load time**
-Cl-cuda is compiled and loaded without causing any conditions on environments CUDA SDK is not installed. Since cl-cuda API 's symbols are interned, user programs can use them normally.
-
-**Run time**
-At the time cl-cuda's API is called, an error that tells CUDA SDK is not found should occur. With `*sdk-not-found*` special variable, user programs can get if cl-cuda has found CUDA SDK or not.
-
-How cl-cuda determines CUDA SDK is installed or not is that if it has successfully loaded `libuda` dynamic library with `cffi:user-foreign-library` function.
 
 ## Streams
 

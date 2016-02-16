@@ -7,7 +7,15 @@
 
 
 ;;;
+;;; Include CUDA header file
+;;;
+
+#+darwin (include "cuda/cuda.h")
+#+linux (include "cuda.h")
+
+
+;;;
 ;;; Types
 ;;;
 
-(cffi:defctype cu-graphics-resource :pointer)
+(ctype cu-graphics-resource "CUgraphicsResource")

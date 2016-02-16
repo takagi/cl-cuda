@@ -15,6 +15,5 @@
   (:darwin (:framework "CUDA"))
   (:unix (:or "libcuda.so" "libcuda64.so")))
 
-(handler-case (cffi:use-foreign-library libcuda)
-  (cffi:load-foreign-library-error (e)
-    (setf *sdk-not-found* t)))
+(ignore-errors
+  (cffi:use-foreign-library libcuda))

@@ -23,8 +23,8 @@
                   :serial t
                   :components
                   ((:file "package")
-                   (:file "type")
-                   (:file "enum")
+                   (cffi-grovel:grovel-file "type-grovel")
+                   (cffi-grovel:grovel-file "enum-grovel")
                    (:file "function")))
                  (:module "api"
                   :serial t

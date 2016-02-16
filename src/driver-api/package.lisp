@@ -53,8 +53,6 @@
            :cu-stream-synchronize
            :cu-stream-wait-event
            ;; Variables
-           :*show-messages*
-           :*sdk-not-found*)
+           :*show-messages*)
   (:import-from :alexandria
-                :format-symbol
-                :symbolicate))
+                :format-symbol))

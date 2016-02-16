@@ -30,7 +30,7 @@
   (cu-event-destroy cu-event))
 
 (defun record-cu-event (cu-event)
-  (cu-event-record cu-event (cffi:null-pointer)))
+  (cu-event-record cu-event 0))
 
 (defun sync-cu-event (cu-event)
   (cu-event-synchronize cu-event))

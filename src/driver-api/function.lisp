@@ -25,17 +25,14 @@
                     &rest arguments)
   (let ((%name (format-symbol (symbol-package name) "%~A" name))
         (argument-vars (mapcar #'car arguments)))
-    (if (not *sdk-not-found*)
-        `(progn
-           (defun ,name ,argument-vars
-             (check-cuda-error ',name
-                               ,(if disable-fp-traps
-                                    `(without-fp-traps ()
-                                       (,%name ,@argument-vars))
-                                    `(,%name ,@argument-vars))))
-           (cffi:defcfun (,%name ,c-name) ,return-type ,@arguments))
-        `(defun ,name ,argument-vars
-           (error 'sdk-not-found-error)))))
+    `(progn
+       (defun ,name ,argument-vars
+         (check-cuda-error ',name
+                           ,(if disable-fp-traps
+                                `(without-fp-traps ()
+                                   (,%name ,@argument-vars))
+                                `(,%name ,@argument-vars))))
+       (cffi:defcfun (,%name ,c-name) ,return-type ,@arguments))))
 
 
 ;;;

@@ -88,4 +88,4 @@
          ;; destroy CUDA context
          (destroy-cuda-context *cuda-context*)))))
 
-(defvar *cuda-stream* (cffi:null-pointer))
+(defvar *cuda-stream* 0)

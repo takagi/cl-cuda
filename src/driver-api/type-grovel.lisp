@@ -12,13 +12,19 @@
 ;;;
 
 #+darwin (include "cuda/cuda.h")
-#-darwin (include "cuda.h")
+#+linux (include "cuda.h")
 
 
 ;;;
 ;;; Types
 ;;;
 
-;; The followings are redefined with grovel over their definitions in type.lisp.
+(ctype cu-result "CUresult")
+(ctype cu-device "CUdevice")
+(ctype cu-context "CUcontext")
+(ctype cu-module "CUmodule")
+(ctype cu-function "CUfunction")
+(ctype cu-stream "CUstream")
+(ctype cu-device-ptr "CUdeviceptr")
 (ctype cu-event "CUevent")
 (ctype size-t "size_t")

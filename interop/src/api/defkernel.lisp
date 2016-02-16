@@ -106,4 +106,4 @@
                (cu-launch-kernel ,hfunc
                                  grid-dim-x  grid-dim-y  grid-dim-z
                                  block-dim-x block-dim-y block-dim-z
-                                 0 (cffi:null-pointer) ,kargs (cffi:null-pointer))))))))))
+                                 0 0 ,kargs (cffi:null-pointer))))))))))
