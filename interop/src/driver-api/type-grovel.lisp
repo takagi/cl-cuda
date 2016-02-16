@@ -11,7 +11,7 @@
 ;;;
 
 #+darwin (include "cuda/cuda.h")
-#+linux (include "cuda.h")
+#-darwin (include "cuda.h")
 
 
 ;;;
