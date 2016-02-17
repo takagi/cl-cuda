@@ -9,4 +9,4 @@
 (defvar *sdk-not-found* nil)
 
 (define-condition sdk-not-found-error (simple-error) ()
-  (:report "CUDA SDK not found."))
+  (:report "CUDA SDK not found, or at least failed to load libcuda."))
