@@ -17,4 +17,6 @@
 
 (handler-case (cffi:use-foreign-library libcuda)
   (cffi:load-foreign-library-error (e)
+    (princ e *error-output*)
+    (terpri *error-output*)
     (setf *sdk-not-found* t)))
