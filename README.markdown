@@ -177,7 +177,7 @@ Specifies whether to let cl-cuda show operational messages or not. The default i
 
 ### [Special Variable] \*sdk-not-found\*
 
-Readonly. The value is `nil` if cl-cuda found CUDA SDK when its build, otherwise `t`.
+Readonly. The value is `t` if cl-cuda could not find CUDA SDK or at least it failed to load `libcuda` for some reason, otherwise `nil`.
 
     *sdk-not-found*    ; => nil
 
