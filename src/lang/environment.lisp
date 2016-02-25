@@ -35,6 +35,7 @@
            :function-environment-macro-exists-p
            :function-environment-macro-name
            :function-environment-macro-expander)
+  (:shadow :variable)
   (:import-from :alexandria
                 :with-gensyms))
 (in-package :cl-cuda.lang.environment)
@@ -159,10 +160,7 @@
 ;;; Variable
 ;;;
 
-;; use name begining with '%' to avoid package locking
-(defstruct (%variable (:constructor %make-variable)
-                      (:conc-name variable-)
-                      (:predicate variable-p))
+(defstruct (variable (:constructor %make-variable))
   (name :name :read-only t)
   (type :type :read-only t))
 
