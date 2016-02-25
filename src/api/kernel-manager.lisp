@@ -111,8 +111,8 @@
   name)
 
 (defun symbol-macro-modified-p (kernel name expansion)
-    (not (and (kernel-symbol-macro-exists-p kernel name)
-              (equal expansion (kernel-symbol-macro-expansion kernel name)))))
+  (not (and (kernel-symbol-macro-exists-p kernel name)
+            (equal expansion (kernel-symbol-macro-expansion kernel name)))))
 
 (defun kernel-manager-compile-module (manager)
   (unless (not (kernel-manager-compiled-p manager))
