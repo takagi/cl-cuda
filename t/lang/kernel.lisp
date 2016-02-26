@@ -229,7 +229,7 @@
   (is-values (expand-macro-1 'a kernel) '(1.0 t))
   (is-values (expand-macro-1 'b kernel) '(a t))
   (is-values (expand-macro-1 'c kernel) '(c nil))
-  (is-error (expand-macro-1 '(foo)) error))
+  (is-error (expand-macro-1 '(foo) kernel) error))
 
 
 ;;;
@@ -249,7 +249,7 @@
   (is-values (expand-macro 'a kernel) '(1.0 t))
   (is-values (expand-macro 'b kernel) '(1.0 t))
   (is-values (expand-macro 'c kernel) '(c nil))
-  (is-error (expand-macro '(foo)) error))
+  (is-error (expand-macro '(foo) kernel) error))
 
 
 ;;;
