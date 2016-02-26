@@ -33,7 +33,7 @@
 
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
-  (is (type-of-expression 1 nil nil) 'int))
+  (is (type-of-expression 1 var-env func-env) 'int))
 
 
 ;;;
