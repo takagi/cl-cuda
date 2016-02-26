@@ -41,6 +41,7 @@
            :cu-module-load
            :cu-module-unload
            :cu-module-get-function
+           :cu-module-get-global
            :cu-launch-kernel
            :cu-event-create
            :cu-event-destroy

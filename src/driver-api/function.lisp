@@ -140,6 +140,13 @@
   (hmod cu-module)
   (name :string))
 
+;; cuModuleGetGlobal
+(defcufun (cu-module-get-global "cuModuleGetGlobal_v2") cu-result
+  (dptr (:pointer cu-device-ptr))
+  (bytes (:pointer size-t))
+  (hmod cu-module)
+  (name :string))
+
 ;; cuLaunchKernel
 (defcufun (cu-launch-kernel "cuLaunchKernel") cu-result
   (f cu-function)
