@@ -15,6 +15,7 @@
            :kernel-function-names
            :kernel-macro-names
            :kernel-symbol-macro-names
+           :kernel-global-names
            ;; Function
            :kernel-define-function
            :kernel-function-exists-p
@@ -38,7 +39,15 @@
            :kernel-define-symbol-macro
            :kernel-symbol-macro-exists-p
            :kernel-symbol-macro-name
-           :kernel-symbol-macro-expansion)
+           :kernel-symbol-macro-expansion
+           ;; Global
+           :kernel-define-global
+           :kernel-global-exists-p
+           :kernel-global-name
+           :kernel-global-c-name
+           :kernel-global-type
+           :kernel-global-expression)
+  ;; Shadow symbols in cl-cuda.lang.syntax.
   (:shadow :macro-p
            :symbol-macro-p
            :function-p)
@@ -75,6 +84,12 @@
   (let ((namespace (kernel-variable-namespace kernel)))
     (loop for (name object) on namespace by #'cddr
        when (symbol-macro-p object)
+       collect name)))
+
+(defun kernel-global-names (kernel)
+  (let ((namespace (kernel-variable-namespace kernel)))
+    (loop for (name object) on namespace by #'cddr
+       when (global-p object)
        collect name)))
 
 
@@ -208,6 +223,40 @@
 
 
 ;;;
+;;; Kernel definition - global
+;;;
+
+(defun kernel-define-global (kernel name type expression)
+  (symbol-macrolet ((namespace (kernel-variable-namespace kernel)))
+    (let ((global (make-global name type expression)))
+      (setf (getf namespace name) global)))
+  name)
+
+(defun kernel-global-exists-p (kernel name)
+  (check-type name cl-cuda-symbol)
+  (let ((namespace (kernel-variable-namespace kernel)))
+    (global-p (getf namespace name))))
+
+(defun %lookup-global (kernel name)
+  (unless (kernel-global-exists-p kernel name)
+    (error "The global ~S not found." name))
+  (let ((namespace (kernel-variable-namespace kernel)))
+    (getf namespace name)))
+
+(defun kernel-global-name (kernel name)
+  (global-name (%lookup-global kernel name)))
+
+(defun kernel-global-c-name (kernel name)
+  (global-c-name (%lookup-global kernel name)))
+
+(defun kernel-global-type (kernel name)
+  (global-type (%lookup-global kernel name)))
+
+(defun kernel-global-expression (kernel name)
+  (global-expression (%lookup-global kernel name)))
+
+
+;;;
 ;;; Function
 ;;;
 
@@ -289,3 +338,21 @@
     (error 'type-error :datum name :expected-type 'cl-cuda-symbol))
   (%make-symbol-macro :name name
                       :expansion expansion))
+
+
+;;;
+;;; Global
+;;;
+
+(defstruct (global (:constructor %make-global))
+  (name :name :read-only t)
+  (type :type :read-only t)
+  (expression :expression :read-only t))
+
+(defun make-global (name type expression)
+  (check-type name cl-cuda-symbol)
+  (check-type type cl-cuda-type)
+  (%make-global :name name :type type :expression expression))
+
+(defun global-c-name (global)
+  (c-identifier (global-name global) t))
