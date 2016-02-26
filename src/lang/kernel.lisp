@@ -226,7 +226,7 @@
 ;;; Kernel definition - global
 ;;;
 
-(defun kernel-define-global (kernel name type expression)
+(defun kernel-define-global (kernel name type &optional expression)
   (symbol-macrolet ((namespace (kernel-variable-namespace kernel)))
     (let ((global (make-global name type expression)))
       (setf (getf namespace name) global)))
