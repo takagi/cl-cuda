@@ -64,7 +64,7 @@
 
 (defun kernel-manager-function-handles-empty-p (manager)
   (let ((function-handles (kernel-manager-%function-handles manager)))
-    (= (hash-table-count function-handles) 0)))
+    (zerop (hash-table-count function-handles))))
 
 (defun kernel-manager-function-handle (manager name)
   (kernel-manager-%function-handle manager name))
