@@ -24,6 +24,7 @@
        (*kernel-manager* mgr))
   (with-cuda (0)
     ;; I - initial state
+    (kernel-manager-define-global mgr 'a 'int 1)
     (kernel-manager-define-function mgr 'foo 'void '() '())
     (is (kernel-manager-compiled-p mgr) nil
         "basic case 1")
@@ -31,46 +32,61 @@
         "basic case 2")
     (is (kernel-manager-function-handles-empty-p mgr) t
         "basic case 3")
+    (is (kernel-manager-global-device-ptrs-empty-p mgr) t
+        "basic case 4")
     ;; II - compiled state
     (kernel-manager-compile-module mgr)
     (is (kernel-manager-compiled-p mgr) t
-        "basic case 4")
-    (is (kernel-manager-module-handle mgr) nil
         "basic case 5")
-    (is (kernel-manager-function-handles-empty-p mgr) t
+    (is (kernel-manager-module-handle mgr) nil
         "basic case 6")
+    (is (kernel-manager-function-handles-empty-p mgr) t
+        "basic case 7")
+    (is (kernel-manager-global-device-ptrs-empty-p mgr) t
+        "basic case 8")
     ;; III - module-loaded state
     (kernel-manager-load-module mgr)
     (is (kernel-manager-compiled-p mgr) t
-        "basic case 7")
-    (is (not (null (kernel-manager-module-handle mgr))) t
-        "basic case 8")
-    (is (kernel-manager-function-handles-empty-p mgr) t
         "basic case 9")
+    (is (not (null (kernel-manager-module-handle mgr))) t
+        "basic case 10")
+    (is (kernel-manager-function-handles-empty-p mgr) t
+        "basic case 11")
+    (is (kernel-manager-global-device-ptrs-empty-p mgr) t
+        "basic case 12")
     ;; IV - funciton-loaded state
     (kernel-manager-load-function mgr 'foo)
     (is (kernel-manager-compiled-p mgr) t
-        "basic case 10")
-    (is (not (null (kernel-manager-module-handle mgr))) t
         "basic case 11")
-    (is (kernel-manager-function-handles-empty-p mgr) nil
+    (is (not (null (kernel-manager-module-handle mgr))) t
         "basic case 12")
+    (is (kernel-manager-function-handles-empty-p mgr) nil
+        "basic case 13")
+    (is (kernel-manager-global-device-ptrs-empty-p mgr) t
+        "basic case 14")
+    (kernel-manager-load-global mgr 'a)
+    (is (kernel-manager-global-device-ptrs-empty-p mgr) nil
+        "basic case 15")
     ;; II - compiled state
     (kernel-manager-unload mgr)
     (is (kernel-manager-compiled-p mgr) t
-        "basic case 13")
-    (is (kernel-manager-module-handle mgr) nil
-        "basic case 14")
-    (is (kernel-manager-function-handles-empty-p mgr) t
-        "basic case 15")
-    ;; I - initial state
-    (kernel-manager-define-function mgr 'bar 'void '() '())
-    (is (kernel-manager-compiled-p mgr) nil
         "basic case 16")
     (is (kernel-manager-module-handle mgr) nil
         "basic case 17")
     (is (kernel-manager-function-handles-empty-p mgr) t
-        "basic case 18")))
+        "basic case 18")
+    (is (kernel-manager-global-device-ptrs-empty-p mgr) t
+        "basic case 19")
+    ;; I - initial state
+    (kernel-manager-define-function mgr 'bar 'void '() '())
+    (is (kernel-manager-compiled-p mgr) nil
+        "basic case 20")
+    (is (kernel-manager-module-handle mgr) nil
+        "basic case 21")
+    (is (kernel-manager-function-handles-empty-p mgr) t
+        "basic case 22")
+    (is (kernel-manager-global-device-ptrs-empty-p mgr) t
+        "basic case 23")))
 
 
 ;;;
@@ -163,6 +179,37 @@
     ;; try to load module which does not exist
     (is-error (kernel-manager-load-module mgr) simple-error
            "The kernel module which KERNEL-MANAGER specifies does not exist.")))
+
+
+;;;
+;;; test KERNEL-MANAGER-LOAD-GLOBAL function
+;;;
+
+(diag "KERNEL-MANAGER-LOAD-GLOBAL")
+
+(let ((mgr (make-kernel-manager)))
+  (with-cuda (0)
+    ;; I - initial state
+    (kernel-manager-define-global mgr 'a 'int 42)
+    (is-error (kernel-manager-load-global mgr 'a)
+              simple-error
+              "Invalid kernel manager state.")
+    ;; II - compiled state
+    (kernel-manager-compile-module mgr)
+    (is-error (kernel-manager-load-global mgr 'a)
+              simple-error
+              "Invalid kernel manager state.")
+    ;; III - module-loaded state
+    (kernel-manager-load-module mgr)
+    nil
+    ;; IV - function-loaded state
+    (kernel-manager-load-global mgr 'a)
+    (is-error (kernel-manager-load-global mgr 'a)
+              simple-error
+              "The kernel global A has been already loaded.")
+    (is-error (kernel-manager-load-global mgr 'b)
+              simple-error
+              "The kernel global B is not defined.")))
 
 
 ;;;
@@ -315,6 +362,51 @@
     (kernel-manager-load-function mgr 'foo)
     (is-error (kernel-manager-define-symbol-macro mgr 'foo 2) simple-error
               "KERNEL-MANAGER whose state is function-loaded state.")))
+
+
+;;;
+;;; test KERNEL-MANAGER-DEFINE-GLOBAL function
+;;;
+
+(diag "KERNEL-MANAGER-DEFINE-GLOBAL")
+
+(let ((mgr (make-kernel-manager)))
+  (with-cuda (0)
+    ;; Transfer state from I to II.
+    (kernel-manager-define-global mgr 'a 'int 42)
+    (kernel-manager-compile-module mgr)
+    (is (kernel-manager-compiled-p mgr)
+        t
+        "basic case 1")
+    ;; Defining global without change makes no state transfer.
+    (kernel-manager-define-global mgr 'a 'int 42)
+    (is (kernel-manager-compiled-p mgr)
+        t
+        "basic case 2")
+    ;; Defining global with change makes state transfer.
+    (kernel-manager-define-global mgr 'a 'int 43)
+    (is (kernel-manager-compiled-p mgr)
+        nil
+        "basic case 3")))
+
+(let ((mgr (make-kernel-manager)))
+  (with-cuda (0)
+    ;; I - initial state
+    (kernel-manager-define-global mgr 'a 'int 42)
+    nil
+    ;; II - compiled state
+    (kernel-manager-compile-module mgr)
+    nil
+    ;; III - module-loaded state
+    (kernel-manager-load-module mgr)
+    (is-error (kernel-manager-define-global mgr 'a 'int 42)
+              simple-error
+              "Invalid kernel manager state.")
+    ;; IV - function-loaded state
+    (kernel-manager-load-global mgr 'a)
+    (is-error (kernel-manager-define-global mgr 'a 'int 43)
+              simple-error
+              "Invalid kernel manager state.")))
 
 
 ;;;
