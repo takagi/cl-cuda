@@ -32,8 +32,7 @@
 (defun get-include-path ()
   (asdf:system-relative-pathname :cl-cuda #P"include"))
 
-(defvar *nvcc-options*
-  (list "-arch=sm_20"))
+(defvar *nvcc-options* nil)
 
 (defun get-nvcc-options (cu-path ptx-path)
   (let ((include-path (get-include-path)))
