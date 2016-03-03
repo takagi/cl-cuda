@@ -19,12 +19,15 @@
 
 (diag "Float3")
 
-(let ((cffi-type (cffi-type 'float3)))
-  (cffi:with-foreign-object (x cffi-type)
-  (setf (cffi:mem-ref x cffi-type) (make-float3 1.0 1.0 1.0))
-  (is (cffi:mem-ref x cffi-type) (make-float3 1.0 1.0 1.0)
-      :test #'float3-=
-      "basic case 1")))
+(subtest "float3 foreign translation"
+
+  (let ((cffi-type (cffi-type 'float3)))
+    (cffi:with-foreign-object (x cffi-type)
+      (setf (cffi:mem-ref x cffi-type) (make-float3 0.0 1.0 2.0))
+      (with-float3 (x y z) (cffi:mem-ref x cffi-type)
+        (is x 0.0)
+        (is y 1.0)
+        (is z 2.0)))))
 
 (subtest "with-float3"
 
