@@ -52,18 +52,18 @@
 ;;
 ;; Parameters
 
-(defglobal h float 0.01)
-(defglobal dt float 0.004)
+(defglobal h float 0.005)
+(defglobal dt float 0.0004)
 (defglobal pi float 3.1415927)
 (defglobal visc float 0.2)
 (defglobal limit float 200.0)
-(defglobal pmass float 0.00020543)
-(defglobal radius float 0.004)
+(defglobal pmass float (/ 0.00020543 8.0))
+(defglobal radius float 0.002)
 (defglobal epsilon float 0.00001)
-(defglobal extdamp float 256.0)
+(defglobal extdamp float 512.0)
 (defglobal simscale float 0.004)
 (defglobal intstiff float 3.0)
-(defglobal extstiff float 10000.0)
+(defglobal extstiff float 20000.0)
 (defglobal restdensity float 600.0)
 (defglobal g float4)
 (defglobal box-min float4)
@@ -75,18 +75,18 @@
 (defglobal size-y int)
 (defglobal size-z int)
 
-(defparameter h           0.01)
-(defparameter pmass       0.00020543)
+(defparameter h           0.005)
+(defparameter pmass       (/ 0.00020543 8.0))
 (defparameter simscale    0.004)
 (defparameter restdensity 600.0)
 (defparameter pdist       (expt (/ pmass restdensity) (/ 1.0 3.0)))
 (defparameter g           (make-float4 0.0 -9.8 0.0 0.0))
 (defparameter delta       (/ h simscale))
-(defparameter box-min     (make-float4  0.0  0.0 -10.0 0.0))
-(defparameter box-max     (make-float4 20.0 50.0  10.0 0.0))
-(defparameter init-min    (make-float4  0.0  0.0 -10.0 0.0))
-(defparameter init-max    (make-float4 10.0 20.0  10.0 0.0))
-(defparameter capacity    20)   ; # of particles contained in one cell
+(defparameter box-min     (make-float4 -10.0  0.0 -10.0 0.0))
+(defparameter box-max     (make-float4  30.0 50.0  30.0 0.0))
+(defparameter init-min    (make-float4 -10.0  0.0 -10.0 0.0))
+(defparameter init-max    (make-float4   0.0 40.0  30.0 0.0))
+(defparameter capacity    400)  ; # of particles contained in one cell
 
 
 ;;
@@ -361,7 +361,7 @@ light_source { <0, 30, -30> color White }
 ")
 
 (defparameter +sphere-template+ "sphere {
-  <~F,~F,~F>,0.5
+  <~F,~F,~F>,0.25
   texture {
     pigment { color Yellow }
   }
@@ -380,6 +380,7 @@ light_source { <0, 30, -30> color White }
     (format stream +sphere-template+ x y z)))
 
 (defun output (step pos)
+  (format t "Output step ~A...~%" step)
   (let ((n (memory-block-size pos))
         (filename (filename step)))
     (with-open-file (out filename :direction :output :if-exists :supersede)
@@ -415,9 +416,9 @@ light_source { <0, 30, -30> color White }
 
 (defun main ()
   (let* (;; Grid and block dims.
-         (neighbor-map-grid-dim '(25 13 1))
-         (neighbor-map-block-dim '(13 1 1))
-         (particle-grid-dim '(16 1 1))
+         (neighbor-map-grid-dim '(45 37 1))
+         (neighbor-map-block-dim '(37 1 1))
+         (particle-grid-dim '(512 1 1))
          (particle-block-dim '(64 1 1))
          ;; Get initial condition.
          (particles (initial-condition init-min init-max (/ pdist simscale)))
@@ -455,7 +456,7 @@ light_source { <0, 30, -30> color White }
           (initialize pos vel particles)
           (sync-memory-block pos :host-to-device)
           (sync-memory-block vel :host-to-device)
-;          (output 0 pos)
+          ;(output 0 pos)
           ;; Do simulation.
           (time
            (loop repeat 300
@@ -499,6 +500,7 @@ light_source { <0, 30, -30> color White }
                  ;; Synchronize CUDA context.
                  (synchronize-context)
                  ;; Output POV file.
-                 ;(sync-memory-block pos :device-to-host)
-                 ;(output i pos)
-                )))))))
+                 ;(when (= (mod i 10) 0)
+                 ;  (sync-memory-block pos :device-to-host)
+                 ;  (output (/ i 10) pos))
+                 )))))))
