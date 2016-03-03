@@ -65,7 +65,6 @@
 (defglobal intstiff float 3.0)
 (defglobal extstiff float 10000.0)
 (defglobal restdensity float 600.0)
-(defglobal pdist float)
 (defglobal g float4)
 (defglobal box-min float4)
 (defglobal box-max float4)
@@ -431,7 +430,6 @@ light_source { <0, 30, -30> color White }
         (compute-size box-min box-max delta capacity)
       (with-cuda (0)
         ;; Set simulation parameters.
-        (setf (global-ref 'pdist) pdist)
         (setf (global-ref 'g) g)
         ;; Set boundary condition globals.
         (setf (global-ref 'box-min) box-min)
