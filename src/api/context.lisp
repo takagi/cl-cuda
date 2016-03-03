@@ -91,20 +91,20 @@
 
 (defmacro with-cuda ((dev-id) &body body)
   `(progn
-     ;; initialize CUDA
+     ;; Initialize CUDA.
      (init-cuda)
-     (let* (;; get CUDA device
+     (let* (;; Get CUDA device.
             (*cuda-device* (get-cuda-device ,dev-id))
-            ;; create CUDA context
+            ;; Create CUDA context.
             (*cuda-context* (create-cuda-context *cuda-device*))
             ;; Append nvcc arch option if not specified.
             (*nvcc-options* (if (arch-exists-p *nvcc-options*)
                                 *nvcc-options*
                                 (append-arch *nvcc-options* ,dev-id))))
        (unwind-protect (progn ,@body)
-         ;; unload kernel manager
+         ;; Unload kernel manager.
          (kernel-manager-unload *kernel-manager*)
-         ;; destroy CUDA context
+         ;; Destroy CUDA context.
          (destroy-cuda-context *cuda-context*)))))
 
 (defvar *cuda-stream* (cffi:null-pointer))
