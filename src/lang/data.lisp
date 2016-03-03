@@ -25,6 +25,7 @@
            :float3-z
            :float3-p
            :float3-=
+           :with-float3
            ;; Float4
            :float4
            :make-float4
@@ -34,6 +35,7 @@
            :float4-w
            :float4-p
            :float4-=
+           :with-float4
            ;; Double3
            :double3
            :make-double3
@@ -42,6 +44,7 @@
            :double3-z
            :double3-p
            :double3-=
+           :with-double3
            ;; Double4
            :double4
            :make-double4
@@ -50,7 +53,10 @@
            :double4-z
            :double4-w
            :double4-p
-           :double4-=))
+           :double4-=
+           :with-double4)
+  (:import-from :alexandria
+                :once-only))
 (in-package :cl-cuda.lang.data)
 
 
@@ -116,6 +122,14 @@
   (y :float)
   (z :float))
 
+(defmacro with-float3 ((x y z) value &body body)
+  (once-only (value)
+    `(let ((,x (float3-x ,value))
+           (,y (float3-y ,value))
+           (,z (float3-z ,value)))
+       (declare (ignorable ,x ,y ,z))
+       ,@body)))
+
 (defmethod cffi:translate-into-foreign-memory ((value float3)
                                                (type float3-c)
                                                ptr)
@@ -151,6 +165,15 @@
   (z :float)
   (w :float))
 
+(defmacro with-float4 ((x y z w) value &body body)
+  (once-only (value)
+    `(let ((,x (float4-x ,value))
+           (,y (float4-y ,value))
+           (,z (float4-z ,value))
+           (,w (float4-w ,value)))
+       (declare (ignorable ,x ,y ,z ,w))
+       ,@body)))
+
 (defmethod cffi:translate-into-foreign-memory ((value float4)
                                                (type float4-c)
                                                ptr)
@@ -183,6 +206,14 @@
   (x :double)
   (y :double)
   (z :double))
+
+(defmacro with-double3 ((x y z) value &body body)
+  (once-only (value)
+    `(let ((,x (double3-x ,value))
+           (,y (double3-y ,value))
+           (,z (double3-z ,value)))
+       (declare (ignorable ,x ,y ,z))
+       ,@body)))
 
 (defmethod cffi:translate-into-foreign-memory ((value double3)
                                                (type double3-c)
@@ -218,6 +249,15 @@
   (y :double)
   (z :double)
   (w :double))
+
+(defmacro with-double4 ((x y z w) value &body body)
+  (once-only (value)
+    `(let ((,x (double4-x ,value))
+           (,y (double4-y ,value))
+           (,z (double4-z ,value))
+           (,w (double4-w ,value)))
+       (declare (ignorable ,x ,y ,z ,w))
+       ,@body)))
 
 (defmethod cffi:translate-into-foreign-memory ((value double4)
                                                (type double4-c)

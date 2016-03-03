@@ -19,6 +19,7 @@
                           :float3-z
                           :float3-p
                           :float3-=
+                          :with-float3
                           ;; Float4
                           :float4
                           :make-float4
@@ -28,6 +29,7 @@
                           :float4-w
                           :float4-p
                           :float4-=
+                          :with-float4
                           ;; Double3
                           :double3
                           :make-double3
@@ -36,6 +38,7 @@
                           :double3-z
                           :double3-p
                           :double3-=
+                          :with-double3
                           ;; Double4
                           :double4
                           :make-double4
@@ -44,7 +47,8 @@
                           :double4-z
                           :double4-w
                           :double4-p
-                          :double4-=))
+                          :double4-=
+                          :with-double4))
 
 ;; reexport symbols of cl-cuda types
 (reexport-from :cl-cuda.lang.type
