@@ -86,6 +86,7 @@
         options))
 
 (defun append-arch (options dev-id)
+  (check-type options list)
   (cons (get-nvcc-arch dev-id)
         options))
 

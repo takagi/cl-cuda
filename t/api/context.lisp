@@ -26,3 +26,20 @@
   (is-error (cl-cuda.api.context::arch-exists-p :foo)
             type-error
             "Invalid options."))
+
+(subtest "append-arch"
+
+  (let ((dev-id 0))
+    (cl-cuda.driver-api:cu-init 0)
+    (is (cl-cuda.api.context::append-arch '("foo") dev-id)
+        (list (cl-cuda.api.context::get-nvcc-arch dev-id)
+              "foo")))
+
+  (let ((dev-id 0))
+    (is-error (cl-cuda.api.context::append-arch :foo dev-id)
+              type-error
+              "Invalid options."))
+
+  (is-error (cl-cuda.api.context::append-arch nil :foo)
+            type-error
+            "Invalid device ID."))
