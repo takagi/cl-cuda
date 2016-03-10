@@ -18,6 +18,7 @@
            :kernel-manager-function-handle
            :kernel-manager-global-device-ptrs-empty-p
            :kernel-manager-global-device-ptr
+           :kernel-manager-global-qualifiers
            :kernel-manager-global-type
            :kernel-manager-define-function
            :kernel-manager-define-macro
@@ -92,6 +93,10 @@
 (defun kernel-manager-global-device-ptr (manager name)
   (kernel-manager-%global-device-ptr manager name))
 
+(defun kernel-manager-global-qualifiers (manager name)
+  (let ((kernel (kernel-manager-kernel manager)))
+    (kernel-global-qualifiers kernel name)))
+
 (defun kernel-manager-global-type (manager name)
   (let ((kernel (kernel-manager-kernel manager)))
     (kernel-global-type kernel name)))
@@ -141,13 +146,14 @@
   (not (and (kernel-symbol-macro-exists-p kernel name)
             (equal expansion (kernel-symbol-macro-expansion kernel name)))))
 
-(defun kernel-manager-define-global (manager name type &optional expression)
+(defun kernel-manager-define-global (manager name qualifiers type
+                                     &optional expression)
   (unless (not (kernel-manager-module-handle manager))
     (error "The kernel manager has already loaded the kernel module."))
   (symbol-macrolet ((module-path (kernel-manager-module-path manager))
                     (kernel (kernel-manager-kernel manager)))
     (when (global-modified-p kernel name type expression)
-      (kernel-define-global kernel name type expression)
+      (kernel-define-global kernel name qualifiers type expression)
       (setf module-path nil)))
   name)
 

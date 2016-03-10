@@ -24,7 +24,7 @@
        (*kernel-manager* mgr))
   (with-cuda (0)
     ;; I - initial state
-    (kernel-manager-define-global mgr 'a 'int 1)
+    (kernel-manager-define-global mgr 'a :device 'int 1)
     (kernel-manager-define-function mgr 'foo 'void '() '())
     (is (kernel-manager-compiled-p mgr) nil
         "basic case 1")
@@ -190,7 +190,7 @@
 (let ((mgr (make-kernel-manager)))
   (with-cuda (0)
     ;; I - initial state
-    (kernel-manager-define-global mgr 'a 'int 42)
+    (kernel-manager-define-global mgr 'a :device 'int 42)
     (is-error (kernel-manager-load-global mgr 'a)
               simple-error
               "Invalid kernel manager state.")
@@ -373,18 +373,18 @@
 (let ((mgr (make-kernel-manager)))
   (with-cuda (0)
     ;; Transfer state from I to II.
-    (kernel-manager-define-global mgr 'a 'int 42)
+    (kernel-manager-define-global mgr 'a :device 'int 42)
     (kernel-manager-compile-module mgr)
     (is (kernel-manager-compiled-p mgr)
         t
         "basic case 1")
     ;; Defining global without change makes no state transfer.
-    (kernel-manager-define-global mgr 'a 'int 42)
+    (kernel-manager-define-global mgr 'a :device 'int 42)
     (is (kernel-manager-compiled-p mgr)
         t
         "basic case 2")
     ;; Defining global with change makes state transfer.
-    (kernel-manager-define-global mgr 'a 'int 43)
+    (kernel-manager-define-global mgr 'a :device 'int 43)
     (is (kernel-manager-compiled-p mgr)
         nil
         "basic case 3")))
@@ -392,19 +392,19 @@
 (let ((mgr (make-kernel-manager)))
   (with-cuda (0)
     ;; I - initial state
-    (kernel-manager-define-global mgr 'a 'int 42)
+    (kernel-manager-define-global mgr 'a :device 'int 42)
     nil
     ;; II - compiled state
     (kernel-manager-compile-module mgr)
     nil
     ;; III - module-loaded state
     (kernel-manager-load-module mgr)
-    (is-error (kernel-manager-define-global mgr 'a 'int 42)
+    (is-error (kernel-manager-define-global mgr 'a :device 'int 42)
               simple-error
               "Invalid kernel manager state.")
     ;; IV - function-loaded state
     (kernel-manager-load-global mgr 'a)
-    (is-error (kernel-manager-define-global mgr 'a 'int 43)
+    (is-error (kernel-manager-define-global mgr 'a :device 'int 43)
               simple-error
               "Invalid kernel manager state.")))
 
