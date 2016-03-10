@@ -21,8 +21,8 @@
 (diag "COMPILE-KERNEL")
 
 (let ((kernel (make-kernel)))
-  (kernel-define-global kernel 'a 'int 1)
-  (kernel-define-global kernel 'b 'float nil)
+  (kernel-define-global kernel 'a '(:device :constant) 'int 1)
+  (kernel-define-global kernel 'b :device 'float)
   (kernel-define-function kernel 'foo 'void '((x int*))
                                  '((set (aref x 0) (bar 1))
                                    (return)))
@@ -44,7 +44,7 @@
  */
 
 __device__ static float cl_cuda_test_lang_compiler_compile_kernel_b;
-__device__ static int cl_cuda_test_lang_compiler_compile_kernel_a = 1;
+__device__ __constant__ static int cl_cuda_test_lang_compiler_compile_kernel_a = 1;
 
 
 /**

@@ -96,17 +96,22 @@
 #include \"curand.h\"
 ")
 
+(defun compile-variable-qualifier (qualifier)
+  (format nil "__~A__" (string-downcase (princ-to-string qualifier))))
+
 (defun compile-global (kernel name)
   (let ((c-name (kernel-global-c-name kernel name))
+        (qualifiers (kernel-global-qualifiers kernel name))
         (type (kernel-global-type kernel name))
         (expression (kernel-global-expression kernel name)))
     (let ((type1 (compile-type type))
+          (qualifiers1 (mapcar #'compile-variable-qualifier qualifiers))
           (expression1 (and expression
                             (compile-expression expression
                              (kernel->variable-environment kernel nil)
                              (kernel->function-environment kernel)))))
-      (format nil "__device__ static ~A ~A~@[ = ~A~];~%"
-              type1 c-name expression1))))
+      (format nil "~{~A~^ ~} static ~A ~A~@[ = ~A~];~%"
+              qualifiers1 type1 c-name expression1))))
 
 (defun compile-globals (kernel)
   (flet ((aux (name)
