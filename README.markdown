@@ -106,7 +106,7 @@ Further information:
 
 ## API
 
-Here explain some API commonly used.
+Here explain some APIs commonly used.
 
 ### [Macro] with-cuda
 
