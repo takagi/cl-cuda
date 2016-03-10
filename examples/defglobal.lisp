@@ -17,7 +17,7 @@
 
 (defglobal foo int)
 
-(defglobal bar int)
+(defglobal bar int 0 :constant)
 
 
 ;;
