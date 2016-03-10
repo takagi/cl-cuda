@@ -151,6 +151,23 @@ Copies stored data between host memory and device memory for `memory-block`. `di
 
 Accesses `memory-block`'s element specified by `index`. Note that the accessed memory area is that on host memory. Use `sync-memory-block` to synchronize stored data between host memory and device memory.
 
+### [Macro] defglobal
+
+    DEFGLOBAL name type &optional expression qualifiers
+
+Defines a global variable. `name` is a symbol which is the name of the variable. `type` is the type of the variable. Optional `expression` is an expression which initializes the variable. Optional `qualifiers` is one of or a list of keywords: `:device`, `:constant`, `:shared`, `:managed` and `:restrict`, which are corresponding to CUDA C's `__device__`, `__constant__`, `__shared__`, `__managed__` and `__restrict__` variable qualifiers. If not given, `:device` is used.
+
+    (defglobal pi float 3.14159 :constant)
+
+### [Accessor] global-ref
+
+Accesses a global variable's value on device from host with automatically copying its value from/to device.
+
+    (defglobal x :device int 0)
+    (global-ref x)                 ; => 0
+    (setf (global-ref x) 42)
+    (global-ref x)                 ; => 42
+
 ### [Special Variable] \*tmp-path\*
 
 Specifies the temporary directory in which cl-cuda generates files such as `.cu` file and `.ptx` file. The default is `"/tmp/"`.
