@@ -71,7 +71,7 @@
 (diag "KERNEL-GLOBAL-NAMES")
 
 (let ((kernel (make-kernel)))
-  (kernel-define-global kernel 'x 'int 42)
+  (kernel-define-global kernel 'x :device 'int 42)
   (kernel-define-symbol-macro kernel 'y 42)
   (is (kernel-global-names kernel) '(x)
       "kernel basic 1"))
@@ -314,13 +314,15 @@
 (subtest "kernel-define-global"
 
   (let ((kernel (make-kernel)))
-    (kernel-define-global kernel 'foo 'int 42)
+    (kernel-define-global kernel 'foo :device 'int 42)
     (is (kernel-global-exists-p kernel 'foo)
         t)
     (is (kernel-global-name kernel 'foo)
         'foo)
     (is (kernel-global-c-name kernel 'foo)
         "cl_cuda_test_lang_kernel_foo")
+    (is (kernel-global-qualifiers kernel 'foo)
+        '(:device))
     (is (kernel-global-type kernel 'foo)
         'int)
     (is (kernel-global-expression kernel 'foo)
@@ -329,30 +331,41 @@
   (let ((kernel (make-kernel)))
     ;; Name in variable namespace should be overwrited.
     (kernel-define-symbol-macro kernel 'foo 42)
-    (kernel-define-global kernel 'foo 'int 42)
+    (kernel-define-global kernel 'foo :device 'int 42)
     (is (kernel-global-exists-p kernel 'foo)
         t)
     (is (kernel-symbol-macro-exists-p kernel 'foo)
         nil))
 
-  (is-error (kernel-define-global :foo 'foo 'int 42)
+  (let ((kernel (make-kernel)))
+    ;; Give multiple qualifiers.
+    (kernel-define-global kernel 'foo '(:device :constant) 'int 42)
+    (is (kernel-global-qualifiers kernel 'foo)
+        '(:device :constant)))
+
+  (is-error (kernel-define-global :foo 'foo :device 'int 42)
             type-error
             "Invalid kernel.")
 
   (let ((kernel (make-kernel)))
-    (is-error (kernel-define-global kernel "foo" 'int 42)
+    (is-error (kernel-define-global kernel "foo" :device 'int 42)
               type-error
               "Invalid name."))
 
   (let ((kernel (make-kernel)))
-    (is-error (kernel-define-global kernel 'foo :foo 42)
+    (is-error (kernel-define-global kernel 'foo :foo 'int 42)
+              type-error
+              "Invalid qualifier."))
+
+  (let ((kernel (make-kernel)))
+    (is-error (kernel-define-global kernel 'foo :device :foo 42)
               type-error
               "Invalid cl-cuda type.")))
 
 (subtest "kernel-global-exists-p"
 
   (let ((kernel (make-kernel)))
-    (kernel-define-global kernel 'foo 'int 42)
+    (kernel-define-global kernel 'foo :device 'int 42)
     (kernel-define-symbol-macro kernel 'bar 42)
     (is (kernel-global-exists-p kernel 'foo)
         t)
@@ -373,7 +386,7 @@
 (subtest "kernel-global-name"
 
   (let ((kernel (make-kernel)))
-    (kernel-define-global kernel 'foo 'int 42)
+    (kernel-define-global kernel 'foo :device 'int 42)
     (is (kernel-global-name kernel 'foo)
         'foo))
 
@@ -394,7 +407,7 @@
 (subtest "kernel-global-c-name"
 
   (let ((kernel (make-kernel)))
-    (kernel-define-global kernel 'foo 'int 42)
+    (kernel-define-global kernel 'foo :device 'int 42)
     (is (kernel-global-c-name kernel 'foo)
         "cl_cuda_test_lang_kernel_foo"))
 
@@ -412,10 +425,31 @@
               type-error
               "Invalid name.")))
 
-(subtest "kernel-global-c-name"
+(subtest "kernel-global-qualifiers"
 
   (let ((kernel (make-kernel)))
-    (kernel-define-global kernel 'foo 'int 42)
+    (kernel-define-global kernel 'foo :device 'int 42)
+    (is (kernel-global-qualifiers kernel 'foo)
+        '(:device)))
+
+  (let ((kernel (make-kernel)))
+    (is-error (kernel-global-qualifiers kernel 'foo)
+              simple-error
+              "Global not found."))
+
+  (is-error (kernel-global-qualifiers :foo 'foo)
+            type-error
+            "Invalid kernel.")
+
+  (let ((kernel (make-kernel)))
+    (is-error (kernel-global-qualifiers kernel "foo")
+              type-error
+              "Invalid name.")))
+
+(subtest "kernel-global-type"
+
+  (let ((kernel (make-kernel)))
+    (kernel-define-global kernel 'foo :device 'int 42)
     (is (kernel-global-type kernel 'foo)
         'int))
 
@@ -436,7 +470,7 @@
 (subtest "kernel-global-expression"
 
   (let ((kernel (make-kernel)))
-    (kernel-define-global kernel 'foo 'int 42)
+    (kernel-define-global kernel 'foo :device 'int 42)
     (is (kernel-global-expression kernel 'foo)
         42))
 
