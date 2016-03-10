@@ -397,10 +397,11 @@ Following illustrates the kernel manager's state transfer.
     　    define-function     <========================================
     　    define-macro          unload
     　    define-symbol-macro
+          define-global
 
 `kernel-manager-compile-module` function compiles defined kernel functions into a CUDA kernel module. `kernel-manager-load-module` function loads the obtained kernel module. `kernel-manager-load-function` function loads each kernel function in the kernel module.
 
-In the module-loaded state and function-loaded state, `kernel-manager-unload` function unloads the kernel module and turn the kernel manager's state back to the compiled state. `kernel-manager-define-function`, `kernel-manager-define-macro` and `kernel-manager-define-symbol-macro` functions, which are wrapped as `defkernel`, `defkernelmacro` and `defkernel-symbol-macro` macros respectively, change its state back into the initial state and make it require compilation again.
+In the module-loaded state and function-loaded state, `kernel-manager-unload` function unloads the kernel module and turn the kernel manager's state back to the compiled state. `kernel-manager-define-function`, `kernel-manager-define-macro`, `kernel-manager-define-symbol-macro` and `kernel-manager-define-global` functions, which are wrapped as `defkernel`, `defkernelmacro`, `defkernel-symbol-macro` and `defglobal` macros respectively, change its state back into the initial state and make it require compilation again.
 
 The kernel manager is stored in `*kernel-manager*` special variable when cl-cuda is loaded and keeps alive during the Common Lisp process. Usually, you do not need to manage it explicitly.
 
