@@ -148,9 +148,10 @@
 ;;; DEFGLOBAL
 ;;;
 
-(defmacro defglobal (name type &optional expression)
+(defmacro defglobal (name type &optional expression qualifiers)
   `(kernel-manager-define-global *kernel-manager*
                                  ',name
+                                 ',(or qualifiers :device)
                                  ',type
                                  ,@(when expression
                                      `(',expression))))

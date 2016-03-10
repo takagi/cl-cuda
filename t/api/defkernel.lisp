@@ -249,7 +249,7 @@
 
 (diag "DEFGLOBAL")
 
-(defglobal a int 42)
+(defglobal a int 42 :constant)
 
 (defglobal b int)
 
