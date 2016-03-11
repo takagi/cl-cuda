@@ -52,7 +52,7 @@
 
 (diag "COMPILE-FLOAT")
 
-(is (compile-float 1.0) "1.0"
+(is (compile-float 1.0) "1.0f"
     "basic case 1")
 
 
@@ -62,10 +62,10 @@
 
 (diag "COMPILE-DOUBLE")
 
-(is (compile-double 1.0d0) "(double)1.0"
+(is (compile-double 1.0d0) "1.0"
     "basic case 1")
 
-(is (compile-double 1.23456789012345d0) "(double)1.23456789012345"
+(is (compile-double 1.23456789012345d0) "1.23456789012345"
     "basic case 2")
 
 
