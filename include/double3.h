@@ -6,6 +6,8 @@
 #ifndef CL_CUDA_DOUBLE3_H_
 #define CL_CUDA_DOUBLE3_H_
 
+#define __make_double3( x, y, z ) (double3){ x, y, z }
+
 __device__ double3 double3_add ( double3 a, double3 b )
 {
   return make_double3 ( a.x + b.x, a.y + b.y, a.z + b.z );
