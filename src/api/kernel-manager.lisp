@@ -152,13 +152,14 @@
     (error "The kernel manager has already loaded the kernel module."))
   (symbol-macrolet ((module-path (kernel-manager-module-path manager))
                     (kernel (kernel-manager-kernel manager)))
-    (when (global-modified-p kernel name type expression)
+    (when (global-modified-p kernel name qualifiers type expression)
       (kernel-define-global kernel name qualifiers type expression)
       (setf module-path nil)))
   name)
 
-(defun global-modified-p (kernel name type expression)
+(defun global-modified-p (kernel name qualifiers type expression)
   (not (and (kernel-global-exists-p kernel name)
+            (equal qualifiers (kernel-global-qualifiers kernel name))
             (equal type (kernel-global-type kernel name))
             (equal expression (kernel-global-expression kernel name)))))
 
