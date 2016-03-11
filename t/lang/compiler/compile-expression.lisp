@@ -78,10 +78,10 @@
 (is (compile-literal 1) "1"
     "basic case 3")
 
-(is (compile-literal 1.0) "1.0"
+(is (compile-literal 1.0) "1.0f"
     "basic case 4")
 
-(is (compile-literal 1.0d0) "(double)1.0"
+(is (compile-literal 1.0d0) "1.0"
     "basic case 5")
 
 
@@ -186,7 +186,7 @@
       "basic case 3")
   (is (compile-function '(+ (float3 1.0 1.0 1.0) (float3 2.0 2.0 2.0))
                         var-env func-env)
-      "float3_add( make_float3( 1.0, 1.0, 1.0 ), make_float3( 2.0, 2.0, 2.0 ) )"
+      "float3_add( make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 2.0f, 2.0f, 2.0f ) )"
       "basic case 4"))
 
 (let ((var-env (empty-variable-environment))

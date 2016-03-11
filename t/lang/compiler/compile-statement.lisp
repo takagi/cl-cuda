@@ -189,7 +189,7 @@
                       (set (aref a 0 0) 1.0)))
         (c-code (unlines "{"
                          "  __shared__ float a[16][16];"
-                         "  a[0][0] = 1.0;"
+                         "  a[0][0] = 1.0f;"
                          "}")))
     (is (compile-with-shared-memory lisp-code var-env func-env) c-code
         "basic case 5")))
@@ -200,7 +200,7 @@
                       (set (aref a 0) 1.0)))
         (c-code (unlines "{"
                          "  __shared__ float a[(16 + 2)];"
-                         "  a[0] = 1.0;"
+                         "  a[0] = 1.0f;"
                          "}")))
     (is (compile-with-shared-memory lisp-code var-env func-env) c-code
         "basic case 6")))
@@ -247,7 +247,7 @@
                  (empty-variable-environment)))
       (func-env (empty-function-environment)))
   (is (compile-set '(set (float3-x x) 1.0) var-env func-env)
-      (unlines "x.x = 1.0;")
+      (unlines "x.x = 1.0f;")
       "basic case 3")
   (is-error (compile-set '(set (float3-x x) 1) var-env func-env)
             simple-error))
