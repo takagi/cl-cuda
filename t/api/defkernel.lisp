@@ -249,18 +249,18 @@
 
 (diag "DEFGLOBAL")
 
-(defglobal a int 42 :constant)
+(defglobal a 42 :constant)
 
-(defglobal b int)
+(defglobal b 0)
 
 (with-cuda (0)
   ;; Read global.
-  (is (global-ref 'a)
+  (is (global-ref 'a 'int)
       42)
   ;; Write global.
-  (isnt (global-ref 'b) 42)
-  (setf (global-ref 'b) 42)
-  (is (global-ref 'b) 42))
+  (isnt (global-ref 'b 'int) 42)
+  (setf (global-ref 'b 'int) 42)
+  (is (global-ref 'b 'int) 42))
 
 
 ;;;
