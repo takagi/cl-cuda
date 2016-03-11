@@ -15,9 +15,9 @@
 ;;
 ;; Globals
 
-(defglobal foo int)
+(defglobal foo 0)
 
-(defglobal bar int 0 :constant)
+(defglobal bar 0 :constant)
 
 
 ;;
@@ -34,8 +34,8 @@
   (let ((dev-id 0))
     (with-cuda (dev-id)
       ;; First, set values to globals.
-      (setf (global-ref 'foo) 1)
-      (setf (global-ref 'bar) 2)
+      (setf (global-ref 'foo 'int) 1)
+      (setf (global-ref 'bar 'int) 2)
       ;; Second, launch kernel function and get sum of globals.
       (with-memory-blocks ((out 'int 1))
         ;; Launch ADD-GLOBALS kernel function.
