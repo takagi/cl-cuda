@@ -148,26 +148,22 @@
 ;;; DEFGLOBAL
 ;;;
 
-(defmacro defglobal (name type &optional expression qualifiers)
+(defmacro defglobal (name expression &optional qualifiers)
   `(kernel-manager-define-global *kernel-manager*
                                  ',name
                                  ',(or qualifiers :device)
-                                 ',type
-                                 ,@(when expression
-                                     `(',expression))))
+                                 ',expression))
 
-(defun global-ref (name &optional (manager *kernel-manager*))
+(defun global-ref (name type &optional (manager *kernel-manager*))
   (let* ((device-ptr (ensure-kernel-global-loaded manager name))
-         (type (kernel-manager-global-type manager name))
          (cffi-type (cffi-type type))
          (cffi-type-size (cffi-type-size type)))
     (cffi:with-foreign-object (host-ptr cffi-type)
       (cu-memcpy-device-to-host host-ptr device-ptr cffi-type-size)
       (cffi:mem-ref host-ptr cffi-type))))
 
-(defun (setf global-ref) (value name &optional (manager *kernel-manager*))
+(defun (setf global-ref) (value name type &optional (manager *kernel-manager*))
   (let* ((device-ptr (ensure-kernel-global-loaded manager name))
-         (type (kernel-manager-global-type manager name))
          (cffi-type (cffi-type type))
          (cffi-type-size (cffi-type-size type)))
     (cffi:with-foreign-object (host-ptr cffi-type)

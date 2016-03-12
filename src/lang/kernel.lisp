@@ -46,7 +46,6 @@
            :kernel-global-name
            :kernel-global-c-name
            :kernel-global-qualifiers
-           :kernel-global-type
            :kernel-global-expression)
   ;; Shadow symbols in cl-cuda.lang.syntax.
   (:shadow :macro-p
@@ -228,9 +227,9 @@
 ;;; Kernel definition - global
 ;;;
 
-(defun kernel-define-global (kernel name qualifiers type &optional expression)
+(defun kernel-define-global (kernel name qualifiers expression)
   (symbol-macrolet ((namespace (kernel-variable-namespace kernel)))
-    (let ((global (make-global name qualifiers type expression)))
+    (let ((global (make-global name qualifiers expression)))
       (setf (getf namespace name) global)))
   name)
 
@@ -253,9 +252,6 @@
 
 (defun kernel-global-qualifiers (kernel name)
   (global-qualifiers (%lookup-global kernel name)))
-
-(defun kernel-global-type (kernel name)
-  (global-type (%lookup-global kernel name)))
 
 (defun kernel-global-expression (kernel name)
   (global-expression (%lookup-global kernel name)))
@@ -359,22 +355,18 @@
 (defstruct (global (:constructor %make-global))
   (name :name :read-only t)
   (qualifiers :qualifiers :read-only t)
-  (type :type :read-only t)
   (expression :expression :read-only t))
 
-(defun make-global (name qualifiers type expression)
+(defun make-global (name qualifiers expression)
   (let ((qualifiers1 (ensure-list qualifiers)))
     ;; Check type of name.
     (check-type name cl-cuda-symbol)
     ;; Check type of qualifiers.
     (loop for qualifier in qualifiers1
        do (check-type qualifier variable-qualifier))
-    ;; Check type of type.
-    (check-type type cl-cuda-type)
     ;; Make global.
     (%make-global :name name
                   :qualifiers qualifiers1
-                  :type type
                   :expression expression)))
 
 (defun global-c-name (global)

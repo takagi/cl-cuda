@@ -19,7 +19,6 @@
            :kernel-manager-global-device-ptrs-empty-p
            :kernel-manager-global-device-ptr
            :kernel-manager-global-qualifiers
-           :kernel-manager-global-type
            :kernel-manager-define-function
            :kernel-manager-define-macro
            :kernel-manager-define-symbol-macro
@@ -37,7 +36,9 @@
            :expand-macro
            :*kernel-manager*)
   (:shadow :expand-macro-1
-           :expand-macro))
+           :expand-macro)
+  (:import-from :alexandria
+                :ensure-list))
 (in-package :cl-cuda.api.kernel-manager)
 
 
@@ -97,10 +98,6 @@
   (let ((kernel (kernel-manager-kernel manager)))
     (kernel-global-qualifiers kernel name)))
 
-(defun kernel-manager-global-type (manager name)
-  (let ((kernel (kernel-manager-kernel manager)))
-    (kernel-global-type kernel name)))
-
 (defun kernel-manager-define-function (manager name return-type arguments body)
   (unless (not (kernel-manager-module-handle manager))
     (error "The kernel manager has already loaded the kernel module."))
@@ -146,20 +143,21 @@
   (not (and (kernel-symbol-macro-exists-p kernel name)
             (equal expansion (kernel-symbol-macro-expansion kernel name)))))
 
-(defun kernel-manager-define-global (manager name qualifiers type
+(defun kernel-manager-define-global (manager name qualifiers
                                      &optional expression)
   (unless (not (kernel-manager-module-handle manager))
     (error "The kernel manager has already loaded the kernel module."))
   (symbol-macrolet ((module-path (kernel-manager-module-path manager))
                     (kernel (kernel-manager-kernel manager)))
-    (when (global-modified-p kernel name type expression)
-      (kernel-define-global kernel name qualifiers type expression)
+    (when (global-modified-p kernel name qualifiers expression)
+      (kernel-define-global kernel name qualifiers expression)
       (setf module-path nil)))
   name)
 
-(defun global-modified-p (kernel name type expression)
+(defun global-modified-p (kernel name qualifiers expression)
   (not (and (kernel-global-exists-p kernel name)
-            (equal type (kernel-global-type kernel name))
+            (equal (ensure-list qualifiers)
+                   (kernel-global-qualifiers kernel name))
             (equal expression (kernel-global-expression kernel name)))))
 
 (defun kernel-manager-compile-module (manager)

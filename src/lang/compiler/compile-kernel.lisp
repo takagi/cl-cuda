@@ -14,7 +14,8 @@
         :cl-cuda.lang.compiler.compile-data
         :cl-cuda.lang.compiler.compile-type
         :cl-cuda.lang.compiler.compile-expression
-        :cl-cuda.lang.compiler.compile-statement)
+        :cl-cuda.lang.compiler.compile-statement
+        :cl-cuda.lang.compiler.type-of-expression)
   (:export :compile-kernel))
 (in-package :cl-cuda.lang.compiler.compile-kernel)
 
@@ -41,8 +42,8 @@
 
 (defun %add-globals (kernel var-env)
   (flet ((aux (var-env0 name)
-           (let ((type (kernel-global-type kernel name))
-                 (expression (kernel-global-expression kernel name)))
+           (let* ((expression (kernel-global-expression kernel name))
+                  (type (type-of-expression expression nil nil)))
              (variable-environment-add-global name type expression var-env0))))
     (reduce #'aux (kernel-global-names kernel)
             :initial-value var-env)))
@@ -63,7 +64,7 @@
                  (argument-types (kernel-function-argument-types kernel
                                                                  name)))
              (function-environment-add-function name return-type
-                                               argument-types func-env0))))
+                                                argument-types func-env0))))
     (reduce #'aux (kernel-function-names kernel)
             :initial-value func-env)))
 
@@ -102,14 +103,13 @@
 (defun compile-global (kernel name)
   (let ((c-name (kernel-global-c-name kernel name))
         (qualifiers (kernel-global-qualifiers kernel name))
-        (type (kernel-global-type kernel name))
         (expression (kernel-global-expression kernel name)))
-    (let ((type1 (compile-type type))
+    (let ((type1 (compile-type
+                  (type-of-expression expression nil nil)))
           (qualifiers1 (mapcar #'compile-variable-qualifier qualifiers))
-          (expression1 (and expression
-                            (compile-expression expression
-                             (kernel->variable-environment kernel nil)
-                             (kernel->function-environment kernel)))))
+          (expression1 (compile-expression expression
+                        (kernel->variable-environment kernel nil)
+                        (kernel->function-environment kernel))))
       (format nil "~{~A~^ ~} static ~A ~A~@[ = ~A~];~%"
               qualifiers1 type1 c-name expression1))))
 
