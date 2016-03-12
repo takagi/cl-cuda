@@ -71,27 +71,31 @@
 
 (defun kernel-function-names (kernel)
   (let ((namespace (kernel-function-namespace kernel)))
-    (loop for (name object) on namespace by #'cddr
-       when (function-p object)
-       collect name)))
+    (nreverse
+     (loop for (name object) on namespace by #'cddr
+        when (function-p object)
+        collect name))))
 
 (defun kernel-macro-names (kernel)
   (let ((namespace (kernel-function-namespace kernel)))
-    (loop for (name object) on namespace by #'cddr
-       when (macro-p object)
-       collect name)))
+    (nreverse
+     (loop for (name object) on namespace by #'cddr
+        when (macro-p object)
+        collect name))))
 
 (defun kernel-symbol-macro-names (kernel)
   (let ((namespace (kernel-variable-namespace kernel)))
-    (loop for (name object) on namespace by #'cddr
-       when (symbol-macro-p object)
-       collect name)))
+    (nreverse
+     (loop for (name object) on namespace by #'cddr
+        when (symbol-macro-p object)
+        collect name))))
 
 (defun kernel-global-names (kernel)
   (let ((namespace (kernel-variable-namespace kernel)))
-    (loop for (name object) on namespace by #'cddr
-       when (global-p object)
-       collect name)))
+    (nreverse
+     (loop for (name object) on namespace by #'cddr
+        when (global-p object)
+        collect name))))
 
 
 ;;;
