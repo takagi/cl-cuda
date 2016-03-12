@@ -33,7 +33,7 @@
 
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
-  (is (type-of-expression 1 nil nil) 'int))
+  (is (type-of-expression 1 var-env func-env) 'int))
 
 
 ;;;
@@ -84,13 +84,16 @@
 
 (diag "TYPE-OF-REFERENCE - VARIABLE")
 
-(let ((var-env (variable-environment-add-variable 'y-expansion 'float
+(let ((var-env (variable-environment-add-global 'z 'int 1
+                (variable-environment-add-variable 'y-expansion 'float
                  (variable-environment-add-symbol-macro 'y 'y-expansion
-                   (variable-environment-add-variable 'x 'int
-                     (empty-variable-environment)))))
+                  (variable-environment-add-variable 'x 'int
+                   (empty-variable-environment))))))
       (func-env (empty-function-environment)))
   (is (type-of-reference 'x var-env func-env) 'int
       "basic case 1")
+  (is (type-of-reference 'z var-env func-env) 'int
+      "basic caase 2")
   (is-error (type-of-reference 'y var-env func-env) simple-error
             "FORM which is a variable not found.")
   (is-error (type-of-reference 'a var-env func-env) simple-error

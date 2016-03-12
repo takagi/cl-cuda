@@ -20,5 +20,6 @@
                  (:file "diffuse1")
                  ; (:file "shared-memory")
                  (:file "vector-add")
+                 (:file "defglobal")
                  (:file "sph"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))

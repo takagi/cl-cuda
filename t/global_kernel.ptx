@@ -1,0 +1,3 @@
+	.version 1.4
+	.target sm_11, map_f64_to_f32
+	.global .s32 a;

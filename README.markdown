@@ -106,7 +106,7 @@ Further information:
 
 ## API
 
-Here explain some API commonly used.
+Here explain some APIs commonly used.
 
 ### [Macro] with-cuda
 
@@ -150,6 +150,23 @@ Copies stored data between host memory and device memory for `memory-block`. `di
     MEMORY-BLOCK-AREF memory-block index
 
 Accesses `memory-block`'s element specified by `index`. Note that the accessed memory area is that on host memory. Use `sync-memory-block` to synchronize stored data between host memory and device memory.
+
+### [Macro] defglobal
+
+    DEFGLOBAL name type &optional expression qualifiers
+
+Defines a global variable. `name` is a symbol which is the name of the variable. `type` is the type of the variable. Optional `expression` is an expression which initializes the variable. Optional `qualifiers` is one of or a list of keywords: `:device`, `:constant`, `:shared`, `:managed` and `:restrict`, which are corresponding to CUDA C's `__device__`, `__constant__`, `__shared__`, `__managed__` and `__restrict__` variable qualifiers. If not given, `:device` is used.
+
+    (defglobal pi float 3.14159 :constant)
+
+### [Accessor] global-ref
+
+Accesses a global variable's value on device from host with automatically copying its value from/to device.
+
+    (defglobal x :device int 0)
+    (global-ref x)                 ; => 0
+    (setf (global-ref x) 42)
+    (global-ref x)                 ; => 42
 
 ### [Special Variable] \*tmp-path\*
 
@@ -380,10 +397,11 @@ Following illustrates the kernel manager's state transfer.
     　    define-function     <========================================
     　    define-macro          unload
     　    define-symbol-macro
+          define-global
 
 `kernel-manager-compile-module` function compiles defined kernel functions into a CUDA kernel module. `kernel-manager-load-module` function loads the obtained kernel module. `kernel-manager-load-function` function loads each kernel function in the kernel module.
 
-In the module-loaded state and function-loaded state, `kernel-manager-unload` function unloads the kernel module and turn the kernel manager's state back to the compiled state. `kernel-manager-define-function`, `kernel-manager-define-macro` and `kernel-manager-define-symbol-macro` functions, which are wrapped as `defkernel`, `defkernelmacro` and `defkernel-symbol-macro` macros respectively, change its state back into the initial state and make it require compilation again.
+In the module-loaded state and function-loaded state, `kernel-manager-unload` function unloads the kernel module and turn the kernel manager's state back to the compiled state. `kernel-manager-define-function`, `kernel-manager-define-macro`, `kernel-manager-define-symbol-macro` and `kernel-manager-define-global` functions, which are wrapped as `defkernel`, `defkernelmacro`, `defkernel-symbol-macro` and `defglobal` macros respectively, change its state back into the initial state and make it require compilation again.
 
 The kernel manager is stored in `*kernel-manager*` special variable when cl-cuda is loaded and keeps alive during the Common Lisp process. Usually, you do not need to manage it explicitly.
 

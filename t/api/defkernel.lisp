@@ -244,6 +244,26 @@
 
 
 ;;;
+;;; test DEFGLOBAL macro
+;;;
+
+(diag "DEFGLOBAL")
+
+(defglobal a int 42 :constant)
+
+(defglobal b int)
+
+(with-cuda (0)
+  ;; Read global.
+  (is (global-ref 'a)
+      42)
+  ;; Write global.
+  (isnt (global-ref 'b) 42)
+  (setf (global-ref 'b) 42)
+  (is (global-ref 'b) 42))
+
+
+;;;
 ;;; test MOD
 ;;;
 (defkernel test-mod (void ((x int*)))

@@ -21,6 +21,8 @@
 (diag "COMPILE-KERNEL")
 
 (let ((kernel (make-kernel)))
+  (kernel-define-global kernel 'a '(:device :constant) 'int 1)
+  (kernel-define-global kernel 'b :device 'float)
   (kernel-define-function kernel 'foo 'void '((x int*))
                                  '((set (aref x 0) (bar 1))
                                    (return)))
@@ -35,6 +37,14 @@
 #include \"double3.h\"
 #include \"double4.h\"
 #include \"curand.h\"
+
+
+/**
+ *  Kernel globals
+ */
+
+__device__ static float cl_cuda_test_lang_compiler_compile_kernel_b;
+__device__ __constant__ static int cl_cuda_test_lang_compiler_compile_kernel_a = 1;
 
 
 /**

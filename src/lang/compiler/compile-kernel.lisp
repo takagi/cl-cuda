@@ -13,6 +13,7 @@
         :cl-cuda.lang.kernel
         :cl-cuda.lang.compiler.compile-data
         :cl-cuda.lang.compiler.compile-type
+        :cl-cuda.lang.compiler.compile-expression
         :cl-cuda.lang.compiler.compile-statement)
   (:export :compile-kernel))
 (in-package :cl-cuda.lang.compiler.compile-kernel)
@@ -38,10 +39,23 @@
     (reduce #'aux (kernel-symbol-macro-names kernel)
             :initial-value var-env)))
 
+(defun %add-globals (kernel var-env)
+  (flet ((aux (var-env0 name)
+           (let ((type (kernel-global-type kernel name))
+                 (expression (kernel-global-expression kernel name)))
+             (variable-environment-add-global name type expression var-env0))))
+    (reduce #'aux (kernel-global-names kernel)
+            :initial-value var-env)))
+
 (defun kernel->variable-environment (kernel name)
-  (%add-function-arguments kernel name
-    (%add-symbol-macros kernel
-      (empty-variable-environment))))
+  (if name
+      (%add-function-arguments kernel name
+       (%add-symbol-macros kernel
+        (%add-globals kernel
+         (empty-variable-environment))))
+      (%add-symbol-macros kernel
+       (%add-globals kernel
+        (empty-variable-environment)))))
 
 (defun %add-functions (kernel func-env)
   (flet ((aux (func-env0 name)
@@ -81,6 +95,33 @@
 #include \"double4.h\"
 #include \"curand.h\"
 ")
+
+(defun compile-variable-qualifier (qualifier)
+  (format nil "__~A__" (string-downcase (princ-to-string qualifier))))
+
+(defun compile-global (kernel name)
+  (let ((c-name (kernel-global-c-name kernel name))
+        (qualifiers (kernel-global-qualifiers kernel name))
+        (type (kernel-global-type kernel name))
+        (expression (kernel-global-expression kernel name)))
+    (let ((type1 (compile-type type))
+          (qualifiers1 (mapcar #'compile-variable-qualifier qualifiers))
+          (expression1 (and expression
+                            (compile-expression expression
+                             (kernel->variable-environment kernel nil)
+                             (kernel->function-environment kernel)))))
+      (format nil "~{~A~^ ~} static ~A ~A~@[ = ~A~];~%"
+              qualifiers1 type1 c-name expression1))))
+
+(defun compile-globals (kernel)
+  (flet ((aux (name)
+           (compile-global kernel name)))
+    (let ((globals (mapcar #'aux (kernel-global-names kernel))))
+      (format nil "/**
+ *  Kernel globals
+ */
+
+~{~A~}" globals))))
 
 (defun compile-specifier (return-type)
   (unless (cl-cuda-type-p return-type)
@@ -151,6 +192,10 @@
 
 (defun compile-kernel (kernel)
   (let ((includes (compile-includes))
+        (globals (compile-globals kernel))
         (prototypes (compile-prototypes kernel))
         (definitions (compile-definitions kernel)))
-    (format nil "~A~%~%~A~%~%~A" includes prototypes definitions)))
+    (format nil "~A~%~%~A~%~%~A~%~%~A" includes
+                                       globals
+                                       prototypes
+                                       definitions)))

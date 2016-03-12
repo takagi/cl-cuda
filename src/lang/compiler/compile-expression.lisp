@@ -126,9 +126,13 @@
 ;;;
 
 (defun compile-variable-reference (form var-env)
-  (unless (variable-environment-variable-exists-p var-env form)
-    (error "The variable ~S not found." form))
-  (compile-symbol form))
+  (cond
+    ((variable-environment-variable-exists-p var-env form)
+     (compile-symbol form))
+    ((variable-environment-global-exists-p var-env form)
+     (variable-environment-global-c-name var-env form))
+    (t
+     (error "The variable ~S not found." form))))
 
 
 ;;;

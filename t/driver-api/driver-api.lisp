@@ -135,6 +135,34 @@
             (cu-module-get-function hfunc (cffi:mem-ref module 'cu-module)
                                     name)))))))
 
+(diag "test cuModuleGetGlobal")
+(let ((ptx-path (namestring
+                 (asdf:system-relative-pathname :cl-cuda
+                                                #P"t/global_kernel.ptx"))))
+  (with-cu-context (0)
+    (cffi:with-foreign-objects ((hmodule 'cu-module)
+                                (dptr 'cu-device-ptr))
+      ;; Load kernel module.
+      (cu-module-load hmodule ptx-path)
+      ;; Get global's device pointer.
+      (cu-module-get-global dptr
+                            (cffi:null-pointer)
+                            (cffi:mem-ref hmodule 'cu-module)
+                            "a")        ; "a" is the name of the global.
+      ;; Write to global.
+      (cffi:with-foreign-object (a :int)
+        (setf (cffi:mem-ref a :int) 42)
+        (cu-memcpy-host-to-device (cffi:mem-ref dptr 'cu-device-ptr)
+                                  a
+                                  (cffi:foreign-type-size :int)))
+      ;; Read from global and test it.
+      (cffi:with-foreign-object (a :int)
+        (setf (cffi:mem-ref a :int) 0)
+        (cu-memcpy-device-to-host a
+                                  (cffi:mem-ref dptr 'cu-device-ptr)
+                                  (cffi:foreign-type-size :int))
+        (is (cffi:mem-ref a :int) 42)))))
+
 
 ;;;
 ;;; test CUDA Event Management functions
