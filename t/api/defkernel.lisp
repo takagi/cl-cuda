@@ -266,6 +266,7 @@
 ;;;
 ;;; test MOD
 ;;;
+
 (defkernel test-mod (void ((x int*)))
   (set (aref x 0) (mod (aref x 0) 5)))
 
@@ -278,6 +279,40 @@
     (sync-memory-block x :device-to-host)
     (is (memory-block-aref x 0) 2
         "basic case 23")))
+
+
+;;;
+;;; Initializers
+;;;
+
+(defglobal c (float3 3.0 2.0 1.0))
+
+(defkernel initializer (float3 ())
+  (let ((x 1.0))
+    (return (float3 x 2.0 3.0))))
+
+(defkernel use-initializer (void ((x float3*) (y float3*)))
+  (set (aref x 0) (initializer))
+  (set (aref y 0) c)
+  (return))
+
+(subtest "Initializers"
+
+  (with-cuda (0)
+    (with-memory-blocks ((x 'float3 1)
+                         (y 'float3 1))
+      (use-initializer x y :grid-dim (list 1 1 1)
+                           :block-dim (list 1 1 1))
+      (sync-memory-block x :device-to-host)
+      (sync-memory-block y :device-to-host)
+      (is (memory-block-aref x 0)
+          (make-float3 1.0 2.0 3.0)
+          :test #'float3-=
+          "Ok. - returning with initializer")
+      (is (memory-block-aref y 0)
+          (make-float3 3.0 2.0 1.0)
+          :test #'float3-=
+          "Ok. - initializing with initializer"))))
 
 
 ;;;

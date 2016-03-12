@@ -6,6 +6,8 @@
 #ifndef CL_CUDA_DOUBLE4_H_
 #define CL_CUDA_DOUBLE4_H_
 
+#define __make_double4( x, y, z, w ) (double4){ x, y, z, w }
+
 __device__ double4 double4_add ( double4 a, double4 b )
 {
   return make_double4 ( a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w );
