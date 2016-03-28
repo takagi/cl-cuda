@@ -21,5 +21,6 @@
                  ; (:file "shared-memory")
                  (:file "vector-add")
                  (:file "defglobal")
-                 (:file "sph"))))
+                 (:file "sph")
+                 (:file "sph-cpu"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
