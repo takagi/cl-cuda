@@ -52,6 +52,12 @@ Since cl-cuda is not available in Quicklisp distribution because of its testing 
 
 Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
 
+You may encounter the following error, please install CFFI explicitly `(ql:quickload :cffi)` before loading cl-cuda. Just once is enough.
+
+    Component CFFI-GROVEL not found
+       [Condition of type ASDF/FIND-SYSTEM:MISSING-COMPONENT]
+
+
 ## Requirements
 
 Cl-cuda requires following:
