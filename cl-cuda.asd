@@ -4,12 +4,13 @@
 |#
 
 (in-package :cl-user)
-(defpackage cl-cuda-asd
-  (:use :cl :asdf))
-(in-package :cl-cuda-asd)
 
 (eval-when (:load-toplevel :execute)
   (asdf:operate 'asdf:load-op 'cffi-grovel))
+
+(defpackage cl-cuda-asd
+  (:use :cl :asdf))
+(in-package :cl-cuda-asd)
 
 
 ;;;
