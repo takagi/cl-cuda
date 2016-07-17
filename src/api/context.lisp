@@ -71,9 +71,9 @@
 ;;; WITH-CUDA macro
 ;;;
 
-(defvar *cuda-device*)
+(defvar *cuda-device* nil)
 
-(defvar *cuda-context*)
+(defvar *cuda-context* nil)
 
 (defun get-nvcc-arch (dev-id)
   (multiple-value-bind (major minor)
