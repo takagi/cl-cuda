@@ -285,17 +285,21 @@
 ;;; Initializers
 ;;;
 
+#+nil
 (defglobal c (float3 3.0 2.0 1.0))
 
+#+nil
 (defkernel initializer (float3 ())
   (let ((x 1.0))
     (return (float3 x 2.0 3.0))))
 
+#+nil
 (defkernel use-initializer (void ((x float3*) (y float3*)))
   (set (aref x 0) (initializer))
   (set (aref y 0) c)
   (return))
 
+#+nil
 (subtest "Initializers"
 
   (with-cuda (0)

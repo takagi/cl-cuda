@@ -23,7 +23,8 @@
   *tmp-path*)
 
 (defun get-cu-path ()
-  (let ((name (format nil "cl-cuda.~A" (osicat-posix:mktemp))))
+  (let ((name "cl-cuda.tmp"))
+;;  (let ((name (format nil "cl-cuda.~A" (osicat-posix:mktemp))))
     (make-pathname :name name :type "cu" :defaults (get-tmp-path))))
 
 (defun get-ptx-path (cu-path)

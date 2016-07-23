@@ -143,10 +143,10 @@
              ((double) double* nil "&")
              ((curand-state-xorwow) curand-state-xorwow* nil "&"))
     ;; built-in vector constructor
-    float3 (((float float float) float3 nil "__make_float3"))
-    float4 (((float float float float) float4 nil "__make_float4"))
-    double3 (((double double double) double3 nil "__make_double3"))
-    double4 (((double double double double) double4 nil "__make_double4"))
+    float3 (((float float float) float3 nil "make_float3"))
+    float4 (((float float float float) float4 nil "make_float4"))
+    double3 (((double double double) double3 nil "make_double3"))
+    double4 (((double double double double) double4 nil "make_double4"))
     ;; Synchronization functions
     syncthreads ((() void nil "__syncthreads"))
     ;; type casting intrinsics

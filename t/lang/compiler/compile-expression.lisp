@@ -190,7 +190,7 @@
       "basic case 3")
   (is (compile-function '(+ (float3 1.0 1.0 1.0) (float3 2.0 2.0 2.0))
                         var-env func-env)
-      "float3_add( __make_float3( 1.0f, 1.0f, 1.0f ), __make_float3( 2.0f, 2.0f, 2.0f ) )"
+      "float3_add( make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 2.0f, 2.0f, 2.0f ) )"
       "basic case 4"))
 
 (let ((var-env (empty-variable-environment))
