@@ -110,6 +110,14 @@ Further information:
 * SBCL 1.1.12
 * All tests pass, all examples work
 
+#### Environment6 (Thanks to @gos-k)
+* Ubuntu 16.04.1 LTS
+* GeForce GTX 1080
+* CUDA Version 8.0.27
+* Driver Version 367.35
+* CCL Version 1.11-r16635  (LinuxX8664)
+* All tests pass, all examples work
+
 ## API
 
 Here explain some APIs commonly used.
