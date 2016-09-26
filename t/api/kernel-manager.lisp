@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.api.kernel-manager
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.lang
         :cl-cuda.api.context
         :cl-cuda.api.kernel-manager))

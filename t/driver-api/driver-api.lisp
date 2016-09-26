@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.driver-api
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.driver-api)
   (:import-from :alexandria
                 :with-gensyms))
