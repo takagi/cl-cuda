@@ -11,8 +11,7 @@
 (defsystem cl-cuda-interop-examples
   :author "Masayuki Takagi"
   :license "LLGPL"
-  :depends-on (:cl-cuda-interop
-               :cl-test-more)
+  :depends-on (:cl-cuda-interop)
   :components ((:module "interop/examples"
                 :serial t
                 :components
