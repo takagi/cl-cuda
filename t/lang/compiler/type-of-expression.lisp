@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.lang.compiler.type-of-expression
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.lang.compiler.type-of-expression
         :cl-cuda.lang.data
         :cl-cuda.lang.type
