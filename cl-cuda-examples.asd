@@ -12,7 +12,6 @@
   :author "Masayuki Takagi"
   :license "LLGPL"
   :depends-on (:cl-cuda
-               :cl-test-more
                :imago)
   :components ((:module "examples"
                 :components
