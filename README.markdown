@@ -45,12 +45,9 @@ For the whole code, please see [examples/vector-add.lisp](https://github.com/tak
 
 ## Installation
 
-Since cl-cuda is not available in Quicklisp distribution because of its testing policy (see [#514](https://github.com/quicklisp/quicklisp-projects/issues/514) in quicklisp-projects), please use its local-projects feature.
+You can install cl-cuda via quicklisp.
 
-    $ cd ~/quicklisp/local-projects
-    $ git clone git://github.com/takagi/cl-cuda.git
-
-Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
+    > (ql:quickload :cl-cuda)
 
 You may encounter the following error, please install CFFI explicitly `(ql:quickload :cffi)` before loading cl-cuda. Just once is enough.
 
