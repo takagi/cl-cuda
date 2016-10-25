@@ -30,6 +30,7 @@
            :cu-ctx-create
            :cu-ctx-destroy
            :cu-ctx-synchronize
+           :cu-device-total-mem
            :cu-mem-alloc
            :cu-mem-free
            :cu-mem-host-register
