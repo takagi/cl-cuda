@@ -8,6 +8,9 @@
   (:use :cl
         :cl-cuda.lang.type)
   (:export ;; Built-in functions
+           :xor
+           :shl
+           :shr
            :rsqrt
            :__exp
            :__divide
@@ -118,6 +121,10 @@
           ((double double) bool t ">="))
     ;; logical operators
     not  (((bool) bool nil "!"))
+    ;; bitwise operations
+    xor (((int    int)    int    t   "^"))
+    shl (((int    int)    int    t   "<<"))
+    shr (((int    int)    int    t   ">>"))
     ;; mathematical functions
     exp  (((float) float nil "expf")
           ((double) double nil "exp"))
