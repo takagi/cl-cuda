@@ -46,7 +46,7 @@
            :kernel-global-name
            :kernel-global-c-name
            :kernel-global-qualifiers
-           :kernel-global-expression)
+           :kernel-global-initializer)
   ;; Shadow symbols in cl-cuda.lang.syntax.
   (:shadow :macro-p
            :symbol-macro-p
@@ -257,8 +257,8 @@
 (defun kernel-global-qualifiers (kernel name)
   (global-qualifiers (%lookup-global kernel name)))
 
-(defun kernel-global-expression (kernel name)
-  (global-expression (%lookup-global kernel name)))
+(defun kernel-global-initializer (kernel name)
+  (global-initializer (%lookup-global kernel name)))
 
 
 ;;;
@@ -359,9 +359,9 @@
 (defstruct (global (:constructor %make-global))
   (name :name :read-only t)
   (qualifiers :qualifiers :read-only t)
-  (expression :expression :read-only t))
+  (initializer :initializer :read-only t))
 
-(defun make-global (name qualifiers expression)
+(defun make-global (name qualifiers initializer)
   (let ((qualifiers1 (ensure-list qualifiers)))
     ;; Check type of name.
     (check-type name cl-cuda-symbol)
@@ -371,7 +371,7 @@
     ;; Make global.
     (%make-global :name name
                   :qualifiers qualifiers1
-                  :expression expression)))
+                  :initializer initializer)))
 
 (defun global-c-name (global)
   (c-identifier (global-name global) t))
