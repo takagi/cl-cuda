@@ -80,6 +80,11 @@
 ;; cuCtxSynchronize
 (defcufun (cu-ctx-synchronize "cuCtxSynchronize") cu-result)
 
+;; cuDeviceTotalMem
+(defcufun (cu-device-total-mem "cuDeviceTotalMem") cu-result
+  (bytes (:pointer size-t))
+  (dev :int))
+
 ;; cuMemAlloc
 (defcufun (cu-mem-alloc "cuMemAlloc_v2") cu-result
   (dptr (:pointer cu-device-ptr))

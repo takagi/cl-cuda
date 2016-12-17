@@ -9,6 +9,10 @@
         :cl-cuda.driver-api
         :cl-cuda.lang.type)
   (:export ;; Device memory
+           :device-total-bytes
+           :device-total-kbytes
+           :device-total-mbytes
+           :device-total-gbytes
            :alloc-device-memory
            :free-device-memory
            :with-device-memory
@@ -52,6 +56,19 @@
      (unwind-protect (progn ,@body)
        (free-device-memory ,var))))
 
+(defun device-total-bytes (device)
+  (cffi:with-foreign-objects ((bytes :unsigned-long)) ; size-t doesn't work for some reason...
+    (cu-device-total-mem bytes device)
+    (cffi:mem-ref bytes :unsigned-long)))
+
+(defun device-total-kbytes (device)
+  (/ (device-total-bytes device) 1024))
+
+(defun device-total-mbytes (device)
+  (/ (device-total-kbytes device) 1024))
+
+(defun device-total-gbytes (device)
+  (/ (device-total-mbytes device) 1024))
 
 ;;;
 ;;; Host memory

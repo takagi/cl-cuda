@@ -8,6 +8,9 @@
   (:use :cl
         :cl-cuda.lang.type)
   (:export ;; Built-in functions
+           :xor
+           :shl
+           :shr
            :rsqrt
            :__exp
            :__divide
@@ -40,7 +43,11 @@
        ((float4 float4) float4 nil "float4_add")
        ((double  double)  double  t   "+")
        ((double3 double3) double3 nil "double3_add")
-       ((double4 double4) double4 nil "double4_add"))
+       ((double4 double4) double4 nil "double4_add")
+       ((int    float)    float    t   "+")
+       ((float    int)    float    t   "+")
+       ((int    double)    double    t   "+")
+       ((double    int)    double    t   "+"))
     - (((int)           int    nil "int_negate")
        ((float)         float  nil "float_negate")
        ((float3)        float3 nil "float3_negate")
@@ -54,7 +61,11 @@
        ((float4 float4) float4 nil "float4_sub")
        ((double  double)  double  t   "-")
        ((double3 double3) double3 nil "double3_sub")
-       ((double4 double4) double4 nil "double4_sub"))
+       ((double4 double4) double4 nil "double4_sub")
+       ((int    float)    float    t   "-")
+       ((float    int)    float    t   "-")
+       ((int    double)    double    t   "-")
+       ((double    int)    double    t   "-"))
     * (((int    int)    int    t   "*")
        ((float  float)  float  t   "*")
        ((float3 float)  float3 nil "float3_scale")
@@ -65,7 +76,11 @@
        ((double3 double)  double3 nil "double3_scale")
        ((double  double3) double3 nil "double3_scale_flipped")
        ((double4 double)  double4 nil "double4_scale")
-       ((double  double4) double4 nil "double4_scale_flipped"))
+       ((double  double4) double4 nil "double4_scale_flipped")
+       ((int    float)    float    t   "*")
+       ((float    int)    float    t   "*")
+       ((int    double)    double    t   "*")
+       ((double    int)    double    t   "*"))
     / (((int)           int    nil "int_recip")
        ((float)         float  nil "float_recip")
        ((float3)        float3 nil "float3_recip")
@@ -79,7 +94,11 @@
        ((float4 float)  float4 nil "float4_scale_inverted")
        ((double  double)  double  t   "/")
        ((double3 double)  double3 nil "double3_scale_inverted")
-       ((double4 double)  double4 nil "double4_scale_inverted"))
+       ((double4 double)  double4 nil "double4_scale_inverted")
+       ((int    float)    float    t   "/")
+       ((float    int)    float    t   "/")
+       ((int    double)    double    t   "/")
+       ((double    int)    double    t   "/"))
     mod (((int    int)    int    t   "%"))
     ;; relational operators
     =    (((int   int)   bool t "==")
@@ -102,6 +121,10 @@
           ((double double) bool t ">="))
     ;; logical operators
     not  (((bool) bool nil "!"))
+    ;; bitwise operations
+    xor (((int    int)    int    t   "^"))
+    shl (((int    int)    int    t   "<<"))
+    shr (((int    int)    int    t   ">>"))
     ;; mathematical functions
     exp  (((float) float nil "expf")
           ((double) double nil "exp"))

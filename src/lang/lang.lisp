@@ -86,7 +86,10 @@
 ;; reexport symbols of cl-cuda built-in functions except the ones
 ;; exported from COMMON-LISP package
 (reexport-from :cl-cuda.lang.built-in
-               :include '(:rsqrt
+               :include '(:xor
+                          :shl
+                          :shr
+                          :rsqrt
                           :__exp
                           :__divide
                           :atomic-add
