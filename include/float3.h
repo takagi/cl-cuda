@@ -6,8 +6,6 @@
 #ifndef CL_CUDA_FLOAT3_H_
 #define CL_CUDA_FLOAT3_H_
 
-#define __make_float3( x, y, z ) (float3){ x, y, z }
-
 __device__ float3 float3_add ( float3 a, float3 b )
 {
   return make_float3 ( a.x + b.x, a.y + b.y, a.z + b.z );

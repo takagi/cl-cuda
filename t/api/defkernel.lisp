@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.api.defkernel
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.api.defkernel
         :cl-cuda.api.context
         :cl-cuda.api.memory

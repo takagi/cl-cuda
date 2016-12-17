@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.lang.data
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.lang.data
         :cl-cuda.lang.type))
 (in-package :cl-cuda-test.lang.data)

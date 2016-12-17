@@ -27,7 +27,7 @@
            :variable-environment-global-name
            :variable-environment-global-c-name
            :variable-environment-global-type
-           :variable-environment-global-expression
+           :variable-environment-global-initializer
            ;; Function environment
            :empty-function-environment
            ;; Function environment - Function
@@ -129,8 +129,8 @@
 (defun variable-environment-global-type (var-env name)
   (global-type (%lookup-global var-env name)))
 
-(defun variable-environment-global-expression (var-env name)
-  (global-expression (%lookup-global var-env name)))
+(defun variable-environment-global-initializer (var-env name)
+  (global-initializer (%lookup-global var-env name)))
 
 
 ;;;
@@ -231,12 +231,12 @@
 (defstruct (global (:constructor %make-global))
   (name :name :read-only t)
   (type :type :read-only t)
-  (expression :expression :read-only t))
+  (initializer :initializer :read-only t))
 
-(defun make-global (name type expression)
+(defun make-global (name type initializer)
   (check-type name cl-cuda-symbol)
   (check-type type cl-cuda-type)
-  (%make-global :name name :type type :expression expression))
+  (%make-global :name name :type type :initializer initializer))
 
 (defun global-c-name (global)
   (c-identifier (global-name global) t))

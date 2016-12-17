@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-interop-test
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda-interop))
 (in-package :cl-cuda-interop-test)
 

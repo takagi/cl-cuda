@@ -45,12 +45,9 @@ For the whole code, please see [examples/vector-add.lisp](https://github.com/tak
 
 ## Installation
 
-Since cl-cuda is not available in Quicklisp distribution because of its testing policy (see [#514](https://github.com/quicklisp/quicklisp-projects/issues/514) in quicklisp-projects), please use its local-projects feature.
+You can install cl-cuda via quicklisp.
 
-    $ cd ~/quicklisp/local-projects
-    $ git clone git://github.com/takagi/cl-cuda.git
-
-Then `(ql:quickload :cl-cuda)` from `REPL` to load it.
+    > (ql:quickload :cl-cuda)
 
 You may encounter the following error, please install CFFI explicitly `(ql:quickload :cffi)` before loading cl-cuda. Just once is enough.
 
@@ -110,6 +107,14 @@ Further information:
 * SBCL 1.1.12
 * All tests pass, all examples work
 
+#### Environment6 (Thanks to @gos-k)
+* Ubuntu 16.04.1 LTS
+* GeForce GTX 1080
+* CUDA Version 8.0.27
+* Driver Version 367.35
+* CCL Version 1.11-r16635  (LinuxX8664)
+* All tests pass, all examples work
+
 ## API
 
 Here explain some APIs commonly used.
@@ -118,7 +123,7 @@ Here explain some APIs commonly used.
 
     WITH-CUDA (dev-id) &body body
 
-Initializes CUDA and keeps a CUDA context during `body`. `dev-id` are passed to `get-cuda-device` function and the device handler returned is passed to `create-cuda-context` function to create a CUDA context in the expanded form. The results of `get-cuda-device` and `create-cuda-context` functions are bound to `*cuda-device*` and `*cuda-context*` special variables respectively. The kernel manager unloads before `with-cuda` exits.
+Initializes CUDA and keeps a CUDA context during `body`. `dev-id` is passed to `get-cuda-device` function and the device handler returned is passed to `create-cuda-context` function to create a CUDA context in the expanded form. The results of `get-cuda-device` and `create-cuda-context` functions are bound to `*cuda-device*` and `*cuda-context*` special variables respectively. The kernel manager unloads before `with-cuda` exits.
 
 ### [Function] synchronize-context
 

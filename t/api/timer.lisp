@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.api.timer
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.api.timer
         :cl-cuda.api.context))
 (in-package :cl-cuda-test.api.timer)

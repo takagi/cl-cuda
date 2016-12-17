@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.lang.syntax
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.lang.data
         :cl-cuda.lang.syntax))
 (in-package :cl-cuda-test.lang.syntax)
@@ -97,6 +97,11 @@
     "basic case 4")
 (is (inline-if-p '(if t 2 3 4)) t
     "basic case 5")
+
+
+;;;
+;;; test Vector constructor
+;;;
 
 
 ;;;

@@ -20,15 +20,18 @@
 ;;; Compile expression
 ;;;
 
-(defun compile-expression (form var-env func-env)
+(defun compile-expression (form var-env func-env &optional initializer-p)
   (cond
-    ((%macro-p form func-env) (compile-macro form var-env func-env))
+    ((%macro-p form func-env)
+     (compile-macro form var-env func-env initializer-p))
     ((%symbol-macro-p form var-env)
-     (compile-symbol-macro form var-env func-env))
+     (compile-symbol-macro form var-env func-env initializer-p))
     ((literal-p form) (compile-literal form))
     ((cuda-dimension-p form) (compile-cuda-dimension form))
     ((reference-p form) (compile-reference form var-env func-env))
     ((inline-if-p form) (compile-inline-if form var-env func-env))
+    ((constructor-p form)
+     (compile-constructor form var-env func-env initializer-p))
     ((arithmetic-p form) (compile-arithmetic form var-env func-env))
     ((function-p form) (compile-function form var-env func-env))
     (t (error "The value ~S is an invalid expression." form))))
@@ -41,12 +44,12 @@
 (defun %macro-p (form func-env)
   (cl-cuda.lang.compiler.type-of-expression::%macro-p form func-env))
 
-(defun compile-macro (form var-env func-env)
+(defun compile-macro (form var-env func-env initializer-p)
   (let ((operator (macro-operator form))
         (operands (macro-operands form)))
     (let ((expander (function-environment-macro-expander func-env operator)))
       (let ((form1 (funcall expander operands)))
-        (compile-expression form1 var-env func-env)))))
+        (compile-expression form1 var-env func-env initializer-p)))))
 
 
 ;;;
@@ -56,9 +59,9 @@
 (defun %symbol-macro-p (form var-env)
   (cl-cuda.lang.compiler.type-of-expression::%symbol-macro-p form var-env))
 
-(defun compile-symbol-macro (form var-env func-env)
+(defun compile-symbol-macro (form var-env func-env initializer-p)
   (let ((form1 (variable-environment-symbol-macro-expansion var-env form)))
-    (compile-expression form1 var-env func-env)))
+    (compile-expression form1 var-env func-env initializer-p)))
 
 
 ;;;
@@ -197,6 +200,19 @@
           (then-expr1 (compile-expression then-expr var-env func-env))
           (else-expr1 (compile-expression else-expr var-env func-env)))
       (format nil "(~A ? ~A : ~A)" test-expr1 then-expr1 else-expr1))))
+
+
+;;;
+;;; Vector constructors
+;;;
+
+(defun compile-constructor (form var-env func-env initializer-p)
+  (if initializer-p
+      (let* ((operands (constructor-operands form))
+             (operands1 (compile-operands operands var-env func-env)))
+        (format nil "{ ~{~A~^, ~} }" operands1))
+      ;; Delegete the logic to COMPILE-FUNCTION for historical reasons.
+      (compile-function form var-env func-env)))
 
 
 ;;;

@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.lang.environment
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.lang.type
         :cl-cuda.lang.environment))
 (in-package :cl-cuda-test.lang.environment)
@@ -92,9 +92,9 @@
       "basic case 5")
   (is (variable-environment-global-type var-env 'x) 'int
       "basic case 6")
-  (is (variable-environment-global-expression var-env 'x) 1
+  (is (variable-environment-global-initializer var-env 'x) 1
       "basic case 7")
-  (is (variable-environment-global-expression var-env 'y) nil
+  (is (variable-environment-global-initializer var-env 'y) nil
       "basic case 8"))
 
 (is-error (variable-environment-add-global 1 'int 1
@@ -144,12 +144,12 @@
           type-error
           "Invalid name.")
 
-(is-error (variable-environment-global-expression :foo 'x)
+(is-error (variable-environment-global-initializer :foo 'x)
           type-error
           "Invalid variable environment.")
 
-(is-error (variable-environment-global-expression (empty-variable-environment)
-                                                  1)
+(is-error (variable-environment-global-initializer (empty-variable-environment)
+                                                   1)
           type-error
           "Invalid name.")
 

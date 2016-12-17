@@ -5,7 +5,7 @@
 
 (in-package :cl-user)
 (defpackage cl-cuda-test.api.context
-  (:use :cl :cl-test-more
+  (:use :cl :prove
         :cl-cuda.api.context))
 (in-package :cl-cuda-test.api.context)
 

@@ -12,7 +12,7 @@
   :author "Masayuki Takagi"
   :license "LLGPL"
   :depends-on (:cl-cuda-interop
-               :cl-test-more)
+               :prove)
   :components ((:module "interop/t"
                 :serial t
                 :components
