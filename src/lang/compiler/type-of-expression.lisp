@@ -27,6 +27,7 @@
     ((cuda-dimension-p form) (type-of-cuda-dimension form))
     ((reference-p form) (type-of-reference form var-env func-env))
     ((inline-if-p form) (type-of-inline-if form var-env func-env))
+    ((constructor-p form) (type-of-constructor form var-env func-env))
     ((arithmetic-p form) (type-of-arithmetic form var-env func-env))
     ((function-p form) (type-of-function form var-env func-env))
     (t (error "The value ~S is an invalid expression." form))))
@@ -163,6 +164,15 @@
       (unless (eq then-type else-type)
         (error "The type of expression ~S is invalid." form))
       then-type)))
+
+
+;;;
+;;; Vector constructors
+;;;
+
+(defun type-of-constructor (form var-env func-env)
+  ;; Delegate the logic to TYPE-OF-FUNCTION for historical reasons.
+  (type-of-function form var-env func-env))
 
 
 ;;;
