@@ -109,7 +109,8 @@
           (qualifiers1 (mapcar #'compile-variable-qualifier qualifiers))
           (expression1 (compile-expression expression
                         (kernel->variable-environment kernel nil)
-                        (kernel->function-environment kernel))))
+                        (kernel->function-environment kernel)
+                        t)))
       (format nil "~{~A~^ ~} static ~A ~A~@[ = ~A~];~%"
               qualifiers1 type1 c-name expression1))))
 
