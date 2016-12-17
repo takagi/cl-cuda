@@ -42,9 +42,9 @@
 
 (defun %add-globals (kernel var-env)
   (flet ((aux (var-env0 name)
-           (let* ((expression (kernel-global-expression kernel name))
-                  (type (type-of-expression expression nil nil)))
-             (variable-environment-add-global name type expression var-env0))))
+           (let* ((initializer (kernel-global-initializer kernel name))
+                  (type (type-of-expression initializer nil nil)))
+            (variable-environment-add-global name type initializer var-env0))))
     (reduce #'aux (kernel-global-names kernel)
             :initial-value var-env)))
 
@@ -103,16 +103,16 @@
 (defun compile-global (kernel name)
   (let ((c-name (kernel-global-c-name kernel name))
         (qualifiers (kernel-global-qualifiers kernel name))
-        (expression (kernel-global-expression kernel name)))
+        (initializer (kernel-global-initializer kernel name)))
     (let ((type1 (compile-type
-                  (type-of-expression expression nil nil)))
+                  (type-of-expression initializer nil nil)))
           (qualifiers1 (mapcar #'compile-variable-qualifier qualifiers))
-          (expression1 (compile-expression expression
-                        (kernel->variable-environment kernel nil)
-                        (kernel->function-environment kernel)
-                        t)))
+          (initializer1 (compile-expression initializer
+                         (kernel->variable-environment kernel nil)
+                         (kernel->function-environment kernel)
+                         t)))
       (format nil "~{~A~^ ~} static ~A ~A~@[ = ~A~];~%"
-              qualifiers1 type1 c-name expression1))))
+              qualifiers1 type1 c-name initializer1))))
 
 (defun compile-globals (kernel)
   (flet ((aux (name)
