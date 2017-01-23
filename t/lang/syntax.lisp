@@ -100,6 +100,11 @@
 
 
 ;;;
+;;; test Vector constructor
+;;;
+
+
+;;;
 ;;; test Arithmetic
 ;;;
 

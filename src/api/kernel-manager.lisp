@@ -158,7 +158,7 @@
   (not (and (kernel-global-exists-p kernel name)
             (equal (ensure-list qualifiers)
                    (kernel-global-qualifiers kernel name))
-            (equal expression (kernel-global-expression kernel name)))))
+            (equal expression (kernel-global-initializer kernel name)))))
 
 (defun kernel-manager-compile-module (manager)
   (unless (not (kernel-manager-compiled-p manager))

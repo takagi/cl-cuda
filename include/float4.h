@@ -6,8 +6,6 @@
 #ifndef CL_CUDA_FLOAT4_H_
 #define CL_CUDA_FLOAT4_H_
 
-#define __make_float4( x, y, z, w ) (float4){ x, y, z, w }
-
 __device__ float4 float4_add ( float4 a, float4 b )
 {
   return make_float4 ( a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w );

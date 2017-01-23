@@ -18,6 +18,7 @@
                 :type-of-cuda-dimension
                 :type-of-reference
                 :type-of-inline-if
+                :type-of-constructor
                 :type-of-arithmetic
                 :type-of-function))
 (in-package :cl-cuda-test.lang.compiler.type-of-expression)
@@ -155,7 +156,12 @@
 
 
 ;;;
-;;; test TYPE-OF-ARITHMETIC function (not implemented)
+;;; test TYPE-OF-CONSTRUCTOR function
+;;;
+
+
+;;;
+;;; test TYPE-OF-ARITHMETIC function
 ;;;
 
 

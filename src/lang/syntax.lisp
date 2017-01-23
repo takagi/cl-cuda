@@ -47,6 +47,10 @@
            :inline-if-test-expression
            :inline-if-then-expression
            :inline-if-else-expression
+           ;; Vector constructor
+           :constructor-p
+           :constructor-operator
+           :constructor-operands
            ;; Arithmetic
            :arithmetic-p
            :arithmetic-operator
@@ -280,6 +284,30 @@
     (('if _ _ else-expr) else-expr)
     (('if . _) (error "The expression ~S is malformed." form))
     (_ (error "The value ~S is an invalid expression." form))))
+
+
+;;;
+;;; Vector constructor
+;;;
+
+(defparameter +constructor-operators+
+  '(float3 float4 double3 double4))
+
+(defun constructor-p (form)
+  (cl-pattern:match form
+    ((name . _) (and (member name +constructor-operators+)
+                     t))
+    (_ nil)))
+
+(defun constructor-operator (form)
+  (unless (constructor-p form)
+    (error "The form ~S is invalid." form))
+  (car form))
+
+(defun constructor-operands (form)
+  (unless (constructor-p form)
+    (error "The form ~S is invalid." form))
+  (cdr form))
 
 
 ;;;

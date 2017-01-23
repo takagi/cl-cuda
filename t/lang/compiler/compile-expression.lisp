@@ -19,6 +19,7 @@
                 :compile-cuda-dimension
                 :compile-reference
                 :compile-inline-if
+                :compile-constructor
                 :compile-arithmetic
                 :compile-function))
 (in-package :cl-cuda-test.lang.compiler.compile-expression)
@@ -46,7 +47,7 @@
 (let ((var-env (empty-variable-environment))
       (func-env (function-environment-add-macro 'foo '(x) '(`(+ ,x ,x))
                   (empty-function-environment))))
-  (is (compile-macro '(foo 1) var-env func-env) "(1 + 1)"
+  (is (compile-macro '(foo 1) var-env func-env nil) "(1 + 1)"
       "basic case 1"))
 
 
@@ -59,7 +60,7 @@
 (let ((var-env (variable-environment-add-symbol-macro 'x 1
                  (empty-variable-environment)))
       (func-env (empty-function-environment)))
-  (is (compile-symbol-macro 'x var-env func-env) "1"
+  (is (compile-symbol-macro 'x var-env func-env nil) "1"
       "basic case 1"))
 
 
@@ -154,6 +155,24 @@
 
 
 ;;;
+;;; test COMPILE-CONSTRUCTOR function
+;;;
+
+(diag "COMPILE-CONSTRUCTOR")
+
+(let ((var-env (empty-variable-environment))
+      (func-env (empty-function-environment)))
+
+  (is (compile-constructor '(float3 1.0 1.0 1.0) var-env func-env nil)
+      "make_float3( 1.0f, 1.0f, 1.0f )"
+      "base case 1")
+
+  (is (compile-constructor '(float3 1.0 1.0 1.0) var-env func-env t)
+      "{ 1.0f, 1.0f, 1.0f }"
+      "base case 2"))
+
+
+;;;
 ;;; test COMPILE-ARITHMETIC function
 ;;;
 
@@ -190,7 +209,7 @@
       "basic case 3")
   (is (compile-function '(+ (float3 1.0 1.0 1.0) (float3 2.0 2.0 2.0))
                         var-env func-env)
-      "float3_add( __make_float3( 1.0f, 1.0f, 1.0f ), __make_float3( 2.0f, 2.0f, 2.0f ) )"
+      "float3_add( make_float3( 1.0f, 1.0f, 1.0f ), make_float3( 2.0f, 2.0f, 2.0f ) )"
       "basic case 4"))
 
 (let ((var-env (empty-variable-environment))
