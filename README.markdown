@@ -401,13 +401,13 @@ The initial state is its entry point. The compiled state is a state where kernel
 
 Following illustrates the kernel manager's state transfer.
 
-    　    compile-module        load-module            load-function
-    　  =================>    =================>     =================>
-    　I                    II                    III                    IV
-    　  <=================    <=================
-    　    define-function     <========================================
-    　    define-macro          unload
-    　    define-symbol-macro
+          compile-module        load-module            load-function
+        =================>    =================>     =================>
+      I                    II                    III                    IV
+        <=================    <=================
+          define-function     <========================================
+          define-macro          unload
+          define-symbol-macro
           define-global
 
 `kernel-manager-compile-module` function compiles defined kernel functions into a CUDA kernel module. `kernel-manager-load-module` function loads the obtained kernel module. `kernel-manager-load-function` function loads each kernel function in the kernel module.
