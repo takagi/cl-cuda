@@ -270,6 +270,26 @@ Compiled:
       return 1.0;
     }
 
+### MACROLET statement
+
+    MACROLET ({(name lambda-list local-form*)}*) statement*
+
+`macrolet` establishes local macro definitions, using the same format as `defkernelmacro`, and executes a series of `statement`s with these definition bindings.
+
+Example:
+
+    (macrolet ((square (a)
+                 (if (numberp a)
+		     (* a a)
+		     `(* ,a ,a))))
+      (return (square 2)))
+
+Compiled:
+
+    {
+      return 4;
+    }
+
 ### DO statement
 
     DO ({(var init-form step-form)}*) (test-form) statement*
