@@ -280,8 +280,8 @@ Example:
 
     (macrolet ((square (a)
                  (if (numberp a)
-		     (* a a)
-		     `(* ,a ,a))))
+                     (* a a)
+                     `(* ,a ,a))))
       (return (square 2)))
 
 Compiled:
