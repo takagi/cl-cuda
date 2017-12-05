@@ -80,14 +80,14 @@
            :symbol-macrolet-binding-p
            :symbol-macrolet-binding-symbol
            :symbol-macrolet-binding-expansion
-	   ;; Macrolet statement
+           ;; Macrolet statement
            :macrolet-p
            :macrolet-bindings
            :macrolet-statements
            ;; Macrolet statement - binding
            :macrolet-binding-p
            :macrolet-binding-symbol
-	   :macrolet-binding-arguments
+           :macrolet-binding-arguments
            :macrolet-binding-body 
            ;; Do statement
            :do-p
@@ -510,8 +510,8 @@
   (cl-pattern:match object
     ((name bindings . _)
      (and (cl-cuda-symbol-p name)
-	  (alexandria:proper-list-p bindings)
-	  (mapcar #'cl-cuda-symbol-p bindings)))
+          (alexandria:proper-list-p bindings)
+          (mapcar #'cl-cuda-symbol-p bindings)))
     (_ nil)))
 
 (defun macrolet-binding-symbol (binding)

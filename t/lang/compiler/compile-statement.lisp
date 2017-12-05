@@ -17,7 +17,7 @@
                 :compile-if
                 :compile-let
                 :compile-symbol-macrolet
-		:compile-macrolet
+                :compile-macrolet
                 :compile-do
                 :compile-with-shared-memory
                 :compile-set
@@ -125,14 +125,14 @@
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
   (let ((lisp-code '(macrolet ((square (x) `(* ,x ,x)))
-		     (return (square 2))))
+                     (return (square 2))))
         (c-code (unlines "{"
                          "  return (2 * 2);"
                          "}")))
     (is (compile-macrolet lisp-code var-env func-env) c-code
         "basic case 1"))
   (let ((lisp-code '(macrolet ((optimized-square (x) (* x x)))
-		     (return (optimized-square 2))))
+                     (return (optimized-square 2))))
         (c-code (unlines "{"
                          "  return 4;"
                          "}")))

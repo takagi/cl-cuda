@@ -150,10 +150,10 @@
 (defun func-env-add-macrolet-bindings (func-env bindings)
   (flet ((aux (func-env0 binding)
            (let ((symbol (macrolet-binding-symbol binding))
-		 (arguments (macrolet-binding-arguments binding))
-		 (body (macrolet-binding-body binding)))
+                 (arguments (macrolet-binding-arguments binding))
+                 (body (macrolet-binding-body binding)))
              (function-environment-add-macro symbol arguments body
-					     func-env0))))
+                                             func-env0))))
     (reduce #'aux bindings :initial-value func-env)))
 
 (defun compile-macrolet-statements (statements var-env func-env)
@@ -162,11 +162,10 @@
 (defun compile-macrolet (form var-env func-env)
   (let ((bindings (macrolet-bindings form))
         (statements (macrolet-statements form)))
-    (let ((func-env1 (func-env-add-macrolet-bindings func-env
-						     bindings)))
+    (let ((func-env1 (func-env-add-macrolet-bindings func-env bindings)))
       (let ((statements1 (compile-macrolet-statements statements
-						      var-env
-						      func-env1)))
+                                                      var-env
+                                                      func-env1)))
         (let ((statements2 (indent 2 statements1)))
           (format nil "{~%~A}~%" statements2))))))
 
