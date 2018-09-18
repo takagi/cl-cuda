@@ -83,7 +83,7 @@ Cl-cuda is verified to work in following environments:
 
 #### Environment3 (Thanks to Viktor Cerovski)
 * Linux 3.5.0-32-generic Ubuntu SMP x86_64
-* GeFroce 9800 GT
+* GeForce 9800 GT
 * CUDA 5
 * SBCL 1.1.7 64-bit
 * All tests pass, all examples work
