@@ -14,6 +14,28 @@
 
 
 ;;;
+;;; test Float2
+;;;
+
+(diag "Float2")
+
+(subtest "float2 foreign translation"
+
+  (let ((cffi-type (cffi-type 'float2)))
+    (cffi:with-foreign-object (x cffi-type)
+      (setf (cffi:mem-ref x cffi-type) (make-float2 0.0 1.0))
+      (with-float2 (x y) (cffi:mem-ref x cffi-type)
+        (is x 0.0)
+        (is y 1.0)))))
+
+(subtest "with-float2"
+
+  (with-float2 (x y) (make-float2 0.0 1.0)
+    (is x 0.0)
+    (is y 1.0)))
+
+
+;;;
 ;;; test Float3
 ;;;
 
@@ -47,6 +69,16 @@
     (is y 1.0)
     (is z 2.0)
     (is w 3.0)))
+
+
+;;
+;; Double2
+
+(subtest "with-double2"
+
+  (with-double2 (x y) (make-double2 0d0 1d0)
+    (is x 0d0)
+    (is y 1d0)))
 
 
 ;;

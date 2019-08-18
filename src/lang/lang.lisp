@@ -11,7 +11,15 @@
 
 ;; reexport symbols of data structures cl-cuda provides
 (reexport-from :cl-cuda.lang.data
-               :include '(;; Float3
+               :include '(;; Float2
+                          :float2
+                          :make-float2
+                          :float2-x
+                          :float2-y
+                          :float2-p
+                          :float2-=
+                          :with-float2
+                          ;; Float3
                           :float3
                           :make-float3
                           :float3-x
@@ -30,6 +38,14 @@
                           :float4-p
                           :float4-=
                           :with-float4
+                          ;; Double2
+                          :double2
+                          :make-double2
+                          :double2-x
+                          :double2-y
+                          :double2-p
+                          :double2-=
+                          :with-double2
                           ;; Double3
                           :double3
                           :make-double3
@@ -58,16 +74,20 @@
                           :float
                           :double
                           :curand-state-xorwow
+                          :float2
                           :float3
                           :float4
+                          :double2
                           :double3
                           :double4
                           :bool*
                           :int*
                           :float*
                           :double*
+                          :float2*
                           :float3*
                           :float4*
+                          :double2*
                           :double3*
                           :double4*
                           :curand-state-xorwow*

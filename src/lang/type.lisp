@@ -15,8 +15,10 @@
            :float
            :double
            :curand-state-xorwow
+           :float2
            :float3
            :float4
+           :double2
            :double3
            :double4
            :bool*
@@ -24,8 +26,10 @@
            :float*
            :double*
            :curand-state-xorwow*
+           :float2*
            :float3*
            :float4*
+           :double2*
            :double3*
            :double4*
            ;; Type
@@ -123,13 +127,17 @@
 ;;;
 
 (defparameter +structure-table+
-  '((float3 "float3" ((float3-x "x" float)
+  '((float2 "float2" ((float2-x "x" float)
+                      (float2-y "y" float)))
+    (float3 "float3" ((float3-x "x" float)
                       (float3-y "y" float)
                       (float3-z "z" float)))
     (float4 "float4" ((float4-x "x" float)
                       (float4-y "y" float)
                       (float4-z "z" float)
                       (float4-w "w" float)))
+    (double2 "double2" ((double2-x "x" double)
+                        (double2-y "y" double)))
     (double3 "double3" ((double3-x "x" double)
                         (double3-y "y" double)
                         (double3-z "z" double)))

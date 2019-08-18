@@ -17,6 +17,14 @@
            :cl-cuda-float-p
            ;; Double
            :cl-cuda-double-p
+           ;; Float2
+           :float2
+           :make-float2
+           :float2-x
+           :float2-y
+           :float2-p
+           :float2-=
+           :with-float2
            ;; Float3
            :float3
            :make-float3
@@ -36,6 +44,14 @@
            :float4-p
            :float4-=
            :with-float4
+           ;; Double2
+           :double2
+           :make-double2
+           :double2-x
+           :double2-y
+           :double2-p
+           :double2-=
+           :with-double2
            ;; Double3
            :double3
            :make-double3
@@ -101,6 +117,41 @@
 
 (defun cl-cuda-double-p (object)
   (typep object 'double-float))
+
+
+;;;
+;;; Float2
+;;;
+
+(defstruct (float2 (:constructor make-float2 (x y)))
+  (x 0.0 :type single-float)
+  (y 0.0 :type single-float))
+
+(defun float2-= (a b)
+  (and (= (float2-x a) (float2-x b))
+       (= (float2-y a) (float2-y b))))
+
+(cffi:defcstruct (float2 :class float2-c)
+  (x :float)
+  (y :float))
+
+(defmacro with-float2 ((x y) value &body body)
+  (once-only (value)
+    `(let ((,x (float2-x ,value))
+           (,y (float2-y ,value)))
+       (declare (ignorable ,x ,y))
+       ,@body)))
+
+(defmethod cffi:translate-into-foreign-memory ((value float2)
+                                               (type float2-c)
+                                               ptr)
+  (cffi:with-foreign-slots ((x y) ptr (:struct float2))
+    (setf x (float2-x value)
+          y (float2-y value))))
+
+(defmethod cffi:translate-from-foreign (value (type float2-c))
+  (cffi:with-foreign-slots ((x y) value (:struct float2))
+    (make-float2 x y)))
 
 
 ;;;
@@ -186,6 +237,41 @@
 (defmethod cffi:translate-from-foreign (value (type float4-c))
   (cffi:with-foreign-slots ((x y z w) value (:struct float4))
     (make-float4 x y z w)))
+
+
+;;;
+;;; Double2
+;;;
+
+(defstruct (double2 (:constructor make-double2 (x y)))
+  (x 0.0d0 :type double-float)
+  (y 0.0d0 :type double-float))
+
+(defun double2-= (a b)
+  (and (= (double2-x a) (double2-x b))
+       (= (double2-y a) (double2-y b))))
+
+(cffi:defcstruct (double2 :class double2-c)
+  (x :double)
+  (y :double))
+
+(defmacro with-double2 ((x y) value &body body)
+  (once-only (value)
+    `(let ((,x (double2-x ,value))
+           (,y (double2-y ,value)))
+       (declare (ignorable ,x ,y))
+       ,@body)))
+
+(defmethod cffi:translate-into-foreign-memory ((value double2)
+                                               (type double2-c)
+                                               ptr)
+  (cffi:with-foreign-slots ((x y) ptr (:struct double2))
+    (setf x (double2-x value)
+          y (double2-y value))))
+
+(defmethod cffi:translate-from-foreign (value (type double2-c))
+  (cffi:with-foreign-slots ((x y) value (:struct double2))
+    (make-double2 x y)))
 
 
 ;;;

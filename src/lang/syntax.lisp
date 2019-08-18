@@ -300,7 +300,7 @@
 ;;;
 
 (defparameter +constructor-operators+
-  '(float3 float4 double3 double4))
+  '(float2 float3 float4 double2 double3 double4))
 
 (defun constructor-p (form)
   (cl-pattern:match form
