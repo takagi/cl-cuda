@@ -17,7 +17,9 @@
 ;;; Helper
 ;;;
 
-(defvar *tmp-path* (make-pathname :directory "tmp"))
+(defvar *tmp-path*
+  #-windows (make-pathname :directory "tmp")
+  #+windows (uiop:getenv-pathname "TEMP" :want-directory t))
 
 (defun get-tmp-path ()
   *tmp-path*)
@@ -41,7 +43,9 @@
             (list "-I" (namestring include-path)
                   "-ptx"
                   "-o" (namestring ptx-path)
-                  (namestring cu-path)))))
+                  (namestring cu-path)
+				  #+windows "-Xcompiler"
+				  #+windows "/source-charset:utf-8"))))
 
 
 ;;;
