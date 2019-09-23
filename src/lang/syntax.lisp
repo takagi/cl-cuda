@@ -80,6 +80,15 @@
            :symbol-macrolet-binding-p
            :symbol-macrolet-binding-symbol
            :symbol-macrolet-binding-expansion
+           ;; Macrolet statement
+           :macrolet-p
+           :macrolet-bindings
+           :macrolet-statements
+           ;; Macrolet statement - binding
+           :macrolet-binding-p
+           :macrolet-binding-symbol
+           :macrolet-binding-arguments
+           :macrolet-binding-body 
            ;; Do statement
            :do-p
            :do-bindings
@@ -466,6 +475,59 @@
 
 (defun symbol-macrolet-binding-expansion (binding)
   (let-binding-expr binding))
+
+
+;;;
+;;; Macrolet statement
+;;;
+
+(defun macrolet-p (form)
+  (cl-pattern:match form
+    (('macrolet . _) t)
+    (_ nil)))
+
+(defun macrolet-bindings (form)
+  (cl-pattern:match form
+    (('macrolet bindings . _)
+     (if (every #'macrolet-binding-p bindings)
+         bindings
+         (error "The statement ~S is malformed." form)))
+    (('macrolet . _) (error "The statement ~S is malformed." form))
+    (_ (error "The value ~S is an invalid statement." form))))
+
+(defun macrolet-statements (form)
+  (cl-pattern:match form
+    (('macrolet _ . statements) statements)
+    (('macrolet . _) (error "The statement ~S is malformed." form))
+    (_ (error "The value ~S is an invalid statement." form))))
+
+
+;;;
+;;; Macrolet statement - binding
+;;;
+
+(defun macrolet-binding-p (object)
+  (cl-pattern:match object
+    ((name bindings . _)
+     (and (cl-cuda-symbol-p name)
+          (alexandria:proper-list-p bindings)
+          (mapcar #'cl-cuda-symbol-p bindings)))
+    (_ nil)))
+
+(defun macrolet-binding-symbol (binding)
+  (unless (macrolet-binding-p binding)
+    (error "The value ~S is an invalid binding." binding))
+  (car binding))
+
+(defun macrolet-binding-arguments (binding)
+  (unless (macrolet-binding-p binding)
+    (error "The value ~S is an invalid binding." binding))
+  (cadr binding))
+
+(defun macrolet-binding-body (binding)
+  (unless (macrolet-binding-p binding)
+    (error "The value ~S is an invalid binding." binding))
+  (cddr binding))
 
 
 ;;;

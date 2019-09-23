@@ -3,15 +3,7 @@
   Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
 |#
 
-(eval-when (:load-toplevel :execute)
-  (asdf:operate 'asdf:load-op 'cffi-grovel))
-
-(in-package :cl-user)
-(defpackage cl-cuda-interop-asd
-  (:use :cl :asdf))
-(in-package :cl-cuda-interop-asd)
-
-(defsystem cl-cuda-interop
+(defsystem "cl-cuda-interop"
   :version "0.1"
   :author "Masayuki Takagi"
   :license "LLGPL"
@@ -35,16 +27,5 @@
                    (:file "api")))
                  (:file "cl-cuda-interop"))))
   :description "Cl-cuda with OpenGL interoperability."
-  :long-description
-  #.(with-open-file (stream (merge-pathnames
-                             #p"README.markdown"
-                             (or *load-pathname* *compile-file-pathname*))
-                            :if-does-not-exist nil
-                            :direction :input)
-      (when stream
-        (let ((seq (make-array (file-length stream)
-                               :element-type 'character
-                               :fill-pointer t)))
-          (setf (fill-pointer seq) (read-sequence seq stream))
-          seq)))
-  :in-order-to ((test-op (load-op cl-cuda-interop-test))))
+  ;; :long-description #.(read-file-string (subpathname *load-pathname* "README.markdown"))
+  :in-order-to ((test-op (test-op "cl-cuda-interop-test"))))

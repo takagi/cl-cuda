@@ -3,15 +3,11 @@
   Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
 |#
 
-(in-package :cl-user)
-
-(eval-when (:load-toplevel :execute)
-  (asdf:operate 'asdf:load-op 'cffi-grovel))
-
-(defpackage cl-cuda-asd
-  (:use :cl :asdf))
+(defpackage :cl-cuda-asd
+  (:use :cl :asdf :uiop))
 (in-package :cl-cuda-asd)
 
+(load-system "cffi-grovel")
 
 ;;;
 ;;; Cuda-grovel-file ASDF component
@@ -19,35 +15,23 @@
 
 (defclass cuda-grovel-file (cffi-grovel:grovel-file) ())
 
-(defmethod asdf:perform :around ((op cffi-grovel::process-op) (c cuda-grovel-file))
-  ;; Process a grovel file only when CUDA SDK is found.
-  (let ((sdk-not-found (symbol-value (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API"))))
-    (unless sdk-not-found
-      (call-next-method))))
-
-(defmethod asdf:perform :around ((op asdf:compile-op) (c cuda-grovel-file))
+(defmethod asdf:perform :around ((o operation) (c cuda-grovel-file))
   ;; Compile a grovel file only when CUDA SDK is found.
   (let ((sdk-not-found (symbol-value (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API"))))
-    (unless sdk-not-found
-      (call-next-method))))
-
-(defmethod asdf:perform :around ((op asdf:load-op) (c cuda-grovel-file))
-  ;; Load a grovel file only when CUDA SDK is found.
-  (let ((sdk-not-found (symbol-value (intern "*SDK-NOT-FOUND*" "CL-CUDA.DRIVER-API"))))
-    (unless sdk-not-found
-      (call-next-method))))
-
+    (if sdk-not-found
+        (asdf::mark-operation-done o c)
+        (call-next-method))))
 
 ;;;
 ;;; Cl-cuda system definition
 ;;;
 
-(defsystem cl-cuda
+(defsystem "cl-cuda"
   :version "0.1"
   :author "Masayuki Takagi"
   :license "LLGPL"
-  :depends-on (:cffi :alexandria :external-program #|:osicat|#
-               :cl-pattern :split-sequence :cl-reexport :cl-ppcre)
+  :depends-on ("cffi" "alexandria" "external-program" #-windows "osicat"
+               "cl-pattern" "split-sequence" "cl-reexport" "cl-ppcre")
   :components ((:module "src"
                 :serial t
                 :components
@@ -93,16 +77,5 @@
                    (:file "api")))
                  (:file "cl-cuda"))))
   :description "Cl-cuda is a library to use NVIDIA CUDA in Common Lisp programs."
-  :long-description
-  #.(with-open-file (stream (merge-pathnames
-                             #p"README.markdown"
-                             (or *load-pathname* *compile-file-pathname*))
-                            :if-does-not-exist nil
-                            :direction :input)
-      (when stream
-        (let ((seq (make-array (file-length stream)
-                               :element-type 'character
-                               :fill-pointer t)))
-          (setf (fill-pointer seq) (read-sequence seq stream))
-          seq)))
-  :in-order-to ((test-op (load-op cl-cuda-test))))
+  :long-description #.(read-file-string (subpathname *load-pathname* "README.markdown"))
+  :in-order-to ((test-op (test-op "cl-cuda-test"))))

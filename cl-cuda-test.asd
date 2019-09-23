@@ -3,16 +3,11 @@
   Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
 |#
 
-(in-package :cl-user)
-(defpackage cl-cuda-test-asd
-  (:use :cl :asdf))
-(in-package :cl-cuda-test-asd)
-
-(defsystem cl-cuda-test
+(defsystem "cl-cuda-test"
   :author "Masayuki Takagi"
   :license "LLGPL"
-  :depends-on (:cl-cuda
-               :prove)
+  :depends-on ("cl-cuda"
+               "prove")
   :components ((:module "t"
                 :serial t
                 :components
@@ -42,5 +37,4 @@
                   ((:file "kernel-manager")
                    (:file "memory")
                    (:file "defkernel")
-                   (:file "timer"))))))
-  :perform (load-op :after (op c) (asdf:clear-system c)))
+                   (:file "timer")))))))

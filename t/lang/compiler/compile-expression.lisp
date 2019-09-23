@@ -180,7 +180,7 @@
 
 (let ((var-env (empty-variable-environment))
       (func-env (empty-function-environment)))
-  (is (compile-arithmetic '(+ 1 1 1) var-env func-env) "(1 + (1 + 1))"
+  (is (compile-arithmetic '(+ 1 1 1) var-env func-env) "((1 + 1) + 1)"
       "basic case 1"))
 
 

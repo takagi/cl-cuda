@@ -270,6 +270,26 @@ Compiled:
       return 1.0;
     }
 
+### MACROLET statement
+
+    MACROLET ({(name lambda-list local-form*)}*) statement*
+
+`macrolet` establishes local macro definitions, using the same format as `defkernelmacro`, and executes a series of `statement`s with these definition bindings.
+
+Example:
+
+    (macrolet ((square (a)
+                 (if (numberp a)
+                     (* a a)
+                     `(* ,a ,a))))
+      (return (square 2)))
+
+Compiled:
+
+    {
+      return 4;
+    }
+
 ### DO statement
 
     DO ({(var init-form step-form)}*) (test-form) statement*
@@ -401,13 +421,13 @@ The initial state is its entry point. The compiled state is a state where kernel
 
 Following illustrates the kernel manager's state transfer.
 
-    　    compile-module        load-module            load-function
-    　  =================>    =================>     =================>
-    　I                    II                    III                    IV
-    　  <=================    <=================
-    　    define-function     <========================================
-    　    define-macro          unload
-    　    define-symbol-macro
+          compile-module        load-module            load-function
+        =================>    =================>     =================>
+      I                    II                    III                    IV
+        <=================    <=================
+          define-function     <========================================
+          define-macro          unload
+          define-symbol-macro
           define-global
 
 `kernel-manager-compile-module` function compiles defined kernel functions into a CUDA kernel module. `kernel-manager-load-module` function loads the obtained kernel module. `kernel-manager-load-function` function loads each kernel function in the kernel module.
