@@ -480,4 +480,4 @@ Copyright (c) 2012 Masayuki Takagi (kamonama@gmail.com)
 
 ## License
 
-Licensed under the LLGPL License.
+Licensed under the MIT License.

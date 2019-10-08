@@ -6,7 +6,7 @@
 (defsystem "cl-cuda-interop"
   :version "0.1"
   :author "Masayuki Takagi"
-  :license "LLGPL"
+  :license "MIT"
   :depends-on (:cl-cuda :cl-opengl :cl-glu :cl-glut)
   :components ((:module "interop/src"
                 :serial t
