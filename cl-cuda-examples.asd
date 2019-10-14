@@ -5,7 +5,7 @@
 
 (defsystem "cl-cuda-examples"
   :author "Masayuki Takagi"
-  :license "LLGPL"
+  :license "MIT"
   :depends-on ("cl-cuda"
                "imago")
   :components ((:module "examples"

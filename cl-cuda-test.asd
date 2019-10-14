@@ -5,7 +5,7 @@
 
 (defsystem "cl-cuda-test"
   :author "Masayuki Takagi"
-  :license "LLGPL"
+  :license "MIT"
   :depends-on ("cl-cuda"
                "prove")
   :components ((:module "t"

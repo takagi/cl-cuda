@@ -5,7 +5,7 @@
 
 (defsystem "cl-cuda-interop-examples"
   :author "Masayuki Takagi"
-  :license "LLGPL"
+  :license "MIT"
   :depends-on ("cl-cuda-interop")
   :components ((:module "interop/examples"
                 :serial t
