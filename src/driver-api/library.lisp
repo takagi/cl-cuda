@@ -12,6 +12,7 @@
 ;;;
 
 (cffi:define-foreign-library libcuda
+  (:windows "nvcuda.dll")
   (:darwin (:framework "CUDA"))
   (:unix (:or "libcuda.so" "libcuda64.so")))
 
