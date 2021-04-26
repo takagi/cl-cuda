@@ -3,7 +3,7 @@
   Copyright (c) 2014 Masayuki Takagi (kamonama@gmail.com)
 |#
 
-
+(pkg-config-cflags "cuda" :optional t)
 (in-package :cl-cuda.driver-api)
 
 
