@@ -294,7 +294,7 @@ Compiled:
 
     DO ({(var init-form step-form)}*) (test-form) statement*
 
-`do` iterates over a group of `statement`s while `test-form` holds. `do` accepts an arbitrary number of iteration `var`s and their initial values are supplied by `init-form`s. `step-form`s supply how the `var`s should be updated on succeeding iterations through the loop.
+`do` iterates over a group of `statement`s until `test-form` holds. `do` accepts an arbitrary number of iteration `var`s and their initial values are supplied by `init-form`s. `step-form`s supply how the `var`s should be updated on succeeding iterations through the loop.
 
 Example:
 
@@ -383,14 +383,14 @@ Compiled:
 
 The following figure illustrates cl-cuda's overall architecture.
 
-                       +---------------------------------+-----------+-----------+
+                       +---------------------------------|-----------|-----------+
                        | defkernel                       | memory    | context   |
            cl-cuda.api +---------------------------------+           |           |
                        | kernel-manager                  |           |           |
-                       +---------------------------------+-----------+-----------+
-                       +----------------------------+----------------------------+
+                       +---------------------------------|-----------|-----------+
+                       +----------------------------|----------------------------+
           cl-cuda.lang | Kernel description lang.   | the Compiler               |
-                       +----------------------------+----------------------------+
+                       +----------------------------|----------------------------+
                        +---------------------------------------------------------+
     cl-cuda.driver-api | driver-api                                              |
                        +---------------------------------------------------------+
