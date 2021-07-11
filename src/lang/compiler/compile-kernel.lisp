@@ -89,9 +89,11 @@
 (defun compile-includes ()
   "#include \"int.h\"
 #include \"float.h\"
+#include \"float2.h\"
 #include \"float3.h\"
 #include \"float4.h\"
 #include \"double.h\"
+#include \"double2.h\"
 #include \"double3.h\"
 #include \"double4.h\"
 #include \"curand.h\"
