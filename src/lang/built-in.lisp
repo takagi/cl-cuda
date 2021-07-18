@@ -17,6 +17,8 @@
            :atomic-add
            :pointer
            :syncthreads
+           :float
+           :double
            :double-to-int-rn
            :dot
            :curand-init-xorwow
@@ -173,6 +175,8 @@
     ;; Synchronization functions
     syncthreads ((() void nil "__syncthreads"))
     ;; type casting intrinsics
+    float (((int) float nil "float"))  ; Function-style cast
+    double (((int) double nil "double"))  ; Function-style cast
     double-to-int-rn (((double) int nil "__double2int_rn"))
     ;; linear algebraic operators
     dot (((float3 float3) float nil "float3_dot")
